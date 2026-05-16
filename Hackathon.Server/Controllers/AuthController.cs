@@ -77,7 +77,7 @@ namespace SEALHackathon.Server.Controllers
                     new SigningCredentials(key,SecurityAlgorithms.HmacSha256);
 
                 var token =new JwtSecurityToken(claims: claims,expires:DateTime.Now.AddHours(2), signingCredentials:credentials);
-
+                var gay = 123;
 
 
 
