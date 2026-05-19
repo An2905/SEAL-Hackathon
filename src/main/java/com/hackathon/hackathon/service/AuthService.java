@@ -41,8 +41,24 @@ public class AuthService {
             }
 
             String role = rs.getString("role");
-
-            return "Login success - Role: " + role;
+            String status = rs.getString("status");
+            String msg = "";
+            //phan luong
+            if (status.equalsIgnoreCase("APPROVED")){
+                if (role.equalsIgnoreCase("COORDINATOR")) {
+                    msg = "Login success - Role: Staff";
+                } else if (role.equalsIgnoreCase("STUDENT_FPT") || role.equalsIgnoreCase("STUDENT_EXTERNAL")) {
+                    msg = "Login success - Role: Student";
+                }else if (role.equalsIgnoreCase("MENTOR")) {
+                    msg = "Login success - Role: Mentor";
+                }else if (role.equalsIgnoreCase("JUDGE_INTERNAL")) {
+                    msg = "Login success - Role: Judge";
+                }
+            }else{
+                msg = "Login Denied";
+            }
+            return msg;
+            
 
         } catch (Exception e) {
 
