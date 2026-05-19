@@ -1,5 +1,6 @@
 package com.hackathon.hackathon.controller;
 
+import com.hackathon.hackathon.dto.RegisterRequest;
 import com.hackathon.hackathon.dto.LoginRequest;
 import com.hackathon.hackathon.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,5 +18,11 @@ public class AuthController {
     public String login(@RequestBody LoginRequest request) {
 
         return authService.login(request);
+    }
+
+    @PostMapping("/register")
+    public String register(@RequestBody RegisterRequest request) {
+
+        return authService.Register(request);
     }
 }
