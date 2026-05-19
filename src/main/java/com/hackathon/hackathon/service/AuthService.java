@@ -25,6 +25,8 @@ private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public String login(LoginRequest request) {
 
+        int a = 123;
+
         try {
 
             String dbPassword = "";
