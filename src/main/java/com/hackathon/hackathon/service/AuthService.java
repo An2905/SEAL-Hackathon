@@ -8,6 +8,8 @@ import com.hackathon.hackathon.jwt.JwtUtil;
 
 import io.jsonwebtoken.Claims;
 
+
+import com.hackathon.hackathon.dto.UpdateProfileRequest;
 import com.hackathon.hackathon.dto.LoginRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -22,9 +24,9 @@ public class AuthService {
 private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
     @Autowired
     private DataSource dataSource;
-
+//#region LOGIN
     public String login(LoginRequest request) {
-
+        int a = 1234;
         try {
 
             String dbPassword = "";
@@ -84,6 +86,10 @@ private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
             return e.getMessage();
         }
     }
+
+// #endregion
+//#region REGISTER
+
 
 
     public String Register(RegisterRequest request) {
@@ -157,9 +163,8 @@ private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
         return "Registration successful";
     }
-
-
-
+//#endregion
+//#region UPDATE PASSWORD
         public String updatePassword(String authHeader, UpdatePasswordRequest request) {
             if (    authHeader == null || !authHeader.startsWith("Bearer ")) {
                 return "Dung co cau ban";
@@ -203,10 +208,63 @@ private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
         return "Password updated successfully.";
     }
+//#endregion
+
+//#region UPDATE PROFILE
+public String updateProfile(String authHeader, UpdateProfileRequest request) {
+    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        return "Invalid token";
+    }
 
 
 
 
+    Claims claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
+    String email = claims.getSubject();
+    String newFullName = request.getFullName();
+    String newUni = request.getUni();
+    String newStudentId = request.getStudentId();
+    String newEmail = request.getEmail();
+
+    String userId = "";
+    boolean checkMail = checkEmail(newEmail);
+    boolean checkStudentId = checkStudentId(newStudentId, newUni);
+    if (checkMail) {
+        return "Email already exists.";
+    }
+    if (checkStudentId) {
+        return "Student ID already exists.";
+    }
+
+
+
+
+    try {
+        Connection conn = dataSource.getConnection();
+        String sql = "UPDATE users SET full_name = ?, email = ? OUTPUT inserted.user_id WHERE email = ?";
+
+        PreparedStatement ps = conn.prepareStatement(sql);
+        ps.setString(1, newFullName);
+        ps.setString(2, newEmail);
+        ps.setString(3, email);
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()){
+            userId = rs.getString("user_id");
+        }
+
+        ps.close();
+        conn.close();
+
+    } catch (Exception e) {
+        return e.getMessage();
+    }
+
+    return "Profile updated successfully.";
+}       
+
+//#endregion
+//#region CHECK MAIL
     public boolean checkEmail(String email) {
         boolean check = false;
         try {
@@ -232,8 +290,9 @@ private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
         }
         return check;
     }
-
-    public boolean checkStudentId(String studentId, String Uni) {
+//#endregion   
+//#region CHECK STUDENT ID
+public boolean checkStudentId(String studentId, String Uni) {
         boolean check = false;
         try {
             
@@ -261,9 +320,12 @@ private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
         }
         return check;
     }
+//#endregion
 
 
 
+
+//#region CHECK OLDPASSWORD
     public boolean checkOldPassword(String email, String oldPassword) {
         boolean check = false;
         try {
@@ -295,3 +357,6 @@ private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     
 }
+// #endregion
+
+

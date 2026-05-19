@@ -1,5 +1,7 @@
 package com.hackathon.hackathon.controller;
 
+
+import com.hackathon.hackathon.dto.UpdateProfileRequest;
 import com.hackathon.hackathon.dto.UpdatePasswordRequest;
 import com.hackathon.hackathon.dto.RegisterRequest;
 import com.hackathon.hackathon.dto.LoginRequest;
@@ -33,4 +35,10 @@ public String updatePassword(@RequestHeader("Authorization")String authHeader,@R
 
     return authService.updatePassword(authHeader,request);
 }
+
+    @PutMapping("/updateprofile")
+    public String updateProfile(@RequestHeader("Authorization")String authHeader,@RequestBody UpdateProfileRequest request) {
+
+        return authService.updateProfile(authHeader,request);
+    }
 }
