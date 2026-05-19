@@ -1,5 +1,6 @@
 package com.hackathon.hackathon.controller;
 
+import com.hackathon.hackathon.dto.UpdatePasswordRequest;
 import com.hackathon.hackathon.dto.RegisterRequest;
 import com.hackathon.hackathon.dto.LoginRequest;
 import com.hackathon.hackathon.service.AuthService;
@@ -25,4 +26,11 @@ public class AuthController {
 
         return authService.Register(request);
     }
+
+
+    @PutMapping("/updatepassword")
+public String updatePassword(@RequestHeader("Authorization")String authHeader,@RequestBody UpdatePasswordRequest request) {
+
+    return authService.updatePassword(authHeader,request);
+}
 }

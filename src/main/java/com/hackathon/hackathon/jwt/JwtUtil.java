@@ -2,7 +2,7 @@ package com.hackathon.hackathon.jwt;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+
 
 import java.util.Date;
 
