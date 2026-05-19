@@ -26,7 +26,7 @@ private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
     private DataSource dataSource;
 //#region LOGIN
     public String login(LoginRequest request) {
-        int a = 1234;
+                int attempts = 0;
         try {
 
             String dbPassword = "";
