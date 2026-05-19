@@ -26,7 +26,6 @@ private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
     private DataSource dataSource;
 //#region LOGIN
     public String login(LoginRequest request) {
-                int attempts = 0;
         try {
 
             String dbPassword = "";
@@ -167,7 +166,7 @@ private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 //#region UPDATE PASSWORD
         public String updatePassword(String authHeader, UpdatePasswordRequest request) {
             if (    authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return "Dung co cau ban";
+                return "Invalid token";
             }
 
             String newPassword = request.getNewPassword();
@@ -209,7 +208,6 @@ private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
         return "Password updated successfully.";
     }
 //#endregion
-
 //#region UPDATE PROFILE
 public String updateProfile(String authHeader, UpdateProfileRequest request) {
     if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -225,14 +223,44 @@ public String updateProfile(String authHeader, UpdateProfileRequest request) {
     String newUni = request.getUni();
     String newStudentId = request.getStudentId();
     String newEmail = request.getEmail();
+    String studentId = "";
 
+    if (newFullName == null || newUni == null || newStudentId == null || newEmail == null) {
+        return "All fields are required.";
+    }
+    if (newFullName.isEmpty() || newUni.isEmpty() || newStudentId.isEmpty() || newEmail.isEmpty()) {
+        return "All fields are required.";
+    }
+
+    try {
+            Connection conn = dataSource.getConnection();
+            String sql3 = "SELECT * FROM [dbo].[users] LEFT JOIN [dbo].[studentProfile] ON [dbo].[users].user_id = [dbo].[studentProfile].user_id WHERE [dbo].[users].email = ?";
+
+            PreparedStatement ps3 = conn.prepareStatement(sql3);
+            ps3.setString(1, email);
+            ResultSet rs =  ps3.executeQuery();
+            if (rs.next()) {
+                studentId = rs.getString("student_code");
+            }
+
+            ps3.close();
+            conn.close();
+            rs.close();
+
+        } catch (Exception e) {
+            return e.getMessage();
+        }
+
+       
+    
     String userId = "";
+    String role = "";
     boolean checkMail = checkEmail(newEmail);
     boolean checkStudentId = checkStudentId(newStudentId, newUni);
-    if (checkMail) {
+    if (!newEmail.equalsIgnoreCase(email) && checkMail) {
         return "Email already exists.";
     }
-    if (checkStudentId) {
+    if (!newStudentId.equalsIgnoreCase(studentId) && checkStudentId) {
         return "Student ID already exists.";
     }
 
@@ -241,7 +269,7 @@ public String updateProfile(String authHeader, UpdateProfileRequest request) {
 
     try {
         Connection conn = dataSource.getConnection();
-        String sql = "UPDATE users SET full_name = ?, email = ? OUTPUT inserted.user_id WHERE email = ?";
+        String sql = "UPDATE users SET full_name = ?, email = ? OUTPUT inserted.user_id,inserted.role WHERE email = ?";
 
         PreparedStatement ps = conn.prepareStatement(sql);
         ps.setString(1, newFullName);
@@ -251,6 +279,7 @@ public String updateProfile(String authHeader, UpdateProfileRequest request) {
 
         if (rs.next()){
             userId = rs.getString("user_id");
+            role = rs.getString("role");
         }
 
         ps.close();
@@ -260,7 +289,26 @@ public String updateProfile(String authHeader, UpdateProfileRequest request) {
         return e.getMessage();
     }
 
-    return "Profile updated successfully.";
+    if (role.equalsIgnoreCase("STUDENT_FPT") || role.equalsIgnoreCase("STUDENT_EXTERNAL")) {
+        try {
+            Connection conn = dataSource.getConnection();
+            String sql2 = "UPDATE studentProfile SET student_code = ?, university_name = ? WHERE user_id = ?";
+
+            PreparedStatement ps2 = conn.prepareStatement(sql2);
+            ps2.setString(1, newStudentId);
+            ps2.setString(2, newUni);
+            ps2.setString(3, userId);
+            ps2.executeUpdate();
+            ps2.close();
+            conn.close();
+        } catch (Exception e) {
+            return e.getMessage();
+        }
+
+    }
+    String token = JwtUtil.generateToken(newEmail, role);
+
+    return "Profile updated successfully.\n" + "New Token: " + token;
 }       
 
 //#endregion
@@ -278,12 +326,13 @@ public String updateProfile(String authHeader, UpdateProfileRequest request) {
 
             ResultSet rs = ps.executeQuery();
 
-            ps.close();
-            conn.close();
+            
 
             if(rs.next()){
                 check = true;
             }
+            ps.close();
+            conn.close();
 
         } catch (Exception e) {
             check = false;
@@ -308,12 +357,12 @@ public boolean checkStudentId(String studentId, String Uni) {
 
             ResultSet rs = ps.executeQuery();
 
-            ps.close();
-            conn.close();
-
+            
             if(rs.next()){
                 check = true;
             }
+            ps.close();
+            conn.close();
 
         } catch (Exception e) {
             check = false;
