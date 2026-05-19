@@ -1,0 +1,21 @@
+package com.hackathon.hackathon.controller;
+
+import com.hackathon.hackathon.dto.LoginRequest;
+import com.hackathon.hackathon.service.AuthService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/auth")
+@CrossOrigin("*")
+public class AuthController {
+
+    @Autowired
+    private AuthService authService;
+
+    @PostMapping("/login")
+    public String login(@RequestBody LoginRequest request) {
+
+        return authService.login(request);
+    }
+}
