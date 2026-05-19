@@ -1,6 +1,7 @@
 package com.hackathon.hackathon.service;
 
 import com.hackathon.hackathon.dto.RegisterRequest;
+import com.hackathon.hackathon.jwt.JwtUtil;
 import com.hackathon.hackathon.dto.LoginRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -46,15 +47,21 @@ public class AuthService {
             String msg = "";
             //phan luong
             if (status.equalsIgnoreCase("APPROVED")){
+                String token = JwtUtil.generateToken(request.getEmail(),role);
+
                 if (role.equalsIgnoreCase("COORDINATOR")) {
-                    msg = "Login success - Role: Staff";
+                    msg = "Login success - Role: Staff \nToken: " + token;
                 } else if (role.equalsIgnoreCase("STUDENT_FPT") || role.equalsIgnoreCase("STUDENT_EXTERNAL")) {
-                    msg = "Login success - Role: Student";
+                    msg = "Login success - Role: Student \nToken: " + token;
                 }else if (role.equalsIgnoreCase("MENTOR")) {
-                    msg = "Login success - Role: Mentor";
+                    msg = "Login success - Role: Mentor \nToken: " + token;
                 }else if (role.equalsIgnoreCase("JUDGE_INTERNAL")) {
-                    msg = "Login success - Role: Judge";
+                    msg = "Login success - Role: Judge \nToken: " + token;
                 }
+
+                
+
+
             }else{
                 msg = "Login Denied";
             }
@@ -181,7 +188,7 @@ public class AuthService {
             PreparedStatement ps = conn.prepareStatement(sql);
 
             ps.setString(1, studentId);
-            
+
             ps.setString(2, Uni);
 
             ResultSet rs = ps.executeQuery();
