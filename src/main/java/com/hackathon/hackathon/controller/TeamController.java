@@ -1,6 +1,6 @@
 package com.hackathon.hackathon.controller;
 
-
+import com.hackathon.hackathon.dto.DeleteTeamMemberRequest;
 import com.hackathon.hackathon.dto.JoinTeamRequest;
 import com.hackathon.hackathon.dto.CreateTeamRequest;
 import com.hackathon.hackathon.service.TeamService;
@@ -29,6 +29,12 @@ public class TeamController {
     public String joinTeam(@RequestHeader("Authorization")String authHeader,@RequestBody JoinTeamRequest request) {
 
         return teamService.joinTeam(authHeader,request);
+    }
+
+    @DeleteMapping("/delete-member")
+    public String deleteTeamMember(@RequestHeader("Authorization")String authHeader,@RequestBody DeleteTeamMemberRequest request) {
+
+        return teamService.deleteTeamMember(authHeader,request);
     }
 
 }

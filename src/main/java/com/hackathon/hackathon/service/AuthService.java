@@ -24,68 +24,61 @@ private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
     @Autowired
     private DataSource dataSource;
 //#region LOGIN
-    public String login(LoginRequest request) {
-        try {
 
-            String dbPassword = "";
+public String login(LoginRequest request) {
 
-            Connection conn = dataSource.getConnection();
+    try {
 
-            String sql = "SELECT * FROM users WHERE email = ?";
-
-            PreparedStatement ps = conn.prepareStatement(sql);
-
-            ps.setString(1, request.getEmail());
-
-            ResultSet rs = ps.executeQuery();
-
-            if(!rs.next()) {
-                return "Email not found";
-            }
-                dbPassword = rs.getString("password_hash");
-  
-            String inputPassword = request.getPassword();
-
-            System.out.println("Input Password: " + inputPassword);
-   
-
-            if(!encoder.matches(inputPassword, dbPassword)) {
-                return "Wrong password";
-            }
-
-            String role = rs.getString("role");
-            String status = rs.getString("status");
-            String msg = "";
-            //phan luong
-            if (status.equalsIgnoreCase("APPROVED")){
-                String token = JwtUtil.generateToken(request.getEmail(),role);
-
-                if (role.equalsIgnoreCase("COORDINATOR")) {
-                    msg = "Login success - Role: Staff \nToken: " + token;
-                } else if (role.equalsIgnoreCase("STUDENT_FPT") || role.equalsIgnoreCase("STUDENT_EXTERNAL")) {
-                    msg = "Login success - Role: Student \nToken: " + token;
-                }else if (role.equalsIgnoreCase("MENTOR")) {
-                    msg = "Login success - Role: Mentor \nToken: " + token;
-                }else if (role.equalsIgnoreCase("JUDGE_INTERNAL")) {
-                    msg = "Login success - Role: Judge \nToken: " + token;
-                }
-
-                
-
-
-            }else{
-                msg = "Login Denied";
-            }
-            return msg;
-            
-
-        } catch (Exception e) {
-
-            return e.getMessage();
+        Connection conn = dataSource.getConnection();
+        String sql = "SELECT * FROM users WHERE email = ?";
+        PreparedStatement ps = conn.prepareStatement(sql);
+        ps.setString(1, request.getEmail());
+        ResultSet rs = ps.executeQuery();
+        if (!rs.next()) {
+            return "Email not found";
         }
-    }
+        String dbPassword = rs.getString("password_hash");
+        if (!encoder.matches(request.getPassword(), dbPassword)) {
+            return "Wrong password";
+        }
+        String userId = rs.getString("user_id");
+        String role = rs.getString("role");
+        String status = rs.getString("status");
+        rs.close();
+        ps.close();
+        conn.close();
 
-// #endregion
+        if (!status.equalsIgnoreCase("APPROVED")) {
+            return "Login Denied";
+        }
+
+        String token = JwtUtil.generateToken(request.getEmail(), role, userId);
+
+        if (role.equalsIgnoreCase("COORDINATOR")) {
+            return "Login success - Role: Staff\nToken: " + token;
+        } 
+        
+        else if (role.equalsIgnoreCase("STUDENT_FPT") || role.equalsIgnoreCase("STUDENT_EXTERNAL")) {
+            return "Login success - Role: Student\nToken: " + token;
+        } 
+        
+        else if (role.equalsIgnoreCase("MENTOR")) {
+            return "Login success - Role: Mentor\nToken: " + token;
+        } 
+        
+        else if (role.equalsIgnoreCase("JUDGE_INTERNAL")) {
+            return "Login success - Role: Judge\nToken: " + token;
+        }
+
+        return "Login success";
+
+    } catch (Exception e) {
+
+        return e.getMessage();
+    }
+}
+
+//#endregion
 //#region REGISTER
 
 
@@ -305,7 +298,7 @@ public String updateProfile(String authHeader, UpdateProfileRequest request) {
         }
 
     }
-    String token = JwtUtil.generateToken(newEmail, role);
+    String token = JwtUtil.generateToken(newEmail, role, userId);
 
     return "Profile updated successfully.\n" + "New Token: " + token;
 }       
@@ -369,11 +362,7 @@ public boolean checkStudentId(String studentId, String Uni) {
         return check;
     }
 //#endregion
-
-
-
-
-//#region CHECK OLDPASSWORD
+//#region CHECK PASSWORD
     public boolean checkOldPassword(String email, String oldPassword) {
         boolean check = false;
         try {
@@ -402,8 +391,8 @@ public boolean checkStudentId(String studentId, String Uni) {
         }
         return check;
     }
-
-    //#region POSTMAN CONNECTION TEST
+   // #endregion
+//#region POSTMAN CONNECTION TEST
     public String testConnection() {
         return "Connection successful";
     }

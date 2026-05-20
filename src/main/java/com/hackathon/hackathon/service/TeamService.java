@@ -1,5 +1,6 @@
 package com.hackathon.hackathon.service;
 
+import com.hackathon.hackathon.dto.DeleteTeamMemberRequest;
 import com.hackathon.hackathon.dto.CreateTeamRequest;
 import com.hackathon.hackathon.dto.JoinTeamRequest;
 
@@ -22,26 +23,27 @@ public class TeamService {
     private DataSource dataSource;
 
 
-    //#region CREATE TEAM
+//#region CREATE TEAM
         public String createTeam(String authHeader, CreateTeamRequest request) {
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 return "Invalid token";
             }
             String teamId = "";
-            String userId = "";
 
             
 
-            String teamName = request.getTeamName().trim();
+            String teamName = request.getTeamName();
             if (teamName == null || teamName.trim().isEmpty()) {
                 return "Team name cannot be empty.";
             }
+            teamName = teamName.trim();
             String enrollCode = String.valueOf(System.currentTimeMillis());
             enrollCode = enrollCode.substring(enrollCode.length() - 8);
 
 
             Claims claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
             String email = claims.getSubject();
+            String userId = claims.get("userId", String.class);
             String roleString = claims.get("role", String.class);
 
             if (!roleString.equalsIgnoreCase("STUDENT_FPT") && !roleString.equalsIgnoreCase("STUDENT_EXTERNAL")) {
@@ -52,25 +54,7 @@ public class TeamService {
                 return "Team name already exists. Please choose a different name.";
             }
 
-            try {
-                Connection conn = dataSource.getConnection();
-            String sql = "SELECT user_id FROM users WHERE email = ?";
-
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setString(1, email);
-            ResultSet rs = ps.executeQuery();
-
-            if (rs.next()) {
-                userId = rs.getString("user_id");
-            }
-            rs.close();
-            ps.close();
-            conn.close();
             
-            } catch (Exception e) {
-                return e.getMessage();
-                
-            }
 
             if(checkDuplicateMember(userId)) {
                 return "You have already joined a team. You cannot create a team.";          
@@ -115,15 +99,10 @@ public class TeamService {
             + " enrollCode: "
             + enrollCode;
 
-
-
-        
-
         
     }
     //#endregion
-
-    //#region JOIN TEAM
+//#region JOIN TEAM
     public String joinTeam(String authHeader, JoinTeamRequest request) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 return "Invalid token";
@@ -132,42 +111,21 @@ public class TeamService {
             return "Enroll code cannot be empty.";
         }
             String teamId = "";
-            String userId = "";
+             
             String enrollCode = request.getEnrollCode().trim();
             Claims claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
             String email = claims.getSubject();
+            String userId = claims.get("userId", String.class);
             String roleString = claims.get("role", String.class);
 
             if (!roleString.equalsIgnoreCase("STUDENT_FPT") && !roleString.equalsIgnoreCase("STUDENT_EXTERNAL")) {
                 return "Only students can join teams.";
             }
-
-            try {
-                Connection conn = dataSource.getConnection();
-            String sql = "SELECT user_id FROM users WHERE email = ?";
-
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setString(1, email);
-            ResultSet rs = ps.executeQuery();
-
-            if (rs.next()) {
-                userId = rs.getString("user_id");
-            }
-            rs.close();
-            ps.close();
-            conn.close();
-            
-            } catch (Exception e) {
-                return e.getMessage();
-                
-            }
-
             if(checkDuplicateMember(userId)){
                 return "You have already joined a team. You cannot join another team.";
             }
 
             try {
-
                 Connection conn = dataSource.getConnection();
                 String sql = "SELECT team_id FROM teams WHERE enrollCode = ? AND status = 'ACTIVE'";
                 PreparedStatement ps = conn.prepareStatement(sql);
@@ -203,6 +161,60 @@ public class TeamService {
             
 
         return "Join team successfully \n Team ID: " + teamId + "\n User email: " + email;
+    }
+//#endregion
+//#region DEL TEAM MEMBER
+    public String deleteTeamMember(String authHeader, DeleteTeamMemberRequest request) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return "Invalid token";
+            }
+        Claims claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
+        String userId = claims.get("userId", String.class);
+        String roleString = claims.get("role", String.class);
+        String teamId = "";
+        if (!roleString.equalsIgnoreCase("STUDENT_FPT") && !roleString.equalsIgnoreCase("STUDENT_EXTERNAL")) {
+            return "Only students can delete team members.";
+        }
+
+        try {
+            
+            Connection conn = dataSource.getConnection();
+                String sql = "SELECT team_id FROM teams WHERE leader_id = ?";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setString(1, userId);
+                ResultSet rs = ps.executeQuery();
+
+                if (!rs.next()) {
+                    conn.close();
+                    return "Only team leaders can delete team members.";
+                }
+
+                teamId = rs.getString("team_id");
+                rs.close();
+                ps.close();
+                if (request.getMemberId().equals(userId)) {
+                    conn.close();
+                    return "Leader cannot remove themselves.";
+                }
+                String sql2 = "DELETE FROM team_members WHERE user_id = ? AND team_id = ?";
+                PreparedStatement ps2 = conn.prepareStatement(sql2);
+                ps2.setString(1, request.getMemberId());
+                ps2.setString(2, teamId);
+                int rowsAffected = ps2.executeUpdate();
+
+                if (rowsAffected == 0) {
+                    conn.close();
+                    return "Delete Failed";
+                }
+                ps2.close();
+                conn.close();
+
+
+        } catch (Exception e) {
+            return "Delete team member failed.";
+        }
+
+        return "Delete team member successfully";
     }
     //#endregion
 //#region CHECK TEAM NAME DUPLICATE
