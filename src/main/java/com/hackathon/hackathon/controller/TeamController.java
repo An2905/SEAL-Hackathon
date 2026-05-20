@@ -1,0 +1,27 @@
+package com.hackathon.hackathon.controller;
+
+
+
+import com.hackathon.hackathon.dto.CreateTeamRequest;
+import com.hackathon.hackathon.service.TeamService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+
+
+
+@RestController
+@RequestMapping("/api/team")
+@CrossOrigin("*")
+public class TeamController {
+
+    @Autowired
+    private TeamService teamService;
+
+    @PutMapping("/create")
+public String createTeam(@RequestHeader("Authorization")String authHeader,@RequestBody CreateTeamRequest request) {
+
+    return teamService.createTeam(authHeader,request);
+}
+
+}

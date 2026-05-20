@@ -5,7 +5,6 @@ import com.hackathon.hackathon.dto.UpdatePasswordRequest;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import com.hackathon.hackathon.dto.RegisterRequest;
 import com.hackathon.hackathon.jwt.JwtUtil;
-
 import io.jsonwebtoken.Claims;
 
 
