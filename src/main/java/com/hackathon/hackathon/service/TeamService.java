@@ -202,7 +202,7 @@ public class TeamService {
             }
             
 
-        return "Join team: " + teamId + " successfully";
+        return "Join team successfully \n Team ID: " + teamId + "\n User email: " + email;
     }
     //#endregion
 //#region CHECK TEAM NAME DUPLICATE
