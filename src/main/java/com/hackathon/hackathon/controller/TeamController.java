@@ -4,6 +4,7 @@ import com.hackathon.hackathon.dto.DeleteTeamMemberRequest;
 import com.hackathon.hackathon.dto.JoinTeamRequest;
 import com.hackathon.hackathon.dto.CreateTeamRequest;
 import com.hackathon.hackathon.service.TeamService;
+import com.hackathon.hackathon.dto.JoinEventRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -37,4 +38,11 @@ public class TeamController {
         return teamService.deleteTeamMember(authHeader,request);
     }
 
+
+    @PutMapping("/join-event")
+    public String joinEvent(@RequestHeader("Authorization")String authHeader,@RequestBody JoinEventRequest request) {
+
+        return teamService.joinEvent(authHeader,request);
+    }
+   
 }

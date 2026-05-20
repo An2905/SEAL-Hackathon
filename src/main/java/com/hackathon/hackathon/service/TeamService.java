@@ -3,7 +3,7 @@ package com.hackathon.hackathon.service;
 import com.hackathon.hackathon.dto.DeleteTeamMemberRequest;
 import com.hackathon.hackathon.dto.CreateTeamRequest;
 import com.hackathon.hackathon.dto.JoinTeamRequest;
-
+import com.hackathon.hackathon.dto.JoinEventRequest;
 
 import com.hackathon.hackathon.jwt.JwtUtil;
 import io.jsonwebtoken.Claims;
@@ -269,6 +269,147 @@ public class TeamService {
         return isDuplicate;
     }
 //#endregion
+//#region TEAM JOIN EVENT
+    public String joinEvent(String authHeader, JoinEventRequest request) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return "Invalid token";
+            }
+        if (request.getEventId() == null|| request.getCategoryId() == null|| request.getEventId().trim().isEmpty()||request.getCategoryId().trim().isEmpty()) {
+            return "Event ID and Category ID are required.";
+        }
+        
+        Claims claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
+        String userId = claims.get("userId", String.class);
+        String roleString = claims.get("role", String.class);
+        String teamId = "";
+        String eventId = request.getEventId().trim();
+        String categoryId = request.getCategoryId().trim();
+        if (!roleString.equalsIgnoreCase("STUDENT_FPT") && !roleString.equalsIgnoreCase("STUDENT_EXTERNAL")) {
+            return "Only students can join events.";
+        }
+        
 
+        try {
+            
+            Connection conn = dataSource.getConnection();
+                String sql = "SELECT team_id FROM teams WHERE leader_id = ?";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setString(1, userId);
+                ResultSet rs = ps.executeQuery();
 
+                if (!rs.next()) {
+                    conn.close();
+                    return "You are not in a team / Only team leaders can join events.";
+                }
+
+                teamId = rs.getString("team_id");
+                rs.close();
+                ps.close();
+
+                if(!checkEventExists(eventId)) {
+                    conn.close();
+                    return "Event is not valid / not ready";    
+                }
+                if(checkTeamJoinEventDuplicate(teamId, eventId)) {
+                    conn.close();
+                    return "Your team has already joined this event.";
+                   
+                }
+                if(!checkCategoryExists(eventId, categoryId)){
+                    conn.close();
+                    return "Category is not valid";    
+                }
+
+                String sql2 = "INSERT INTO team_registrations (event_id, team_id, category_id) VALUES (?, ?, ?)";
+                PreparedStatement ps2 = conn.prepareStatement(sql2);
+                ps2.setString(1, eventId);
+                ps2.setString(2, teamId);
+                ps2.setString(3, categoryId);
+                ps2.executeUpdate();
+                ps2.close();
+                conn.close();
+            } catch (Exception e) {
+                return "Join event failed.";
+            }
+        return "Join event successfully";
+    }
+//#endregion
+//#region CHECK TEAM JOIN EVENT DUPLICATE
+    public boolean checkTeamJoinEventDuplicate(String teamId, String eventId) {
+        boolean isDuplicate = false;
+        try {
+                Connection conn = dataSource.getConnection();
+            String sql = "SELECT * FROM [dbo].[team_registrations] WHERE team_id = ? AND event_id = ?";
+
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setString(1, teamId);
+            ps.setString(2, eventId);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                isDuplicate = true;
+            }
+            rs.close();
+            ps.close();
+            conn.close();
+            
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        return isDuplicate;
+    }
+//#endregion
+//region CHECK CATEGORY EXISTS
+    public boolean checkCategoryExists(String eventId, String categoryId) { 
+        boolean exists = false;
+        try {
+                Connection conn = dataSource.getConnection();
+            String sql = "select * from [dbo].[categories] where event_id = ? AND category_id = ? ";
+
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setString(1, eventId);
+            ps.setString(2, categoryId);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                exists = true;
+            }
+            rs.close();
+            ps.close();
+            conn.close();
+            
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        return exists;
+    }
+//#endregion
+//region CHECK EVENT EXISTS
+    public boolean checkEventExists(String eventId) { 
+        boolean exists = false;
+        try {
+                Connection conn = dataSource.getConnection();
+            String sql = "select status from [dbo].[events] where event_id = ?";
+
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setString(1, eventId);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                if(rs.getString("status").equalsIgnoreCase("UPCOMING")) {
+                    exists = true;
+                }
+                
+            }
+            rs.close();
+            ps.close();
+            conn.close();
+            
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        return exists;
+    }
+
+    //endregion
 }
