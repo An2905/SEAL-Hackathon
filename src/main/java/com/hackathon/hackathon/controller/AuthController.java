@@ -29,6 +29,12 @@ public class AuthController {
         return authService.Register(request);
     }
 
+    @PostMapping("/test")
+    public String testConnection() {
+
+        return authService.testConnection();
+    }
+
 
     @PutMapping("/updatepassword")
 public String updatePassword(@RequestHeader("Authorization")String authHeader,@RequestBody UpdatePasswordRequest request) {

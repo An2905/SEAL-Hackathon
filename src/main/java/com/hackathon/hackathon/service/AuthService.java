@@ -403,8 +403,12 @@ public boolean checkStudentId(String studentId, String Uni) {
         return check;
     }
 
-    
+    //#region POSTMAN CONNECTION TEST
+    public String testConnection() {
+        return "Connection successful";
+    }
+    // #endregion
+
 }
-// #endregion
 
 
