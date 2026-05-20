@@ -31,10 +31,13 @@ public class TeamService {
 
             
 
-            String teamName = request.getTeamName();
+            String teamName = request.getTeamName().trim();
             if (teamName == null || teamName.trim().isEmpty()) {
                 return "Team name cannot be empty.";
             }
+            String enrollCode = String.valueOf(System.currentTimeMillis());
+            enrollCode = enrollCode.substring(enrollCode.length() - 8);
+
 
             Claims claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
             String email = claims.getSubject();
@@ -75,10 +78,11 @@ public class TeamService {
             try {
 
                 Connection conn = dataSource.getConnection();
-                String sql = "INSERT INTO teams (team_name, leader_id, status) OUTPUT inserted.team_id VALUES (?, ?, 'ACTIVE')";
+                String sql = "INSERT INTO teams (team_name, leader_id, status, enrollCode) OUTPUT inserted.team_id VALUES (?, ?, 'ACTIVE', ?)";
                 PreparedStatement ps = conn.prepareStatement(sql);
                 ps.setString(1, teamName);
                 ps.setString(2, userId);
+                ps.setString(3, enrollCode);
                 ResultSet rs = ps.executeQuery();
 
                 if (rs.next()) {
@@ -106,7 +110,9 @@ public class TeamService {
             "Added Team "
             + teamName
             + " for user "
-            + email;
+            + email
+            + " enrollCode: "
+            + enrollCode;
 
 
 
