@@ -4,6 +4,8 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import java.util.Date;
 
+
+//added userId to jwt payload
 public class JwtUtil {
 
     private static final String SECRET_KEY = "AintnowayoutofhereNowayoutofhereMmmhnoNowayoutofhereNowayoutofhereOhaintnowayoutofhereTheniggasongIneedthissongIdroppedtheEaddedtheAandkilledtheRTohealmyscarsDontsingalongUnlessyourpeoplehungfromtreesIhatethissongTillIdroppedtheEaddedtheAandIkilledtheROhaniggasongOhaniggasongUnlessyourpeoplehungfromtreesAndslavedtilldawn";
