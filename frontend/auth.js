@@ -180,9 +180,16 @@ function mountDashboardHeader(hostSelector, { roleLabel }) {
     host.innerHTML = `
         <div class="nav-container">
             <a href="index.html" class="brand">
-                <span class="brand-mark">H</span>
-                <span class="brand-text">Hackathon<span>Hub</span></span>
+                <img src="assets/images/fpt-logo.png" alt="FPT University" class="brand-logo" />
+                <span class="brand-divider"></span>
+                <span class="brand-text">
+                    <strong>SEAL Hackathon</strong>
+                    <small>Spring 2026</small>
+                </span>
             </a>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">Trang chủ</a>
+            </div>
             <div class="nav-user">
                 <span class="role-pill role-${roleLabel.toLowerCase()}">${roleLabel}</span>
                 <div class="user-chip">
@@ -201,6 +208,77 @@ function mountDashboardHeader(hostSelector, { roleLabel }) {
         showToast("Đã đăng xuất", "success");
         setTimeout(() => window.location.replace("index.html"), 400);
     });
+}
+
+// ============== SITE FOOTER ==============
+/**
+ * Inject the standard SEAL Hackathon footer. Call after DOMContentLoaded.
+ * Pass a selector ("#footerHost") or omit to append <footer> to <body>.
+ */
+function mountSiteFooter(hostSelector) {
+    const html = `
+        <footer class="site-footer">
+            <div class="footer-inner">
+                <div class="footer-col">
+                    <a href="index.html" class="footer-brand">
+                        <img src="assets/images/fpt-logo.png" alt="FPT University" class="brand-logo" />
+                        <span class="brand-text">
+                            <strong>SEAL Hackathon</strong>
+                            <small>Software Engineering · Agile League</small>
+                        </span>
+                    </a>
+                    <p class="footer-about">
+                        Sân chơi học thuật và trải nghiệm công nghệ dành cho sinh viên ngành CNTT
+                        tại trường Đại học FPT và các trường trên địa bàn TP.HCM. Mỗi năm tổ chức
+                        03 mùa Hackathon: Spring – Summer – Fall.
+                    </p>
+                </div>
+
+                <div class="footer-col">
+                    <h4>Cuộc thi</h4>
+                    <ul class="footer-list">
+                        <li><a href="index.html#about">Giới thiệu</a></li>
+                        <li><a href="index.html#schedule">Lịch trình</a></li>
+                        <li><a href="index.html#gallery">Khoảnh khắc</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-col">
+                    <h4>Đối tượng</h4>
+                    <ul class="footer-list">
+                        <li>Sinh viên Đại học FPT TP.HCM</li>
+                        <li>Sinh viên các trường ĐH tại TP.HCM</li>
+                        <li>Mỗi đội: 3 – 5 thành viên</li>
+                    </ul>
+                </div>
+
+                <div class="footer-col">
+                    <h4>Liên hệ</h4>
+                    <ul class="footer-list">
+                        <li>
+                            <strong>Thầy Trương Long</strong>
+                            <a class="mail" href="mailto:longt5@fe.edu.vn">longt5@fe.edu.vn</a>
+                        </li>
+                        <li>
+                            <strong>Cô Lê Thị Diệu Ân</strong>
+                            <a class="mail" href="mailto:anltd3@fe.edu.vn">anltd3@fe.edu.vn</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <span>© 2026 SEAL Hackathon — Bộ môn Kỹ thuật phần mềm, Trường Đại học FPT.</span>
+                <span>Made with care by the SEAL team.</span>
+            </div>
+        </footer>
+    `;
+    const host = hostSelector ? document.querySelector(hostSelector) : null;
+    if (host) {
+        host.outerHTML = html;
+    } else {
+        document.body.insertAdjacentHTML("beforeend", html);
+    }
 }
 
 // ============== SHARED PROFILE / PASSWORD MODALS ==============

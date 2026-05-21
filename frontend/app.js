@@ -27,19 +27,33 @@ const els = {
     userEmail: document.getElementById("userEmail"),
     userRole: document.getElementById("userRole"),
     btnLogout: document.getElementById("btnLogout"),
+    btnGoDashboard: document.getElementById("btnGoDashboard"),
+    heroCta: document.getElementById("heroCta"),
+};
+
+const DashboardLabel = {
+    Student: "Trang Sinh viên",
+    Staff: "Trang Staff",
+    Mentor: "Trang Mentor",
+    Judge: "Trang Giám khảo",
 };
 
 function refreshHomeAuthUI() {
     const { token, email, role } = Auth.get();
     if (token && email) {
-        els.navActions.classList.add("hidden");
-        els.navUser.classList.remove("hidden");
-        els.userEmail.textContent = email;
-        els.userRole.textContent = role || "USER";
-        els.userAvatar.textContent = (email[0] || "U").toUpperCase();
+        els.navActions?.classList.add("hidden");
+        els.navUser?.classList.remove("hidden");
+        if (els.userEmail) els.userEmail.textContent = email;
+        if (els.userRole) els.userRole.textContent = role || "USER";
+        if (els.userAvatar) els.userAvatar.textContent = (email[0] || "U").toUpperCase();
+        if (els.btnGoDashboard) {
+            els.btnGoDashboard.textContent = DashboardLabel[role] || "Vào dashboard";
+        }
+        if (els.heroCta) els.heroCta.classList.add("hidden");
     } else {
-        els.navActions.classList.remove("hidden");
-        els.navUser.classList.add("hidden");
+        els.navActions?.classList.remove("hidden");
+        els.navUser?.classList.add("hidden");
+        if (els.heroCta) els.heroCta.classList.remove("hidden");
     }
 }
 
@@ -141,12 +155,8 @@ async function handleRegister(e) {
 }
 
 function init() {
-    // If already logged in, jump straight to dashboard
-    const { token, role } = Auth.get();
-    if (token && role) {
-        redirectToDashboard(role);
-        return;
-    }
+    // Note: Logged-in users CAN still browse the home page.
+    // They get a "Vào dashboard" button instead of being auto-redirected.
 
     els.btnOpenLogin?.addEventListener("click", () => openModal("loginModal"));
     els.btnOpenRegister?.addEventListener("click", () => openModal("registerModal"));
@@ -186,6 +196,11 @@ function init() {
         Auth.clear();
         refreshHomeAuthUI();
         showToast("Đã đăng xuất", "success");
+    });
+
+    els.btnGoDashboard?.addEventListener("click", () => {
+        const { role } = Auth.get();
+        if (role) redirectToDashboard(role);
     });
 
     refreshHomeAuthUI();

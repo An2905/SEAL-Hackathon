@@ -3,6 +3,7 @@
     if (!session) return;
 
     mountDashboardHeader("#navHost", { roleLabel: "Mentor" });
+    mountSiteFooter();
     const modals = mountProfileModals({ showProfileFields: false });
 
     document.getElementById("welcomeName").textContent = session.email;

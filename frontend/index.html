@@ -3,16 +3,27 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hackathon Platform - Trang chủ</title>
+    <title>SEAL Hackathon Spring 2026</title>
     <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
     <nav class="navbar">
         <div class="nav-container">
             <a href="#" class="brand">
-                <span class="brand-mark">H</span>
-                <span class="brand-text">Hackathon<span>Hub</span></span>
+                <img src="assets/images/fpt-logo.png" alt="FPT University" class="brand-logo" />
+                <span class="brand-divider"></span>
+                <span class="brand-text">
+                    <strong>SEAL Hackathon</strong>
+                    <small>Spring 2026</small>
+                </span>
             </a>
+
+            <div class="nav-links">
+                <a href="#about" class="nav-link">Giới thiệu</a>
+                <a href="#schedule" class="nav-link">Lịch trình</a>
+                <a href="#gallery" class="nav-link">Khoảnh khắc</a>
+                <a href="#contact" class="nav-link">Liên hệ</a>
+            </div>
 
             <div class="nav-actions" id="navActions">
                 <button class="btn btn-ghost" id="btnOpenLogin">Đăng nhập</button>
@@ -20,6 +31,7 @@
             </div>
 
             <div class="nav-user hidden" id="navUser">
+                <button class="btn btn-primary" id="btnGoDashboard">Dashboard</button>
                 <div class="user-chip">
                     <div class="avatar" id="userAvatar">U</div>
                     <div class="user-meta">
@@ -34,53 +46,111 @@
 
     <main>
         <section class="hero">
-            <div class="hero-bg"></div>
-            <div class="hero-content">
-                <span class="badge">Hackathon Season 2026</span>
-                <h1>Nơi <span class="grad-text">ý tưởng</span> trở thành <span class="grad-text">sản phẩm</span></h1>
-                <p class="lead">
-                    Tham gia cộng đồng hackathon dành cho sinh viên FPT và sinh viên ngoài.
-                    Tạo đội, kết nối mentor, và chinh phục những thử thách công nghệ thú vị nhất.
-                </p>
-                <div class="hero-cta">
-                    <button class="btn btn-primary btn-lg" id="btnHeroRegister">Bắt đầu ngay</button>
-                    <button class="btn btn-outline btn-lg" id="btnHeroLogin">Tôi đã có tài khoản</button>
+            <div class="hero-grid">
+                <div class="hero-content">
+                    <span class="badge accent">SEAL Hackathon · Spring 2026</span>
+                    <h1>Mastering <span class="grad-text">Domain-Specific AI</span> RAG Systems</h1>
+                    <p class="lead">
+                        Sân chơi học thuật dành cho sinh viên đam mê công nghệ — nơi bạn xây dựng
+                        các hệ thống AI RAG có khả năng truy xuất tri thức chuyên ngành và tạo ra
+                        giải pháp công nghệ thực tiễn.
+                    </p>
+                    <div class="hero-cta" id="heroCta">
+                        <button class="btn btn-primary btn-lg" id="btnHeroRegister">Đăng ký tham gia</button>
+                        <button class="btn btn-outline btn-lg" id="btnHeroLogin">Tôi đã có tài khoản</button>
+                    </div>
+
+                    <div class="stats">
+                        <div class="stat">
+                            <strong>3–5</strong>
+                            <span>Thành viên / đội</span>
+                        </div>
+                        <div class="stat">
+                            <strong>11–12/04</strong>
+                            <span>Ngày thi đấu</span>
+                        </div>
+                        <div class="stat">
+                            <strong>FPT HCM</strong>
+                            <span>Địa điểm</span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="stats">
-                    <div class="stat">
-                        <strong>500+</strong>
-                        <span>Sinh viên đăng ký</span>
-                    </div>
-                    <div class="stat">
-                        <strong>50+</strong>
-                        <span>Đội thi</span>
-                    </div>
-                    <div class="stat">
-                        <strong>10+</strong>
-                        <span>Mentor</span>
+                <div class="hero-poster">
+                    <img src="assets/images/poster.jpg" alt="SEAL Hackathon Spring 2026 Poster" />
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="about">
+            <div class="section-head">
+                <h2>Về SEAL Hackathon</h2>
+                <p>Mùa hai của hành trình đào tạo và trải nghiệm AI thực chiến dành cho sinh viên Công nghệ thông tin.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3>Bài toán AI ứng dụng</h3>
+                    <p>Thử sức với những bài toán dữ liệu và AI mang tính ứng dụng cao theo từng domain chuyên sâu.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Xây dựng hệ thống RAG</h3>
+                    <p>Rèn luyện tư duy thiết kế hệ thống Retrieval-Augmented Generation và tối ưu độ chính xác của mô hình.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Mentor trực tiếp</h3>
+                    <p>Nhận hướng dẫn từ giảng viên Bộ môn Kỹ thuật phần mềm — Trường Đại học FPT.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Cộng đồng builder</h3>
+                    <p>Kết nối với cộng đồng sinh viên công nghệ và cùng đội nhóm tạo nên sản phẩm đột phá.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="schedule">
+            <div class="section-head">
+                <h2>Lịch trình cuộc thi</h2>
+                <p>3 mốc quan trọng bạn không thể bỏ lỡ — từ workshop đến đêm trao giải.</p>
+            </div>
+            <div class="schedule">
+                <div class="schedule-item">
+                    <span class="date">09 / 04 / 2026</span>
+                    <h3>Workshop: The RAG Revolution</h3>
+                    <p>"Transforming Complex Data into Actionable Domain Insights" — nền tảng cho hành trình hackathon.</p>
+                    <div class="meta">20:00 – 21:30 · Online</div>
+                </div>
+                <div class="schedule-item">
+                    <span class="date">11 / 04 / 2026</span>
+                    <h3>Khai mạc &amp; Chia track</h3>
+                    <p>Lễ khai mạc chính thức, công bố track thi đấu và buổi gặp gỡ giữa các đội.</p>
+                    <div class="meta">Offline · FPT University HCM</div>
+                </div>
+                <div class="schedule-item">
+                    <span class="date">12 / 04 / 2026</span>
+                    <h3>Hackathon &amp; Bế mạc</h3>
+                    <p>Ngày thi đấu chính thức, demo sản phẩm, chấm điểm và lễ trao giải.</p>
+                    <div class="meta">Offline · FPT University HCM</div>
+                </div>
+            </div>
+
+            <div class="location-card">
+                <div class="loc-info">
+                    <div class="loc-text">
+                        <strong>Địa điểm — Trường Đại học FPT TP.HCM</strong>
+                        <span>Lô E2a-7, đường D1, Khu CNC, phường Tăng Nhơn Phú, TP.HCM</span>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section class="features">
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3>Đăng ký nhanh</h3>
-                    <p>Tạo tài khoản chỉ trong 30 giây với email và mã sinh viên.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">👥</div>
-                    <h3>Lập đội dễ dàng</h3>
-                    <p>Mời thành viên, quản lý đội thi và tham gia sự kiện cùng nhau.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🏆</div>
-                    <h3>Giải thưởng hấp dẫn</h3>
-                    <p>Cơ hội nhận giải thưởng giá trị và kết nối với nhà tuyển dụng hàng đầu.</p>
-                </div>
+        <section class="section" id="gallery">
+            <div class="section-head">
+                <h2>Khoảnh khắc SEAL Hackathon</h2>
+                <p>Hình ảnh từ mùa Fall 2025 — sân chơi nơi ý tưởng trở thành sản phẩm.</p>
+            </div>
+            <div class="gallery">
+                <img src="assets/images/event.jpg" alt="SEAL Hackathon - khán giả và sân khấu" />
+                <img src="assets/images/speaker.jpg" alt="SEAL Hackathon - diễn giả phát biểu" />
             </div>
         </section>
     </main>
@@ -123,7 +193,7 @@
         <div class="modal">
             <button class="modal-close" data-close="registerModal" aria-label="Đóng">&times;</button>
             <h2>Tạo tài khoản</h2>
-            <p class="modal-sub">Tham gia cộng đồng hackathon ngay hôm nay.</p>
+            <p class="modal-sub">Tham gia SEAL Hackathon ngay hôm nay.</p>
 
             <form id="registerForm" class="form" novalidate>
                 <label class="field">
@@ -171,8 +241,60 @@
     <!-- Toast -->
     <div class="toast hidden" id="toast"></div>
 
-    <footer>
-        <p>&copy; 2026 HackathonHub. Made with care for builders.</p>
+    <footer class="site-footer" id="contact">
+        <div class="footer-inner">
+            <div class="footer-col">
+                <a href="#" class="footer-brand">
+                    <img src="assets/images/fpt-logo.png" alt="FPT University" class="brand-logo" />
+                    <span class="brand-text">
+                        <strong>SEAL Hackathon</strong>
+                        <small>Software Engineering · Agile League</small>
+                    </span>
+                </a>
+                <p class="footer-about">
+                    Sân chơi học thuật và trải nghiệm công nghệ dành cho sinh viên ngành CNTT
+                    tại trường Đại học FPT và các trường trên địa bàn TP.HCM. Mỗi năm tổ chức
+                    03 mùa Hackathon: Spring – Summer – Fall.
+                </p>
+            </div>
+
+            <div class="footer-col">
+                <h4>Cuộc thi</h4>
+                <ul class="footer-list">
+                    <li><a href="#about">Giới thiệu</a></li>
+                    <li><a href="#schedule">Lịch trình</a></li>
+                    <li><a href="#gallery">Khoảnh khắc</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-col">
+                <h4>Đối tượng</h4>
+                <ul class="footer-list">
+                    <li>Sinh viên Đại học FPT TP.HCM</li>
+                    <li>Sinh viên các trường ĐH tại TP.HCM</li>
+                    <li>Mỗi đội: 3 – 5 thành viên</li>
+                </ul>
+            </div>
+
+            <div class="footer-col">
+                <h4>Liên hệ</h4>
+                <ul class="footer-list">
+                    <li>
+                        <strong>Thầy Trương Long</strong>
+                        <a class="mail" href="mailto:longt5@fe.edu.vn">longt5@fe.edu.vn</a>
+                    </li>
+                    <li>
+                        <strong>Cô Lê Thị Diệu Ân</strong>
+                        <a class="mail" href="mailto:anltd3@fe.edu.vn">anltd3@fe.edu.vn</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <span>© 2026 SEAL Hackathon — Bộ môn Kỹ thuật phần mềm, Trường Đại học FPT.</span>
+            <span>Made with care by the SEAL team.</span>
+        </div>
     </footer>
 
     <script src="auth.js"></script>

@@ -4,6 +4,7 @@
     if (!session) return;
 
     mountDashboardHeader("#navHost", { roleLabel: "Student" });
+    mountSiteFooter();
     const modals = mountProfileModals({ showProfileFields: true });
 
     const welcomeName = document.getElementById("welcomeName");
@@ -178,7 +179,7 @@
             const code = enrollMatch ? enrollMatch[1] : "(không lấy được)";
             msg.classList.remove("error");
             msg.classList.add("success");
-            msg.innerHTML = `Tạo đội thành công! Mã enroll: <code style="background:rgba(99,102,241,0.2);padding:2px 8px;border-radius:6px;">${escapeHtml(code)}</code>`;
+            msg.innerHTML = `Tạo đội thành công! Mã enroll: <code>${escapeHtml(code)}</code>`;
             showToast("Đã tạo đội — mã enroll: " + code, "success");
             logActivity(`Tạo đội mới — enrollCode: ${code}`);
             form.reset();

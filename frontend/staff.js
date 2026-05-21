@@ -3,6 +3,7 @@
     if (!session) return;
 
     mountDashboardHeader("#navHost", { roleLabel: "Staff" });
+    mountSiteFooter();
     const modals = mountProfileModals({ showProfileFields: false });
 
     document.getElementById("welcomeName").textContent = session.email;
