@@ -1,0 +1,85 @@
+import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
+import { useNavigate } from "react-router-dom";
+import fptLogo from "../../assets/images/fpt-logo.png";
+
+const DASHBOARD_LABELS = {
+	Student: "Trang Sinh viên",
+	Staff: "Trang Staff",
+	Mentor: "Trang Mentor",
+	Judge: "Trang Giám khảo",
+};
+
+export default function HomeNavbar({ onOpenLogin, onOpenRegister }) {
+	const { auth, isLoggedIn, clearAuth, pathForRole } = useAuth();
+	const { showToast } = useToast();
+	const navigate = useNavigate();
+
+	const handleLogout = () => {
+		clearAuth();
+		showToast("Đã đăng xuất", "success");
+	};
+
+	return (
+		<nav className="navbar">
+			<div className="nav-container">
+				<a href="#" className="brand">
+					<img src={fptLogo} alt="FPT University" className="brand-logo" />
+					<span className="brand-divider" />
+					<span className="brand-text">
+						<strong>SEAL Hackathon</strong>
+						<small>Spring 2026</small>
+					</span>
+				</a>
+
+				<div className="nav-links">
+					<a href="#about" className="nav-link">
+						Giới thiệu
+					</a>
+					<a href="#schedule" className="nav-link">
+						Lịch trình
+					</a>
+					<a href="#gallery" className="nav-link">
+						Khoảnh khắc
+					</a>
+					<a href="#contact" className="nav-link">
+						Liên hệ
+					</a>
+				</div>
+
+				{!isLoggedIn ? (
+					<div className="nav-actions">
+						<button className="btn btn-ghost" onClick={onOpenLogin}>
+							Đăng nhập
+						</button>
+						<button className="btn btn-primary" onClick={onOpenRegister}>
+							Đăng ký
+						</button>
+					</div>
+				) : (
+					<div className="nav-user">
+						<button
+							className="btn btn-primary"
+							onClick={() => navigate(pathForRole(auth.role))}
+						>
+							{DASHBOARD_LABELS[auth.role] || "Vào dashboard"}
+						</button>
+						<div className="user-chip">
+							{/* FIX: optional chaining to prevent crash when email is empty/undefined */}
+							<div className="avatar">
+								{(auth.email?.[0] || "U").toUpperCase()}
+							</div>
+							<div className="user-meta">
+								<span className="user-email">{auth.email}</span>
+								<span className="user-role">{auth.role || "USER"}</span>
+							</div>
+						</div>
+						<button className="btn btn-ghost" onClick={handleLogout}>
+							Đăng xuất
+						</button>
+					</div>
+				)}
+			</div>
+		</nav>
+	);
+}
