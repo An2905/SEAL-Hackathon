@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mentor Dashboard - HackathonHub</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <nav class="navbar" id="navHost"></nav>
+
+    <main class="dashboard">
+        <div class="welcome-banner">
+            <h2>Xin chào, <span id="welcomeName">mentor</span>!</h2>
+            <p>Bảng điều khiển dành cho Mentor — đồng hành cùng các đội thí sinh trong hackathon.</p>
+        </div>
+
+        <div class="dashboard-header">
+            <div class="dashboard-title">
+                <h1>Tài khoản Mentor</h1>
+                <p>Vai trò: <strong>MENTOR</strong></p>
+            </div>
+            <div class="action-row">
+                <button class="btn btn-outline" id="btnEditProfile">Cập nhật hồ sơ</button>
+                <button class="btn btn-outline" id="btnChangePass">Đổi mật khẩu</button>
+            </div>
+        </div>
+
+        <div class="section-title">
+            <h2>Hỗ trợ đội thi</h2>
+            <span class="hint">Cần BE bổ sung endpoint để hoạt động đầy đủ</span>
+        </div>
+
+        <div class="cards">
+            <div class="card">
+                <div class="card-head">
+                    <div class="card-icon green">🧑‍🏫</div>
+                    <div class="card-title">Đội tôi đang mentor</div>
+                </div>
+                <p class="card-sub">Xem các đội được phân công, truy cập project và lịch họp.</p>
+                <div class="card-actions">
+                    <span class="card-badge">Sắp ra mắt</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <div class="card-icon sky">💬</div>
+                    <div class="card-title">Phản hồi & ghi chú</div>
+                </div>
+                <p class="card-sub">Gửi feedback cho đội, ghi chú cuộc họp 1-1 hoặc nhóm.</p>
+                <div class="card-actions">
+                    <span class="card-badge">Sắp ra mắt</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <div class="card-icon amber">📅</div>
+                    <div class="card-title">Lịch mentor</div>
+                </div>
+                <p class="card-sub">Quản lý lịch slot mentor, đăng ký rảnh hỗ trợ.</p>
+                <div class="card-actions">
+                    <span class="card-badge">Sắp ra mắt</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <div class="card-icon">📚</div>
+                    <div class="card-title">Tài liệu kỹ thuật</div>
+                </div>
+                <p class="card-sub">Kho tài liệu hướng dẫn dành riêng cho mentor.</p>
+                <div class="card-actions">
+                    <span class="card-badge">Sắp ra mắt</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">
+            <h2>Thông tin tài khoản</h2>
+        </div>
+        <div class="card">
+            <div class="kv-list" id="profileKv"></div>
+        </div>
+    </main>
+
+    <script src="auth.js"></script>
+    <script src="mentor.js"></script>
+</body>
+</html>

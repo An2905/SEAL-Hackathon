@@ -412,4 +412,100 @@ public class TeamService {
     }
 
     //endregion
+//#region GET MY TEAM (read-only)
+    public String getMyTeam(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return "Invalid token";
+        }
+
+        Claims claims;
+        try {
+            claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
+        } catch (Exception e) {
+            return "Invalid token";
+        }
+
+        String userId = claims.get("userId", String.class);
+        String role = claims.get("role", String.class);
+
+        if (role == null || (!role.equalsIgnoreCase("STUDENT_FPT") && !role.equalsIgnoreCase("STUDENT_EXTERNAL"))) {
+            return "Only students can have a team";
+        }
+
+        try {
+            Connection conn = dataSource.getConnection();
+            String sql =
+                "SELECT t.team_id, t.team_name, t.leader_id, t.status, t.enrollCode, " +
+                "u.full_name AS leader_name, u.email AS leader_email " +
+                "FROM [dbo].[team_members] tm " +
+                "JOIN [dbo].[teams] t ON tm.team_id = t.team_id " +
+                "JOIN [dbo].[users] u ON t.leader_id = u.user_id " +
+                "WHERE tm.user_id = ?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setString(1, userId);
+            ResultSet rs = ps.executeQuery();
+
+            if (!rs.next()) {
+                rs.close();
+                ps.close();
+                conn.close();
+                return "No team";
+            }
+
+            String teamId = rs.getString("team_id");
+            String teamName = rs.getString("team_name");
+            String status = rs.getString("status");
+            String enrollCode = rs.getString("enrollCode");
+            String leaderId = rs.getString("leader_id");
+            String leaderName = rs.getString("leader_name");
+            String leaderEmail = rs.getString("leader_email");
+            boolean isLeader = userId != null && userId.equals(leaderId);
+
+            rs.close();
+            ps.close();
+
+            String sqlMembers =
+                "SELECT u.user_id, u.full_name, u.email " +
+                "FROM [dbo].[team_members] tm " +
+                "JOIN [dbo].[users] u ON tm.user_id = u.user_id " +
+                "WHERE tm.team_id = ?";
+            PreparedStatement psM = conn.prepareStatement(sqlMembers);
+            psM.setString(1, teamId);
+            ResultSet rsM = psM.executeQuery();
+
+            StringBuilder members = new StringBuilder();
+            int count = 0;
+            while (rsM.next()) {
+                if (count > 0) members.append(",");
+                String uid = rsM.getString("user_id");
+                members.append("{")
+                    .append("\"userId\":\"").append(uid).append("\",")
+                    .append("\"fullName\":\"").append(rsM.getString("full_name")).append("\",")
+                    .append("\"email\":\"").append(rsM.getString("email")).append("\",")
+                    .append("\"isLeader\":").append(uid != null && uid.equals(leaderId))
+                    .append("}");
+                count++;
+            }
+            rsM.close();
+            psM.close();
+            conn.close();
+
+            return "{"
+                + "\"teamId\":\"" + teamId + "\","
+                + "\"teamName\":\"" + teamName + "\","
+                + "\"status\":\"" + status + "\","
+                + "\"enrollCode\":\"" + enrollCode + "\","
+                + "\"leaderId\":\"" + leaderId + "\","
+                + "\"leaderName\":\"" + leaderName + "\","
+                + "\"leaderEmail\":\"" + leaderEmail + "\","
+                + "\"isLeader\":" + isLeader + ","
+                + "\"memberCount\":" + count + ","
+                + "\"members\":[" + members + "]"
+                + "}";
+
+        } catch (Exception e) {
+            return e.getMessage();
+        }
+    }
+//#endregion
 }

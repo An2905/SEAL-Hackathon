@@ -44,5 +44,11 @@ public class TeamController {
 
         return teamService.joinEvent(authHeader,request);
     }
+
+    @GetMapping("/me")
+    public String getMyTeam(@RequestHeader("Authorization") String authHeader) {
+
+        return teamService.getMyTeam(authHeader);
+    }
    
 }

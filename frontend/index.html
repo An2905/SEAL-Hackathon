@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hackathon Platform - Trang chủ</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="#" class="brand">
+                <span class="brand-mark">H</span>
+                <span class="brand-text">Hackathon<span>Hub</span></span>
+            </a>
+
+            <div class="nav-actions" id="navActions">
+                <button class="btn btn-ghost" id="btnOpenLogin">Đăng nhập</button>
+                <button class="btn btn-primary" id="btnOpenRegister">Đăng ký</button>
+            </div>
+
+            <div class="nav-user hidden" id="navUser">
+                <div class="user-chip">
+                    <div class="avatar" id="userAvatar">U</div>
+                    <div class="user-meta">
+                        <span class="user-email" id="userEmail">user@email.com</span>
+                        <span class="user-role" id="userRole">STUDENT</span>
+                    </div>
+                </div>
+                <button class="btn btn-ghost" id="btnLogout">Đăng xuất</button>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <section class="hero">
+            <div class="hero-bg"></div>
+            <div class="hero-content">
+                <span class="badge">Hackathon Season 2026</span>
+                <h1>Nơi <span class="grad-text">ý tưởng</span> trở thành <span class="grad-text">sản phẩm</span></h1>
+                <p class="lead">
+                    Tham gia cộng đồng hackathon dành cho sinh viên FPT và sinh viên ngoài.
+                    Tạo đội, kết nối mentor, và chinh phục những thử thách công nghệ thú vị nhất.
+                </p>
+                <div class="hero-cta">
+                    <button class="btn btn-primary btn-lg" id="btnHeroRegister">Bắt đầu ngay</button>
+                    <button class="btn btn-outline btn-lg" id="btnHeroLogin">Tôi đã có tài khoản</button>
+                </div>
+
+                <div class="stats">
+                    <div class="stat">
+                        <strong>500+</strong>
+                        <span>Sinh viên đăng ký</span>
+                    </div>
+                    <div class="stat">
+                        <strong>50+</strong>
+                        <span>Đội thi</span>
+                    </div>
+                    <div class="stat">
+                        <strong>10+</strong>
+                        <span>Mentor</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Đăng ký nhanh</h3>
+                    <p>Tạo tài khoản chỉ trong 30 giây với email và mã sinh viên.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">👥</div>
+                    <h3>Lập đội dễ dàng</h3>
+                    <p>Mời thành viên, quản lý đội thi và tham gia sự kiện cùng nhau.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🏆</div>
+                    <h3>Giải thưởng hấp dẫn</h3>
+                    <p>Cơ hội nhận giải thưởng giá trị và kết nối với nhà tuyển dụng hàng đầu.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Login Modal -->
+    <div class="modal-overlay hidden" id="loginModal">
+        <div class="modal">
+            <button class="modal-close" data-close="loginModal" aria-label="Đóng">&times;</button>
+            <h2>Đăng nhập</h2>
+            <p class="modal-sub">Chào mừng quay lại! Hãy đăng nhập để tiếp tục.</p>
+
+            <form id="loginForm" class="form" novalidate>
+                <label class="field">
+                    <span>Email</span>
+                    <input type="email" name="email" required placeholder="ban@fpt.edu.vn" autocomplete="email" />
+                </label>
+
+                <label class="field">
+                    <span>Mật khẩu</span>
+                    <input type="password" name="password" required placeholder="••••••••" autocomplete="current-password" />
+                </label>
+
+                <button type="submit" class="btn btn-primary btn-block" id="loginSubmit">
+                    <span class="btn-label">Đăng nhập</span>
+                    <span class="spinner hidden"></span>
+                </button>
+
+                <div class="form-message" id="loginMessage"></div>
+
+                <p class="form-footer">
+                    Chưa có tài khoản?
+                    <a href="#" id="switchToRegister">Đăng ký ngay</a>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div class="modal-overlay hidden" id="registerModal">
+        <div class="modal">
+            <button class="modal-close" data-close="registerModal" aria-label="Đóng">&times;</button>
+            <h2>Tạo tài khoản</h2>
+            <p class="modal-sub">Tham gia cộng đồng hackathon ngay hôm nay.</p>
+
+            <form id="registerForm" class="form" novalidate>
+                <label class="field">
+                    <span>Họ và tên</span>
+                    <input type="text" name="fullName" required placeholder="Nguyễn Văn A" />
+                </label>
+
+                <label class="field">
+                    <span>Email</span>
+                    <input type="email" name="email" required placeholder="ban@fpt.edu.vn" autocomplete="email" />
+                </label>
+
+                <div class="field-row">
+                    <label class="field">
+                        <span>Trường</span>
+                        <input type="text" name="Uni" required placeholder="FPT University" />
+                    </label>
+
+                    <label class="field">
+                        <span>Mã sinh viên</span>
+                        <input type="text" name="studentId" required placeholder="SE123456" />
+                    </label>
+                </div>
+
+                <label class="field">
+                    <span>Mật khẩu</span>
+                    <input type="password" name="password" required minlength="6" placeholder="Tối thiểu 6 ký tự" autocomplete="new-password" />
+                </label>
+
+                <button type="submit" class="btn btn-primary btn-block" id="registerSubmit">
+                    <span class="btn-label">Tạo tài khoản</span>
+                    <span class="spinner hidden"></span>
+                </button>
+
+                <div class="form-message" id="registerMessage"></div>
+
+                <p class="form-footer">
+                    Đã có tài khoản?
+                    <a href="#" id="switchToLogin">Đăng nhập</a>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast hidden" id="toast"></div>
+
+    <footer>
+        <p>&copy; 2026 HackathonHub. Made with care for builders.</p>
+    </footer>
+
+    <script src="auth.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

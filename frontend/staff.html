@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Staff Dashboard - HackathonHub</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <nav class="navbar" id="navHost"></nav>
+
+    <main class="dashboard">
+        <div class="welcome-banner">
+            <h2>Xin chào, <span id="welcomeName">staff</span>!</h2>
+            <p>Bảng điều khiển dành cho Coordinator — quản lý sự kiện, đội thi và thí sinh.</p>
+        </div>
+
+        <div class="dashboard-header">
+            <div class="dashboard-title">
+                <h1>Tài khoản nhân viên</h1>
+                <p>Vai trò: <strong>COORDINATOR</strong></p>
+            </div>
+            <div class="action-row">
+                <button class="btn btn-outline" id="btnEditProfile">Cập nhật hồ sơ</button>
+                <button class="btn btn-outline" id="btnChangePass">Đổi mật khẩu</button>
+            </div>
+        </div>
+
+        <div class="section-title">
+            <h2>Công cụ quản trị</h2>
+            <span class="hint">Cần BE bổ sung endpoint để hoạt động đầy đủ</span>
+        </div>
+
+        <div class="cards">
+            <div class="card">
+                <div class="card-head">
+                    <div class="card-icon sky">📅</div>
+                    <div class="card-title">Quản lý sự kiện</div>
+                </div>
+                <p class="card-sub">Tạo, sửa, xóa các event hackathon và danh mục thi đấu.</p>
+                <div class="card-actions">
+                    <span class="card-badge">Sắp ra mắt</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <div class="card-icon green">👥</div>
+                    <div class="card-title">Phê duyệt đội</div>
+                </div>
+                <p class="card-sub">Xem danh sách đội đăng ký event, duyệt hoặc từ chối hồ sơ.</p>
+                <div class="card-actions">
+                    <span class="card-badge">Sắp ra mắt</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <div class="card-icon amber">🎓</div>
+                    <div class="card-title">Quản lý thí sinh</div>
+                </div>
+                <p class="card-sub">Xem danh sách user, phê duyệt tài khoản pending, đổi role.</p>
+                <div class="card-actions">
+                    <span class="card-badge">Sắp ra mắt</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <div class="card-icon">📊</div>
+                    <div class="card-title">Thống kê tổng quan</div>
+                </div>
+                <p class="card-sub">Số đội, thí sinh, event đang diễn ra, tỷ lệ tham gia...</p>
+                <div class="card-actions">
+                    <span class="card-badge">Sắp ra mắt</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">
+            <h2>Thông tin tài khoản</h2>
+        </div>
+        <div class="card">
+            <div class="kv-list" id="profileKv"></div>
+        </div>
+    </main>
+
+    <script src="auth.js"></script>
+    <script src="staff.js"></script>
+</body>
+</html>
