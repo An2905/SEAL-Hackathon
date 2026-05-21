@@ -7,7 +7,7 @@ public class UpdateProfileRequest {
 
     private String fullName;
 
-    private String Uni;
+    private String uni;
 
     private String studentId;   
 }

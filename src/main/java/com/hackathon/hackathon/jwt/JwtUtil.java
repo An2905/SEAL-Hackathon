@@ -4,14 +4,23 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import java.util.Date;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
-//added userId to jwt payload
+@Component
 public class JwtUtil {
 
-    private static final String SECRET_KEY = "AintnowayoutofhereNowayoutofhereMmmhnoNowayoutofhereNowayoutofhereOhaintnowayoutofhereTheniggasongIneedthissongIdroppedtheEaddedtheAandkilledtheRTohealmyscarsDontsingalongUnlessyourpeoplehungfromtreesIhatethissongTillIdroppedtheEaddedtheAandIkilledtheROhaniggasongOhaniggasongUnlessyourpeoplehungfromtreesAndslavedtilldawn";
 
+    private static String SECRET_KEY;
+
+
+    @Value("${JWT_SECRET_KEY}")
+    public void setSecretKey(String secretKey) {
+        JwtUtil.SECRET_KEY = secretKey;
+    }
+
+  
     public static String generateToken(String email, String role, String userId) {
-
         return Jwts.builder()
                 .subject(email)
                 .claim("role", role)
@@ -22,8 +31,8 @@ public class JwtUtil {
                 .compact();
     }
 
+    // ĐÃ KHÔI PHỤC LẠI static - Hoàn toàn tương thích với code cũ của bạn
     public static Claims extractClaims(String token) {
-
         return Jwts.parser()
                 .verifyWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(SECRET_KEY.getBytes()))
                 .build()

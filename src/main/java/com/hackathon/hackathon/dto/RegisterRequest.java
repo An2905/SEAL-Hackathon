@@ -11,7 +11,7 @@ public class RegisterRequest {
 
     private String fullName;
 
-    private String Uni;
+    private String uni;
 
     private String studentId;    
 }
