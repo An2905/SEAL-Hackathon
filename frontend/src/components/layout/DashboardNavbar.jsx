@@ -13,8 +13,8 @@ export default function DashboardNavbar({ roleLabel }) {
 		navigate("/");
 	};
 
-	// FIX: optional chaining to prevent crash when email is empty/undefined
-	const initial = (auth.email?.[0] || "U").toUpperCase();
+	const displayName = auth.fullName || auth.email;
+	const initial = (displayName?.[0] || "U").toUpperCase();
 
 	return (
 		<nav className="navbar">
@@ -43,7 +43,7 @@ export default function DashboardNavbar({ roleLabel }) {
 					<div className="user-chip">
 						<div className="avatar">{initial}</div>
 						<div className="user-meta">
-							<span className="user-email">{auth.email}</span>
+							<span className="user-email">{displayName}</span>
 							<span className="user-role">{auth.role}</span>
 						</div>
 					</div>

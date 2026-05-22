@@ -183,3 +183,5 @@ node_modules
 dist/
 .env
 .env.properties
+hackathon.env
+hackathon.env.properties

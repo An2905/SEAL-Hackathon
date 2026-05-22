@@ -35,7 +35,9 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister, onSwit
       }
       saveAuth({ token: result.token, email: form.email, role: result.role })
       setMessage({ text: 'Đăng nhập thành công, đang chuyển hướng...', type: 'success' })
-      showToast(`Chào mừng ${form.email}!`, 'success')
+      // saveAuth auto-decodes fullName from token; read from localStorage as the freshest source
+      const displayName = localStorage.getItem('hh_full_name') || form.email
+      showToast(`Chào mừng ${displayName}!`, 'success')
       setTimeout(() => {
         onClose()
         navigate(pathForRole(result.role))

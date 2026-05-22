@@ -20,11 +20,12 @@ public class JwtUtil {
     }
 
   
-    public static String generateToken(String email, String role, String userId) {
+    public static String generateToken(String email, String role, String userId, String fullName) {
         return Jwts.builder()
                 .subject(email)
                 .claim("role", role)
                 .claim("userId", userId)
+                .claim("fullName", fullName)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + 86400000))
                 .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(SECRET_KEY.getBytes()))

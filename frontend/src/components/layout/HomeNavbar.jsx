@@ -65,12 +65,11 @@ export default function HomeNavbar({ onOpenLogin, onOpenRegister }) {
 							{DASHBOARD_LABELS[auth.role] || "Vào dashboard"}
 						</button>
 						<div className="user-chip">
-							{/* FIX: optional chaining to prevent crash when email is empty/undefined */}
 							<div className="avatar">
-								{(auth.email?.[0] || "U").toUpperCase()}
+								{((auth.fullName || auth.email)?.[0] || "U").toUpperCase()}
 							</div>
 							<div className="user-meta">
-								<span className="user-email">{auth.email}</span>
+								<span className="user-email">{auth.fullName || auth.email}</span>
 								<span className="user-role">{auth.role || "USER"}</span>
 							</div>
 						</div>

@@ -27,6 +27,7 @@ export default function MentorDashboard() {
       <div className="section-title"><h2>Thông tin tài khoản</h2></div>
       <div className="card">
         <div className="kv-list">
+          <div className="kv"><span>Họ tên</span><span>{auth.fullName || '—'}</span></div>
           <div className="kv"><span>Email</span><span>{auth.email}</span></div>
           <div className="kv"><span>Vai trò</span><span>Mentor</span></div>
           <div className="kv"><span>Trạng thái phiên</span><span>Đã đăng nhập</span></div>

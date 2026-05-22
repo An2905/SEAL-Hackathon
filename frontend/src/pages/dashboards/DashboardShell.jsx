@@ -15,7 +15,7 @@ export default function DashboardShell({ roleLabel, title, subtitle, role, showS
 
       <main className="dashboard">
         <div className="welcome-banner">
-          <h2>Xin chào, <span>{auth.email}</span>!</h2>
+          <h2>Xin chào, <span>{auth.fullName || auth.email}</span>!</h2>
           <p>{subtitle}</p>
         </div>
 

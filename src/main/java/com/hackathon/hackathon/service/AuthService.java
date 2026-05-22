@@ -52,6 +52,7 @@ public String login(LoginRequest request) {
         String userId = rs.getString("user_id");
         String role = rs.getString("role");
         String status = rs.getString("status");
+        String fullName = rs.getString("full_name");
         rs.close();
         ps.close();
         conn.close();
@@ -60,7 +61,7 @@ public String login(LoginRequest request) {
             return "Login Denied";
         }
 
-        String token = JwtUtil.generateToken(request.getEmail(), role, userId);
+        String token = JwtUtil.generateToken(request.getEmail(), role, userId, fullName);
 
         if (role.equalsIgnoreCase("COORDINATOR")) {
             return "Login success - Role: Staff\nToken: " + token;
@@ -230,7 +231,7 @@ public String updateProfile(String authHeader, UpdateProfileRequest request) {
         }
 
     }
-    String token = JwtUtil.generateToken(newEmail, role, userId);
+    String token = JwtUtil.generateToken(newEmail, role, userId, newFullName);
 
     return "Profile updated successfully.\n" + "New Token: " + token;
 }       

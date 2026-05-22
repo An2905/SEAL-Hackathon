@@ -14,7 +14,7 @@ export function ProfileModal({ isOpen, onClose, showStudentFields = false }) {
 	const [loading, setLoading] = useState(false);
 	const [message, setMessage] = useState(null);
 	const [form, setForm] = useState({
-		fullName: "",
+		fullName: auth.fullName || "",
 		email: auth.email,
 		uni: "",
 		studentId: "",
@@ -29,8 +29,12 @@ export function ProfileModal({ isOpen, onClose, showStudentFields = false }) {
 		setLoading(true);
 		try {
 			const { newToken } = await updateProfile(form);
-			// FIX: merge token + email in a single saveAuth call to avoid stale state
-			saveAuth({ ...(newToken ? { token: newToken } : {}), email: form.email });
+			// saveAuth auto-decodes fullName/email from new token; pass email/fullName as fallbacks
+			saveAuth({
+				...(newToken ? { token: newToken } : {}),
+				email: form.email,
+				fullName: form.fullName,
+			});
 			setMessage({ text: "Cập nhật hồ sơ thành công!", type: "success" });
 			showToast("Đã cập nhật hồ sơ", "success");
 			setTimeout(onClose, 600);
