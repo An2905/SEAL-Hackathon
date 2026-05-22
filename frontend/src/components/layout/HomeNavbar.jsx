@@ -49,23 +49,22 @@ export default function HomeNavbar({ onOpenLogin, onOpenRegister }) {
 
 				{!isLoggedIn ? (
 					<div className="nav-actions">
-						<button className="btn btn-ghost" onClick={onOpenLogin}>
+						<button className="btn btn-ghost btn-sm" onClick={onOpenLogin}>
 							Đăng nhập
 						</button>
-						<button className="btn btn-primary" onClick={onOpenRegister}>
+						<button className="btn btn-primary btn-sm" onClick={onOpenRegister}>
 							Đăng ký
 						</button>
 					</div>
 				) : (
 					<div className="nav-user">
 						<button
-							className="btn btn-primary"
+							className="btn btn-primary btn-sm"
 							onClick={() => navigate(pathForRole(auth.role))}
 						>
 							{DASHBOARD_LABELS[auth.role] || "Vào dashboard"}
 						</button>
 						<div className="user-chip">
-							{/* FIX: optional chaining to prevent crash when email is empty/undefined */}
 							<div className="avatar">
 								{(auth.email?.[0] || "U").toUpperCase()}
 							</div>
@@ -74,7 +73,10 @@ export default function HomeNavbar({ onOpenLogin, onOpenRegister }) {
 								<span className="user-role">{auth.role || "USER"}</span>
 							</div>
 						</div>
-						<button className="btn btn-ghost" onClick={handleLogout}>
+						<button
+							className="btn btn-ghost btn-sm logout-btn"
+							onClick={handleLogout}
+						>
 							Đăng xuất
 						</button>
 					</div>
