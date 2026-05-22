@@ -68,7 +68,7 @@ public class EmailService {
                 "htmlContent":"<h2>Your OTP is: %s</h2>"
             }
             """.formatted(toEmail, otp);
-
+            
             HttpEntity<String> entity = new HttpEntity<>(body, headers);
             ResponseEntity<String> response = restTemplate.exchange(url,HttpMethod.POST,entity,String.class);
             

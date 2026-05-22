@@ -452,18 +452,18 @@ public String verifyAndRegister(VerifyRegisterRequest request, HttpSession sessi
         return "Invalid OTP. Please try again.";
     }
 
-    // 4. Kiểm tra khớp Email tránh râu ông nọ cắm cằm bà kia
+    // 4. Kiểm tra khớp Email
     if (!regData.getEmail().equalsIgnoreCase(request.getEmail())) {
         return "Email mismatch. Invalid request.";
     }
+    //giả sử gmail ko tồn tại thì chưa làm j hết
 
     // 5. OTP HỢP LỆ -> Tiến hành lưu tài khoản chính thức vào DB (Bê nguyên logic Register cũ của bạn qua)
     String userId = "";
     String sqlUser = "INSERT INTO users (full_name,email,password_hash,role,status) OUTPUT inserted.user_id VALUES(?,?,?,?,'APPROVED')";
     
     try (Connection conn = dataSource.getConnection();
-         PreparedStatement ps = conn.prepareStatement(sqlUser)) {
-
+        PreparedStatement ps = conn.prepareStatement(sqlUser)) {
         ps.setString(1, regData.getFullName());
         ps.setString(2, regData.getEmail());
         ps.setString(3, encoder.encode(regData.getPassword()));

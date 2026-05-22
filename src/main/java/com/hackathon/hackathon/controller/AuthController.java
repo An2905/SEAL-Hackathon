@@ -12,6 +12,7 @@ import com.hackathon.hackathon.service.AuthService;
 import jakarta.servlet.http.HttpSession;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -22,6 +23,16 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
+    @Autowired
+    private BCryptPasswordEncoder encoder;
+    
+    @GetMapping("/hash")
+    public String hashPassword(
+            @RequestParam String password
+    ) {
+
+        return encoder.encode(password);
+    }
 
     @PostMapping("/login")
     public String login(@RequestBody LoginRequest request) {
