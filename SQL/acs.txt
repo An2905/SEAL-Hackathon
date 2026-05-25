@@ -7,7 +7,7 @@ mentor001@gmail.com 123456 MENTOR
 
 mentor002@gmail.com 112233 MENTOR
 
-judge002@gmail.com 123456 JUDGE_INTERNAL
+judge001@gmail.com 123456 JUDGE_INTERNAL
 
 judge002@gmail.com 112233 JUDGE_INTERNAL
 
