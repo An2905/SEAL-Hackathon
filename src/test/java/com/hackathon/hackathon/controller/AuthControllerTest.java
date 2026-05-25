@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 
 public class AuthControllerTest {
 
@@ -25,21 +25,40 @@ public class AuthControllerTest {
     // ====== TEST STUDENT ROLE ======
     @Test
     public void testLoginStudentSuccess() {
+         // Tạo request giả lập login
         LoginRequest request = new LoginRequest();
+
+        // Set email cho request
         request.setEmail("student@fpt.edu.vn");
+
+        // Set password cho request
         request.setPassword("password123");
 
+        // Kết quả mong đợi sau khi login thành công
         String expectedResponse = "Login Success\nToken: student_token_abc123\nRole: STUDENT";
 
+        // Expectations:
+        
+        // Define behavior cho mock object
         new Expectations() {
             {
+
+                // Nếu authService.login(request) được gọi
                 authService.login(request);
+
+                // thì trả về expectedResponse
                 result = expectedResponse;
             }
         };
 
+        // Gọi method login của controller
         String response = authController.login(request);
+
+        // Kiểm tra:
+        // response thực tế có giống expectedResponse không
         assertEquals(expectedResponse, response);
+
+        // In thông báo PASS ra terminal
         System.out.println("✓ Test STUDENT login success");
     }
 
