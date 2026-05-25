@@ -7,13 +7,14 @@ import com.hackathon.hackathon.service.TeamService;
 import com.hackathon.hackathon.dto.JoinEventRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 
 
 
 @RestController
-@RequestMapping("/api/team")
+@RequestMapping(value = "/api/team", produces = MediaType.TEXT_PLAIN_VALUE + ";charset=UTF-8")
 @CrossOrigin("*")
 public class TeamController {
 
@@ -45,7 +46,7 @@ public class TeamController {
         return teamService.joinEvent(authHeader,request);
     }
 
-    @GetMapping("/me")
+    @GetMapping(value = "/me", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
     public String getMyTeam(@RequestHeader("Authorization") String authHeader) {
 
         return teamService.getMyTeam(authHeader);
