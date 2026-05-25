@@ -1,12 +1,32 @@
 package com.hackathon.hackathon.service;
 
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.UUID;
+
+import javax.sql.DataSource;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import com.hackathon.hackathon.dto.ChangeEventStatusRequest;
+import com.hackathon.hackathon.dto.CreateStaffAccountRequest;
+import com.hackathon.hackathon.jwt.JwtUtil;
+
+import io.jsonwebtoken.Claims;
 
 
 @Service
 public class StaffService {
-
+@Autowired
+    private BCryptPasswordEncoder encoder;
+    @Autowired
+    private DataSource dataSource;
+    @Autowired
+    private EmailService emailService;
 
 //region CREATE ACCOUNTS
 
@@ -115,4 +135,99 @@ public class StaffService {
   // tự mò
 
 //endregion
+   
+
+//region CREATE ACCOUNTS
+  public String registerAccount(String authHeader, CreateStaffAccountRequest request) {
+    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return "Invalid token";
+    }
+    Claims claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
+            String roleString = claims.get("role", String.class);
+
+
+    if (roleString == null || !roleString.equals("COORDINATOR")) {
+        return "Unauthorized: Only COORDINATOR can create staff accounts";
+    }
+
+    String email = request.getEmail().trim();
+    String fullName = request.getFullName().trim();
+    String rawPassword = UUID.randomUUID().toString().substring(0,8);
+    if (email.isEmpty()) {
+        return "Email cannot be empty";
+    }
+
+    if (checkEmail(email)) {
+        return "Email already exists";
+    }
+
+    if (fullName.isEmpty()) {
+        return "Full name cannot be empty";
+    }
+    if (request.getRole() == null || (!request.getRole().trim().equals("JUDGE") && !request.getRole().trim().equals("MENTOR"))) {
+        return "Role must be either JUDGE or MENTOR";
+    }
+
+     
+    try{
+        Connection conn = dataSource.getConnection();
+
+        String sql = "INSERT INTO users(full_name, email, password_hash, role, status) VALUES (?, ?, ?, ?, 'APPROVED')";
+
+        PreparedStatement ps = conn.prepareStatement(sql);
+
+        ps.setString(1, fullName);
+        ps.setString(2, email);
+        ps.setString(3, encoder.encode(rawPassword));
+        ps.setString(4, request.getRole().trim());
+
+        ps.executeUpdate();
+
+        ps.close();
+        conn.close();       
+
+
+    }catch(Exception e){
+       e.printStackTrace();
+       return e.getMessage();
+    }
+    boolean emailSent = emailService.sendMentorInvite(email, fullName, rawPassword, request.getRole().trim());
+    if (!emailSent) {
+        return "Account created but failed to send email";
+    }
+
+    return "Account created and email sent successfully";
+  }
+
+  //#region CHECK MAIL
+    public boolean checkEmail(String email) {
+        boolean check = false;
+        try {
+            Connection conn = dataSource.getConnection();
+
+            String sql = "SELECT * FROM users WHERE email = ?";
+
+            PreparedStatement ps = conn.prepareStatement(sql);
+
+            ps.setString(1, email);
+
+            ResultSet rs = ps.executeQuery();
+
+            
+
+            if(rs.next()){
+                check = true;
+            }
+            ps.close();
+            conn.close();
+
+        } catch (Exception e) {
+            check = false;
+        }
+        return check;
+    }
+//#endregion  
+
 }
+
+//endregion
