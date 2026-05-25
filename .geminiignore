@@ -1,0 +1,14 @@
+node_modules/
+venv/
+.git/
+build/
+dist/
+package-lock.json
+*.jpg
+*.png
+*.svg
+*.ico
+.mvn/
+.idea/
+.vscode/
+*.log

@@ -185,3 +185,16 @@ dist/
 .env.properties
 hackathon.env
 hackathon.env.properties
+
+# OS data
+Thumbs.db
+.DS_Store
+
+# Java Builds
+*.jar
+*.war
+*.ear
+
+# Misc
+*.temp
+*.tmp
