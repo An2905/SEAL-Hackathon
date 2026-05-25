@@ -79,6 +79,76 @@ public class EmailService {
             return false;
         }
     }
+    public boolean sendMentorInvite(
+        String toEmail,
+        String fullName,
+        String password,
+        String role
+) {
+
+    try {
+
+        RestTemplate restTemplate =
+                new RestTemplate();
+
+        String url =
+                "https://api.brevo.com/v3/smtp/email";
+
+        HttpHeaders headers =
+                new HttpHeaders();
+
+        headers.setContentType(
+                MediaType.APPLICATION_JSON
+        );
+
+        headers.set(
+                "api-key",
+                brevoApiKey
+        );
+
+        String body = """
+        {
+            "sender":{
+                "name":"Hackathon System",
+                "email":"quocannguyen385@gmail.com"
+            },
+            "to":[{"email":"%s"}],
+            "subject":"Hackathon Invitation",
+            "htmlContent":"<h2>Hello %s</h2><p>Your %s account has been created.</p><p>Email: %s</p><p>Password: <b>%s</b></p><p>Please change your password after login.</p>"
+        }
+        """.formatted(
+                toEmail,
+                fullName,
+                role,
+                toEmail,
+                password
+        );
+
+        HttpEntity<String> entity =
+                new HttpEntity<>(
+                        body,
+                        headers
+                );
+
+        ResponseEntity<String> response =
+                restTemplate.exchange(
+                        url,
+                        HttpMethod.POST,
+                        entity,
+                        String.class
+                );
+
+        return response
+                .getStatusCode()
+                .is2xxSuccessful();
+
+    } catch (Exception e) {
+
+        e.printStackTrace();
+
+        return false;
+    }
+}
 }
 
     

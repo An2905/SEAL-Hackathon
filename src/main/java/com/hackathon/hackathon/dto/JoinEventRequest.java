@@ -3,6 +3,7 @@ import lombok.Data;
 
 @Data
 public class JoinEventRequest {
-    String eventId;
-    String categoryId;
+    private String eventId;
+    
+    private String categoryId;
 }
