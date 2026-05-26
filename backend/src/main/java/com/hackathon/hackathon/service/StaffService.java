@@ -208,7 +208,7 @@ public class StaffService {
 
         if (roleFilter != null && !roleFilter.trim().isEmpty()) {
             roleFilter = roleFilter.trim();
-            if (!roleFilter.equals("JUDGE") && !roleFilter.equals("MENTOR") && !roleFilter.equals("STUDENT_FPT")
+            if (!roleFilter.equals("JUDGE_INTERNAL") && !roleFilter.equals("MENTOR") && !roleFilter.equals("STUDENT_FPT")
                     && !roleFilter.equals("STUDENT_EXTERNAL") && !roleFilter.equals("ALL")) {
                 return Collections.emptyList();
             }
@@ -309,11 +309,7 @@ public class StaffService {
         }
 
         status = status.trim().toUpperCase();
-        if (!status.equals("ACTIVE")
-                && !status.equals("INACTIVE")
-                && !status.equals("PENDING")
-                && !status.equals("APPROVED")
-                && !status.equals("REJECTED")) {
+        if (!status.equals("PENDING") && !status.equals("APPROVED") && !status.equals("REJECTED")) {
             return "Invalid status";
         }
 
