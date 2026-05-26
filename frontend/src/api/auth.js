@@ -14,13 +14,13 @@ export async function login({ email, password }) {
 export async function sendRegisterOtp({
 	fullName,
 	email,
-	uni,
+	university,
 	studentId,
 	password,
 }) {
 	const text = await apiFetch("/api/auth/sendregisterotp", {
 		method: "POST",
-		body: { fullName, email, uni, studentId, password },
+		body: { fullName, email, university, studentId, password },
 		auth: false,
 	});
 	if (!/otp sent/i.test(text)) throw new Error(text);
@@ -63,10 +63,10 @@ export async function verifyAndResetPassword({ email, otp, newPassword }) {
 	return true;
 }
 
-export async function updateProfile({ fullName, email, uni, studentId }) {
+export async function updateProfile({ fullName, email, university, studentId }) {
 	const text = await apiFetch("/api/auth/updateprofile", {
 		method: "PUT",
-		body: { fullName, email, uni, studentId },
+		body: { fullName, email, university, studentId },
 	});
 	if (!/profile updated successfully/i.test(text)) throw new Error(text);
 	const tokenMatch = text.match(/New Token:\s*([^\s]+)/i);

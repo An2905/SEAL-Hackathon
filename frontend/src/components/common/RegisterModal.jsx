@@ -8,6 +8,7 @@ import {
 	verifyAndRegister,
 	login,
 } from "../../api/auth";
+import { getAllUniversities } from "../../api/university";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { useNavigate } from "react-router-dom";
@@ -16,7 +17,7 @@ import { localizeError } from "../../utils/errors";
 const EMPTY_FORM = {
 	fullName: "",
 	email: "",
-	uni: "",
+	university: "",
 	studentId: "",
 	password: "",
 };
@@ -30,6 +31,8 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
 	const [message, setMessage] = useState(null);
 	const [form, setForm] = useState(EMPTY_FORM);
 	const [otp, setOtp] = useState("");
+	const [universities, setUniversities] = useState([]);
+	const [uniLoading, setUniLoading] = useState(false);
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -38,7 +41,25 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
 			setForm(EMPTY_FORM);
 			setOtp("");
 			setLoading(false);
+			return;
 		}
+
+		let cancelled = false;
+		setUniLoading(true);
+		getAllUniversities()
+			.then((list) => {
+				if (!cancelled) setUniversities(list);
+			})
+			.catch(() => {
+				if (!cancelled) setUniversities([]);
+			})
+			.finally(() => {
+				if (!cancelled) setUniLoading(false);
+			});
+
+		return () => {
+			cancelled = true;
+		};
 	}, [isOpen]);
 
 	const handleChange = (e) =>
@@ -47,8 +68,8 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
 	const handleSubmitInfo = async (e) => {
 		e.preventDefault();
 		setMessage(null);
-		const { fullName, email, uni, studentId, password } = form;
-		if (!fullName || !email || !uni || !studentId || !password) {
+		const { fullName, email, university, studentId, password } = form;
+		if (!fullName || !email || !university || !studentId || !password) {
 			setMessage({ text: "Vui lòng nhập đầy đủ thông tin", type: "error" });
 			return;
 		}
@@ -169,14 +190,26 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
 					</FormField>
 					<div className="field-row">
 						<FormField label="Trường">
-							<input
-								type="text"
-								name="uni"
-								value={form.uni}
+							<select
+								name="university"
+								value={form.university}
 								onChange={handleChange}
 								required
-								placeholder="FPT University"
-							/>
+								disabled={uniLoading || universities.length === 0}
+							>
+								<option value="" disabled>
+									{uniLoading
+										? "Đang tải danh sách trường..."
+										: universities.length === 0
+										? "Không có trường nào"
+										: "-- Chọn trường --"}
+								</option>
+								{universities.map((u) => (
+									<option key={u.universityId} value={u.universityName}>
+										{u.universityName}
+									</option>
+								))}
+							</select>
 						</FormField>
 						<FormField label="Mã sinh viên">
 							<input

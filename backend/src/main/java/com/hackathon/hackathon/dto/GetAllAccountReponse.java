@@ -3,12 +3,14 @@ package com.hackathon.hackathon.dto;
 import lombok.Data;
 
 @Data
-public class UpdateProfileRequest {
+public class GetAllAccountReponse {
+    private String userId;
+
     private String email;
 
     private String fullName;
 
-    private String university;
+    private String role;
 
-    private String studentId;
+    private String status;
 }

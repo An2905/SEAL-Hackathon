@@ -10,7 +10,7 @@ public class RegisterRequest {
 
     private String fullName;
 
-    private String uni;
+    private String university;
 
     private String studentId;    
 }

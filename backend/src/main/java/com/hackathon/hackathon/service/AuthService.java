@@ -145,15 +145,15 @@ public String updateProfile(String authHeader, UpdateProfileRequest request) {
     Claims claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
     String email = claims.getSubject();
     String newFullName = request.getFullName();
-    String newUni = request.getUni();
+    String newUniversity = request.getUniversity();
     String newStudentId = request.getStudentId();
     String newEmail = request.getEmail();
     String studentId = "";
 
-    if (newFullName == null || newUni == null || newStudentId == null || newEmail == null) {
+    if (newFullName == null || newUniversity == null || newStudentId == null || newEmail == null) {
         return "All fields are required.";
     }
-    if (newFullName.isEmpty() || newUni.isEmpty() || newStudentId.isEmpty() || newEmail.isEmpty()) {
+    if (newFullName.isEmpty() || newUniversity.isEmpty() || newStudentId.isEmpty() || newEmail.isEmpty()) {
         return "All fields are required.";
     }
 
@@ -181,7 +181,7 @@ public String updateProfile(String authHeader, UpdateProfileRequest request) {
     String userId = "";
     String role = "";
     boolean checkMail = checkEmail(newEmail);
-    boolean checkStudentId = checkStudentId(newStudentId, newUni);
+    boolean checkStudentId = checkStudentId(newStudentId, newUniversity);
     if (!newEmail.equalsIgnoreCase(email) && checkMail) {
         return "Email already exists.";
     }
@@ -221,7 +221,7 @@ public String updateProfile(String authHeader, UpdateProfileRequest request) {
 
             PreparedStatement ps2 = conn.prepareStatement(sql2);
             ps2.setString(1, newStudentId);
-            ps2.setString(2, newUni);
+            ps2.setString(2, newUniversity);
             ps2.setString(3, userId);
             ps2.executeUpdate();
             ps2.close();
@@ -266,7 +266,7 @@ public String updateProfile(String authHeader, UpdateProfileRequest request) {
     }
 //#endregion   
 //#region CHECK STUDENT ID
-public boolean checkStudentId(String studentId, String Uni) {
+public boolean checkStudentId(String studentId, String university) {
         boolean check = false;
         try {
             
@@ -278,7 +278,7 @@ public boolean checkStudentId(String studentId, String Uni) {
 
             ps.setString(1, studentId);
 
-            ps.setString(2, Uni);
+            ps.setString(2, university);
 
             ResultSet rs = ps.executeQuery();
 
@@ -407,7 +407,7 @@ public String sendRegisterOtp(RegisterRequest request, HttpSession session) {
     }
     
     // 2. Kiểm tra xem mã sinh viên đã tồn tại chưa
-    if (checkStudentId(request.getStudentId(), request.getUni())) {
+    if (checkStudentId(request.getStudentId(), request.getUniversity())) {
         return "Student ID already exists or not valid for the specified university";
     }
 
@@ -469,7 +469,7 @@ public String verifyAndRegister(VerifyRegisterRequest request, HttpSession sessi
         ps.setString(2, regData.getEmail());
         ps.setString(3, encoder.encode(regData.getPassword()));
 
-        String checkRole = regData.getUni();
+        String checkRole = regData.getUniversity();
         if (checkRole != null && checkRole.toLowerCase().contains("fpt")) {
             ps.setString(4, "STUDENT_FPT");
         } else {
@@ -491,7 +491,7 @@ public String verifyAndRegister(VerifyRegisterRequest request, HttpSession sessi
         
         ps2.setString(1, userId);
         ps2.setString(2, regData.getStudentId());
-        ps2.setString(3, regData.getUni());
+        ps2.setString(3, regData.getUniversity());
         ps2.executeUpdate();
     } catch (Exception e) {
         return "Database error while creating profile: " + e.getMessage();

@@ -16,7 +16,7 @@ export function ProfileModal({ isOpen, onClose, showStudentFields = false }) {
 	const [form, setForm] = useState({
 		fullName: auth.fullName || "",
 		email: auth.email,
-		uni: "",
+		university: "",
 		studentId: "",
 	});
 
@@ -74,7 +74,11 @@ export function ProfileModal({ isOpen, onClose, showStudentFields = false }) {
 				{showStudentFields && (
 					<div className="field-row">
 						<FormField label="Trường">
-							<input name="uni" value={form.uni} onChange={handleChange} />
+							<input
+								name="university"
+								value={form.university}
+								onChange={handleChange}
+							/>
 						</FormField>
 						<FormField label="Mã sinh viên">
 							<input
