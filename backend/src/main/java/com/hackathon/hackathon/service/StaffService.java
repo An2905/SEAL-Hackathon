@@ -208,7 +208,8 @@ public class StaffService {
 
         if (roleFilter != null && !roleFilter.trim().isEmpty()) {
             roleFilter = roleFilter.trim();
-            if (!roleFilter.equals("JUDGE_INTERNAL") && !roleFilter.equals("MENTOR") && !roleFilter.equals("STUDENT_FPT")
+            if (!roleFilter.equals("JUDGE_INTERNAL") && !roleFilter.equals("MENTOR")
+                    && !roleFilter.equals("STUDENT_FPT")
                     && !roleFilter.equals("STUDENT_EXTERNAL") && !roleFilter.equals("ALL")) {
                 return Collections.emptyList();
             }
@@ -216,9 +217,18 @@ public class StaffService {
             roleFilter = "ALL";
         }
         try {
+            String sql;
+            PreparedStatement ps;
             Connection conn = dataSource.getConnection();
-            String sql = "SELECT user_id, email, full_name, role, status FROM users";
-            PreparedStatement ps = conn.prepareStatement(sql);
+
+            if (roleFilter.equals("ALL")) {
+                sql = "SELECT user_id, email, full_name, role, status FROM users";
+                ps = conn.prepareStatement(sql);
+            } else {
+                sql = "SELECT user_id, email, full_name, role, status FROM users WHERE role = ?";
+                ps = conn.prepareStatement(sql);
+                ps.setString(1, roleFilter);
+            }
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
@@ -373,5 +383,5 @@ public class StaffService {
 
         return result;
     }
-    //endregion
+    // endregion
 }
