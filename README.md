@@ -1,28 +1,51 @@
-# SEAL Hackathon Project
+# SEAL Hackathon Management System (SEAL-HMS)
 
-> This project is a Hackathon Management System designed to facilitate event coordination, student participation, and judging.
+> A comprehensive Hackathon Management System designed to facilitate event coordination, student participation, and judging for the Software Engineering Agile League (SEAL).
 
-## Tech Stack
+## 📖 Overview
+
+"Software Engineering Agile League (SEAL)" is an annual academic hackathon organized by the Software Engineering Department in collaboration with PDP at FPT University Ho Chi Minh City. SEAL-HMS transforms the traditional manual and fragmented event management process into a unified, transparent, and data-driven digital platform.
+
+The system serves a dual purpose: a robust competition management platform and a data collection tool for Research-Based Learning (RBL) focused on inter-rater reliability in software engineering evaluation.
+
+## 🎯 Vision & Business Objectives
+
+- **Automation:** Reduce the administrative overhead of managing annual hackathons by 70% through automated registration, team formation, and round advancement.
+- **Data Integrity:** Eliminate manual data entry errors in scoring and ranking by providing a direct digital interface for judges.
+- **Transparency:** Establish a 100% audit trail for all scoring decisions and team eliminations to ensure fairness and contestability.
+- **Research Support:** Enable Research-Based Learning (RBL) by collecting granular, non-aggregated scoring data to analyze inter-rater reliability among judges.
+
+## ✨ Key Features
+
+| Module                           | Features                                                                                                                                            |
+| :------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **User & Identity Management**   | JWT-based authentication, manual approval workflow for internal/external students, and temporary Guest Judge accounts.                              |
+| **Event & Track Management**     | Dynamic creation of multi-track, multi-round events, customizable scoring criteria templates, and configurable advancement rules (e.g., Top N).     |
+| **Team & Submission Management** | Self-service team formation (3-5 members), Track registration, and multi-format submissions (URLs/repository links).                                |
+| **Assessment & Ranking**         | Dedicated scoring portal for judges, automated ranking calculations based on weighted criteria, real-time leaderboards, and elimination audit logs. |
+| **Research Module (RBL)**        | Judge calibration tools, score variance dashboards, and exportable anonymized scoring datasets for academic research.                               |
+
+## 🛠 Tech Stack
 
 ### Backend
 
-- **Framework**: Spring Boot 4.0.6
-- **Language**: Java 17
-- **Database**: SQL Server (Microsoft SQL Server)
-- **Authentication**: JWT (JSON Web Token)
-- **Email Service**: Brevo (formerly Sendinblue)
-- **Architecture**: Direct JDBC (Connection, PreparedStatement) for database operations <!-- ,intentionally avoiding JPA/Hibernate/Spring Data to maintain high performance and low abstraction overhead. -->
+- **Framework:** Spring Boot 4.0.6
+- **Language:** Java 17
+- **Database:** SQL Server (Microsoft SQL Server)
+- **Authentication:** JWT (JSON Web Token)
+- **Email Service:** Brevo (formerly Sendinblue)
+- **Architecture:** Direct JDBC (`Connection`, `PreparedStatement`) for high performance and low abstraction overhead.
 
 ### Frontend
 
-- **Framework**: React 18
-- **Build Tool**: Vite
-- **Routing**: React Router DOM
-- **API Communication**: Fetch API with Vite proxy configuration.
+- **Framework:** React 18
+- **Build Tool:** Vite
+- **Routing:** React Router DOM
+- **API Communication:** Fetch API with Vite proxy configuration
 
 ---
 
-## Environment Setup
+## 🚀 Environment Setup
 
 ### Prerequisites
 
@@ -45,7 +68,7 @@ The backend uses environment variables for sensitive configuration. You can prov
 1. Create a file named `.env.properties` in the `backend/` directory.
 2. Add the following required variables:
 
-   ```env
+   ```properties
    # Email service API key
    BREVO_API_KEY=your_brevo_api_key_here
 
@@ -55,7 +78,7 @@ The backend uses environment variables for sensitive configuration. You can prov
 
 3. **Optional Database Overrides**: If your local SQL Server instance does not use the default credentials (`sa` / `12345`) or port, add:
 
-   ```env
+   ```properties
    SPRING_DATASOURCE_URL=jdbc:sqlserver://localhost:1433;databaseName=Hackathon;encrypt=true;trustServerCertificate=true;sendStringParametersAsUnicode=true
    SPRING_DATASOURCE_USERNAME=your_username
    SPRING_DATASOURCE_PASSWORD=your_password
@@ -63,7 +86,7 @@ The backend uses environment variables for sensitive configuration. You can prov
 
 ### 3. Frontend Setup
 
-1. Navigate to the `frontend` directory
+1. Navigate to the `frontend` directory:
 
    ```bash
    cd frontend
@@ -77,7 +100,7 @@ The backend uses environment variables for sensitive configuration. You can prov
 
 ---
 
-## How to Run
+## 🏃‍♂️ How to Run
 
 ### Start the Backend
 
@@ -101,7 +124,7 @@ The application will be accessible at `http://localhost:5173` (or the port indic
 
 ---
 
-## Project Structure & Rules
+## 📜 Project Structure & Rules
 
 - **Backend Rules**: Refer to `docs/rules/Rules.txt` and `docs/rules/AI Rules.txt` for specific coding standards, including the mandatory use of direct JDBC and manual JSON construction.
 - **API Proxies**: All frontend requests to `/api/*` are automatically proxied to the backend at `http://localhost:8080` via the Vite configuration.
