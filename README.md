@@ -35,14 +35,14 @@
 
 1. Install and start your SQL Server instance.
 2. Create a new database named `Hackathon`.
-3. Locate the SQL script at `SQL/SQL4.sql`.
+3. Locate the SQL script at `database/scripts/SQL4.sql`.
 4. Run the script against the `Hackathon` database to initialize the schema and seed initial data (including users and roles).
 
 ### 2. Backend Configuration
 
-The backend uses environment variables for sensitive configuration. You can provide these via a `.env` file or a `.env.properties` file in the root directory.
+The backend uses environment variables for sensitive configuration. You can provide these via a `.env.properties` file in the `backend/` directory.
 
-1. Create a file named `.env` in the root directory (at the same level as `pom.xml`).
+1. Create a file named `.env.properties` in the `backend/` directory.
 2. Add the following required variables:
 
    ```env
@@ -81,7 +81,7 @@ The backend uses environment variables for sensitive configuration. You can prov
 
 ### Start the Backend
 
-From the project root:
+From the `backend` directory:
 
 ```bash
 ./mvnw spring-boot:run
@@ -103,5 +103,5 @@ The application will be accessible at `http://localhost:5173` (or the port indic
 
 ## Project Structure & Rules
 
-- **Backend Rules**: Refer to `BE RULES/Rules.txt` and `BE RULES/AI Rules.txt` for specific coding standards, including the mandatory use of direct JDBC and manual JSON construction.
+- **Backend Rules**: Refer to `docs/rules/Rules.txt` and `docs/rules/AI Rules.txt` for specific coding standards, including the mandatory use of direct JDBC and manual JSON construction.
 - **API Proxies**: All frontend requests to `/api/*` are automatically proxied to the backend at `http://localhost:8080` via the Vite configuration.
