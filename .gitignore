@@ -198,3 +198,6 @@ Thumbs.db
 # Misc
 *.temp
 *.tmp
+
+# Gemini Agent Skills
+.agents/
