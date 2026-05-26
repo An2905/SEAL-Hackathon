@@ -1,0 +1,110 @@
+# Project Context: SEAL Hackathon Management System
+
+## Overview
+
+- **Code:** SU26SWP04
+- **Topic:**
+  - **English:** SEAL – Software Engineering Hackathon Management System
+
+## Context
+
+"Software Engineering Agile League (SEAL)" is an annual academic hackathon organized by the Software Engineering Department in collaboration with PDP at FPT University Ho Chi Minh City. Each year, SEAL organizes three hackathons (Spring, Summer, Fall). Each hackathon event can include multiple competition rounds (e.g., Preliminary Round and Final Round).
+
+SEAL events are open to students from multiple universities: teams can consist entirely of FPT students, a mix of FPT and external students, or entirely students from partner universities.
+
+Currently, event management is primarily performed manually, which is prone to errors and lacks transparency. In addition to developing the system, the project researches the consistency of judges' scoring in hackathons—an important but under-researated factor regarding assessment fairness. The system serves as both a competition management platform and a data collection tool for research on inter-rater reliability in software engineering evaluation.
+
+## Problems
+
+The current event management process faces several issues:
+
+- Manual team registration and category management lead to delays and data errors.
+- Scoring is conducted via individual Excel files from each judge; results must be collected and manually re-entered, causing delays and inaccuracies.
+- Limited communication channels between organizers, mentors, teams, and participants.
+- Lack of audit logs for scoring decisions, reducing transparency and reliability of results.
+
+## Primary Actors
+
+- Team Member
+- Team Leader
+- Mentor
+- Judge
+- Event Coordinator (SE Dept / PDP Staff)
+
+## Functional Requirements
+
+The system includes the following main functions:
+
+### Event & Round Management
+
+- Create and manage hackathon events.
+- Configure multiple rounds in each event (e.g., Qualifying Round and Final Round).
+- Setup for each round: submission deadlines, judge assignments, and scoring criteria.
+- Define advancement rules: e.g., top N teams from each Track advance to the next round.
+
+### Scoring Criteria Management
+
+- Maintain default criteria templates (reusable across events).
+- Each event inherits a template and can add, remove, or adjust criteria and weights.
+
+### Track (Category) Management
+
+- Create Tracks (competition categories) within each event.
+- Assign Mentors to Tracks (a lecturer can serve as a Mentor for one Track and a Judge for another within the same event).
+
+### Team Management
+
+- Form teams (3–5 members).
+- Register teams into a specific Track.
+
+### Registration & User Authentication
+
+- All participants use Email/Password with JWT.
+- During registration, participants self-classify: FPT Student (provide FPT student ID) or External Student (provide student ID + school name).
+- All accounts require Organizer approval before participating.
+- Guest Judges: temporary accounts created by Organizers with permissions limited to scoring assigned rounds.
+
+### Submission
+
+- Teams submit work for each round by providing URLs (project repository, demo, report/slide links).
+- Integrate GitHub/GitLab API to automatically fetch repository metadata (Optional).
+
+### Assessment
+
+- Judges score based on specific event criteria; scores for each criterion from each judge are recorded individually.
+- Organizers assign Internal and Guest Judges to rounds as needed.
+
+### Scoring, Ranking & Elimination
+
+- Automatically rank teams by round, Track, and the entire event.
+- Calculate advancement: the system identifies teams eligible for the next round.
+- Elimination: Organizers can eliminate teams/submissions for rule violations (results are cancelled and the reason is recorded).
+- Audit logs for all scoring and elimination actions.
+
+### Research Data Collection (RBL)
+
+> (Note: Students who implement this feature will receive extra points)
+
+- Record scores from each judge for each criterion for every submission (not aggregated).
+- Calibration round: judges score sample work; the system displays score distribution to support consensus among judges.
+- Export anonymized scoring datasets (CSV) for inter-rater reliability analysis.
+- Dashboard: visualize score variance between judges for each criterion.
+
+### Awards & Prizes
+
+- Award prizes based on ranking results.
+- Notify and announce results to all participants.
+- Export rankings and score reports as CSV/Excel.
+
+## Main Entities
+
+- Hackathon Event
+- Track (competition category)
+- Round (competition stage within an event)
+- Team
+- Team Member
+- Mentor
+- Judge (Internal or Guest)
+- Submission
+- Score/Ranking
+- Prize
