@@ -1,4 +1,5 @@
 package com.hackathon.hackathon.controller;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 
@@ -13,8 +14,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import com.hackathon.hackathon.dto.GetAllAccountReponse;
+import com.hackathon.hackathon.dto.GetAllEventResponse;
+import com.hackathon.hackathon.dto.GetEventDetailResponse;
 import com.hackathon.hackathon.dto.ChangeAccountStatusRequest;
 import com.hackathon.hackathon.dto.ChangeEventStatusRequest;
+import com.hackathon.hackathon.dto.ChangeTeamRegistrationStatusRequest;
 import com.hackathon.hackathon.dto.CreateStaffAccountRequest;
 import com.hackathon.hackathon.service.AuthService;
 import com.hackathon.hackathon.service.StaffService;
@@ -46,7 +50,6 @@ public class StaffController {
         return ResponseEntity.ok(result);
     }
 
-
     @PutMapping("/change-status")
     public ResponseEntity<String> changeAccountStatus(
             @RequestHeader("Authorization") String authHeader, @RequestBody ChangeAccountStatusRequest request) {
@@ -62,6 +65,31 @@ public class StaffController {
         GetAllAccountReponse request = new GetAllAccountReponse();
         request.setRole(role);
         List<GetAllAccountReponse> result = staffService.getAllAccounts(authHeader, request);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/events")
+    public ResponseEntity<List<GetAllEventResponse>> getAllEvents(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam(required = false, defaultValue = "ALL") String status) {
+        List<GetAllEventResponse> result = staffService.getAllEvents(authHeader, status);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/events/detail")
+    public ResponseEntity<GetEventDetailResponse> getEventDetail(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam String eventId) {
+        GetEventDetailResponse event = staffService.getEventDetail(authHeader, eventId);
+
+        return ResponseEntity.ok(event);
+    }
+
+    @PutMapping("/team-registration/status")
+    public ResponseEntity<String> changeTeamRegistrationStatus(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody ChangeTeamRegistrationStatusRequest request) {
+        String result = staffService.changeTeamRegistrationStatus(authHeader,request);
         return ResponseEntity.ok(result);
     }
 

@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import { normalizeEventId } from "./event";
 
 /** user_id DB là bigint — chuẩn hóa trước khi gửi BE */
 export function normalizeAccountUserId(value) {
@@ -36,12 +37,17 @@ export async function createStaffAccount({ email, fullName, role }) {
 }
 
 // PUT /api/staff/events/status
-// Body: { eventId, newStatus }
+// Body: { eventId, newStatus } — newStatus ∈ { UPCOMING, ONGOING, COMPLETED }
 // Requires Authorization Bearer of a COORDINATOR.
 export async function changeEventStatus({ eventId, newStatus }) {
+	const id = normalizeEventId(eventId);
+	if (!id) {
+		throw new Error("Event ID không hợp lệ — vui lòng tải lại danh sách sự kiện");
+	}
+	const nextStatus = String(newStatus ?? "").trim().toUpperCase();
 	const text = await apiFetch("/api/staff/events/status", {
 		method: "PUT",
-		body: { eventId, newStatus },
+		body: { eventId: id, newStatus: nextStatus },
 	});
 	if (!/event status updated successfully/i.test(text))
 		throw new Error(text);
@@ -86,4 +92,35 @@ export async function getAllAccounts(role = "ALL", input = "") {
 	} catch {
 		throw new Error(text || "Không thể tải danh sách tài khoản");
 	}
+}
+
+/** registration_id DB là bigint */
+export function normalizeRegistrationId(value) {
+	if (value == null || value === "") return "";
+	const num = Number(value);
+	if (Number.isFinite(num)) return String(Math.trunc(num));
+	const s = String(value).trim();
+	const dot = s.indexOf(".");
+	if (dot > 0 && /^\d+\.0+$/.test(s)) return s.slice(0, dot);
+	return s;
+}
+
+// PUT /api/staff/team-registration/status
+// Body: { registrationId, status } — status ∈ { PENDING, APPROVED, REJECTED }
+// Requires Authorization Bearer of a COORDINATOR.
+export async function changeTeamRegistrationStatus({ registrationId, status }) {
+	const id = normalizeRegistrationId(registrationId);
+	if (!id || !/^\d+$/.test(id)) {
+		throw new Error(
+			"Registration ID không hợp lệ — vui lòng tải lại danh sách đội"
+		);
+	}
+	const nextStatus = String(status ?? "").trim().toUpperCase();
+	const text = await apiFetch("/api/staff/team-registration/status", {
+		method: "PUT",
+		body: { registrationId: id, status: nextStatus },
+	});
+	if (!/registration status updated successfully/i.test(text))
+		throw new Error(text);
+	return true;
 }

@@ -7,6 +7,7 @@ import StudentDashboard from "./pages/dashboards/StudentDashboard";
 import StaffDashboard from "./pages/dashboards/StaffDashboard";
 import MentorDashboard from "./pages/dashboards/MentorDashboard";
 import JudgeDashboard from "./pages/dashboards/JudgeDashboard";
+import EventDetailsPage from "./pages/dashboards/EventDetailsPage";
 
 export default function App() {
 	return (
@@ -29,6 +30,15 @@ export default function App() {
 						element={
 							<RequireRole role="Staff">
 								<StaffDashboard />
+							</RequireRole>
+						}
+					/>
+
+					<Route
+						path="/staff/events/:eventId"
+						element={
+							<RequireRole role="Staff">
+								<EventDetailsPage />
 							</RequireRole>
 						}
 					/>

@@ -886,6 +886,214 @@ main {
   color: var(--text-dim);
   font-size: 13px;
 }
+
+/* Collapsible dashboard sections */
+.dashboard-section {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+.dashboard-section.has-pending-badge {
+  position: relative;
+  overflow: visible;
+}
+.dashboard-section.has-pending-badge .pending-teams-badge {
+  top: -6px;
+  right: -6px;
+}
+.dashboard-section-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 18px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+.dashboard-section-trigger:hover {
+  background: var(--bg-subtle);
+}
+.dashboard-section-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.dashboard-section-heading h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+.dashboard-section-heading .hint {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.dashboard-section-chevron {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-dim);
+  transition: transform 0.2s ease;
+}
+.dashboard-section.is-open .dashboard-section-chevron {
+  transform: rotate(180deg);
+}
+.dashboard-section-body {
+  padding: 0 18px 18px;
+  border-top: 1px solid var(--border);
+}
+.dashboard-section-body[hidden] {
+  display: none;
+}
+.dashboard-section-body > .card:first-child {
+  margin-top: 14px;
+}
+.dashboard-section-body > .cards:first-child {
+  margin-top: 14px;
+}
+.dashboard-section-body > .kv-list:first-child,
+.dashboard-section-body > .empty-state:first-child {
+  margin-top: 14px;
+}
+
+/* Compact stat dropdowns inside event detail card */
+.event-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+.event-stat-dropdown {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: visible;
+  background: var(--bg-subtle);
+}
+.pending-teams-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff !important;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+.kv.event-list-item {
+  position: relative;
+  overflow: visible;
+}
+.kv.event-list-item .pending-teams-badge {
+  top: -6px;
+  right: -6px;
+}
+.card.has-pending-badge {
+  position: relative;
+  overflow: visible;
+}
+.event-stat-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  border-radius: var(--radius);
+}
+.event-stat-dropdown.is-open .event-stat-dropdown-trigger {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.event-stat-dropdown-trigger:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+.event-stat-dropdown-meta {
+  min-width: 0;
+}
+.event-stat-dropdown-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.2;
+}
+.event-stat-dropdown-count {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+  margin-top: 2px;
+}
+.event-stat-dropdown-chevron {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--text-dim);
+  transition: transform 0.2s ease;
+}
+.event-stat-dropdown.is-open .event-stat-dropdown-chevron {
+  transform: rotate(180deg);
+}
+.event-stat-dropdown-body {
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-card);
+  max-height: 220px;
+  overflow-y: auto;
+  border-bottom-left-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+}
+.event-stat-dropdown-body[hidden] {
+  display: none;
+}
+.event-stat-dropdown-body .kv-list {
+  margin-top: 0;
+  gap: 4px;
+}
+.event-stat-dropdown-body .kv {
+  padding: 6px 8px;
+  font-size: 12px;
+  align-items: flex-start;
+}
+.event-stat-dropdown-body .kv > span:only-child {
+  max-width: 100%;
+  text-align: left;
+  word-break: break-word;
+}
+.event-stat-dropdown-body .kv .status-picker {
+  flex-shrink: 0;
+  align-self: center;
+}
+.event-stat-dropdown-body .status-pill {
+  cursor: pointer;
+}
+.event-stat-dropdown-empty {
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 4px 2px;
+}
+
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -1008,7 +1216,7 @@ main {
   border-radius: var(--radius);
   font-size: 13px;
 }
-.kv span:first-child {
+.kv span:first-child:not(.pending-teams-badge) {
   color: var(--text-dim);
 }
 .kv span:last-child {

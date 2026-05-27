@@ -177,13 +177,13 @@ function JoinEventForm() {
   return (
     <div className="card">
       <div className="card-head"><div className="card-title">Đăng ký sự kiện</div></div>
-      <p className="card-sub">Dẫn đội tham gia một event hackathon. Nhập <strong>Event ID</strong> và <strong>Category ID</strong>.</p>
+      <p className="card-sub">Dẫn đội tham gia event hackathon. Nhập <strong>Event ID</strong> và <strong>Category ID</strong>.</p>
       <form className="form" onSubmit={handleSubmit}>
         <FormField label="Event ID">
-          <input name="eventId" value={form.eventId} onChange={handle} required placeholder="VD: 1001" />
+          <input name="eventId" value={form.eventId} onChange={handle} required placeholder="VD: 1" />
         </FormField>
         <FormField label="Category ID">
-          <input name="categoryId" value={form.categoryId} onChange={handle} required placeholder="VD: 2002" />
+          <input name="categoryId" value={form.categoryId} onChange={handle} required placeholder="VD: 2" />
         </FormField>
         <LoadingButton loading={loading} type="submit">Đăng ký event</LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />

@@ -15,9 +15,16 @@ import java.util.Collections;
 import java.util.ArrayList;
 
 import com.hackathon.hackathon.dto.GetAllAccountReponse;
+import com.hackathon.hackathon.dto.GetAllEventResponse;
+import com.hackathon.hackathon.dto.GetEventDetailResponse;
 import com.hackathon.hackathon.dto.ChangeAccountStatusRequest;
 import com.hackathon.hackathon.dto.ChangeEventStatusRequest;
+import com.hackathon.hackathon.dto.ChangeTeamRegistrationStatusRequest;
 import com.hackathon.hackathon.dto.CreateStaffAccountRequest;
+import com.hackathon.hackathon.dto.EventAwardResponse;
+import com.hackathon.hackathon.dto.EventCategoryResponse;
+import com.hackathon.hackathon.dto.EventRoundResponse;
+import com.hackathon.hackathon.dto.EventTeamResponse;
 import com.hackathon.hackathon.jwt.JwtUtil;
 
 import io.jsonwebtoken.Claims;
@@ -348,6 +355,369 @@ public class StaffService {
 
     // endregion
 
+    // region GET ALL EVENTS
+    public List<GetAllEventResponse> getAllEvents(String authHeader, String status) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return Collections.emptyList();
+        }
+        Claims claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
+        String roleString = claims.get("role", String.class);
+
+        if (roleString == null || !roleString.equals("COORDINATOR")) {
+            return Collections.emptyList();
+        }
+        List<GetAllEventResponse> events = new ArrayList<>();
+        String statusFilter = (status == null) ? "" : status.trim().toUpperCase();
+        try {
+            Connection conn = dataSource.getConnection();
+            String sql;
+            PreparedStatement ps;
+
+            if (statusFilter.isEmpty() || statusFilter.equals("ALL")) {
+                sql = "SELECT event_id, title, description, start_date, end_date, status, created_at FROM events";
+                ps = conn.prepareStatement(sql);
+            } else {
+                sql = "SELECT event_id, title, description, start_date, end_date, status, created_at FROM events WHERE status = ?";
+                ps = conn.prepareStatement(sql);
+                ps.setString(1, statusFilter);
+            }
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                GetAllEventResponse event = new GetAllEventResponse();
+                event.setEventId(rs.getString("event_id"));
+                event.setTitle(rs.getString("title"));
+                event.setDescription(rs.getString("description"));
+                event.setStartDate(rs.getString("start_date"));
+                event.setEndDate(rs.getString("end_date"));
+                event.setStatus(rs.getString("status"));
+                event.setCreatedAt(rs.getString("created_at"));
+                events.add(event);
+            }
+
+            rs.close();
+            ps.close();
+            conn.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return events;
+    }
+
+    // endregion
+
+    // region GET EVENT DETAIL
+
+    public GetEventDetailResponse getEventDetail(
+            String authHeader,
+            String eventId) {
+
+        if (authHeader == null
+                ||
+                !authHeader.startsWith("Bearer ")) {
+
+            return null;
+        }
+
+        Claims claims = JwtUtil.extractClaims(
+                authHeader.replace(
+                        "Bearer ",
+                        ""));
+
+        String roleString = claims.get(
+                "role",
+                String.class);
+
+        if (roleString == null) {
+
+            return null;
+        }
+
+        if (eventId == null
+                ||
+                eventId.trim().isEmpty()) {
+
+            return null;
+        }
+
+        GetEventDetailResponse event = new GetEventDetailResponse();
+
+        try {
+
+            Connection conn = dataSource.getConnection();
+
+            // =================================
+            // MAIN EVENT
+            // =================================
+
+            String sql = "SELECT " +
+                    "e.event_id, " +
+                    "e.title, " +
+                    "e.description, " +
+                    "e.start_date, " +
+                    "e.end_date, " +
+                    "e.status, " +
+                    "e.created_at, " +
+
+                    "COUNT(DISTINCT tr.team_id) AS total_teams, " +
+                    "COUNT(DISTINCT CASE " +
+                    "WHEN tr.status = 'PENDING' " +
+                    "THEN tr.team_id " +
+                    "END) AS pending_teams, " +
+                    "COUNT(DISTINCT c.category_id) AS total_categories, " +
+                    "COUNT(DISTINCT r.round_id) AS total_rounds, " +
+                    "COUNT(DISTINCT a.award_id) AS total_awards " +
+
+                    "FROM events e " +
+
+                    "LEFT JOIN categories c " +
+                    "ON e.event_id = c.event_id " +
+
+                    "LEFT JOIN rounds r " +
+                    "ON e.event_id = r.event_id " +
+
+                    "LEFT JOIN team_registrations tr " +
+                    "ON e.event_id = tr.event_id " +
+
+                    "LEFT JOIN awards a " +
+                    "ON e.event_id = a.event_id " +
+
+                    "WHERE e.event_id = ? " +
+
+                    "GROUP BY " +
+                    "e.event_id, " +
+                    "e.title, " +
+                    "e.description, " +
+                    "e.start_date, " +
+                    "e.end_date, " +
+                    "e.status, " +
+                    "e.created_at";
+
+            PreparedStatement ps = conn.prepareStatement(sql);
+
+            ps.setString(1, eventId);
+
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+
+                event.setEventId(
+                        rs.getString("event_id"));
+
+                event.setTitle(
+                        rs.getString("title"));
+
+                event.setDescription(
+                        rs.getString("description"));
+
+                event.setStartDate(
+                        rs.getString("start_date"));
+
+                event.setEndDate(
+                        rs.getString("end_date"));
+
+                event.setStatus(
+                        rs.getString("status"));
+
+                event.setCreatedAt(
+                        rs.getString("created_at"));
+
+                event.setTotalTeams(
+                        rs.getString("total_teams"));
+
+                event.setTotalCategories(
+                        rs.getString("total_categories"));
+
+                event.setTotalRounds(
+                        rs.getString("total_rounds"));
+
+                event.setTotalAwards(
+                        rs.getString("total_awards"));
+                event.setPendingTeams(
+                        rs.getString("pending_teams"));
+            }
+
+            // CATEGORIES
+
+            List<EventCategoryResponse> categories = new ArrayList<>();
+            String categorySql = "SELECT category_id, name, description " +
+                    "FROM categories " +
+                    "WHERE event_id = ?";
+            PreparedStatement cps = conn.prepareStatement(categorySql);
+            cps.setString(1, eventId);
+            ResultSet crs = cps.executeQuery();
+            while (crs.next()) {
+                EventCategoryResponse c = new EventCategoryResponse();
+                c.setCategoryId(crs.getString("category_id"));
+                c.setName(crs.getString("name"));
+                c.setDescription(crs.getString("description"));
+
+                categories.add(c);
+            }
+            event.setCategories(categories);
+            // ROUNDS
+
+            List<EventRoundResponse> rounds = new ArrayList<>();
+            String roundSql = "SELECT round_id, name, start_date, " +
+                    "end_date, submission_deadline " +
+                    "FROM rounds " +
+                    "WHERE event_id = ? " +
+                    "ORDER BY round_order";
+            PreparedStatement rps = conn.prepareStatement(roundSql);
+            rps.setString(1, eventId);
+            ResultSet rrs = rps.executeQuery();
+            while (rrs.next()) {
+                EventRoundResponse r = new EventRoundResponse();
+                r.setRoundId(rrs.getString("round_id"));
+                r.setName(rrs.getString("name"));
+                r.setStartDate(rrs.getString("start_date"));
+                r.setEndDate(rrs.getString("end_date"));
+                r.setSubmissionDeadline(rrs.getString("submission_deadline"));
+                rounds.add(r);
+            }
+            event.setRounds(rounds);
+            // TEAMS
+
+            List<EventTeamResponse> teams = new ArrayList<>();
+            String teamSql = "SELECT " +
+                    "tr.registration_id, " +
+                    "t.team_id, " +
+                    "t.team_name, " +
+                    "tr.status " +
+                    "FROM team_registrations tr " +
+                    "JOIN teams t " +
+                    "ON tr.team_id = t.team_id " +
+                    "WHERE tr.event_id = ?";
+            PreparedStatement tps = conn.prepareStatement(teamSql);
+            tps.setString(1, eventId);
+            ResultSet trs = tps.executeQuery();
+            while (trs.next()) {
+                EventTeamResponse t = new EventTeamResponse();
+                t.setTeamId(trs.getString("team_id"));
+                t.setTeamName(trs.getString("team_name"));
+                t.setStatus(trs.getString("status"));
+                t.setRegistrationId(trs.getString("registration_id"));
+                teams.add(t);
+            }
+            event.setTeams(teams);
+
+            // AWARDS
+
+            List<EventAwardResponse> awards = new ArrayList<>();
+            String awardSql = "SELECT a.award_id, a.title, a.rank, " +
+                    "t.team_name " +
+                    "FROM awards a " +
+                    "JOIN teams t " +
+                    "ON a.team_id = t.team_id " +
+                    "WHERE a.event_id = ?";
+            PreparedStatement aps = conn.prepareStatement(awardSql);
+            aps.setString(1, eventId);
+            ResultSet ars = aps.executeQuery();
+            while (ars.next()) {
+                EventAwardResponse a = new EventAwardResponse();
+                a.setAwardId(ars.getString("award_id"));
+                a.setTitle(ars.getString("title"));
+                a.setRank(ars.getString("rank"));
+                a.setTeamName(ars.getString("team_name"));
+                awards.add(a);
+            }
+            event.setAwards(awards);
+
+            // CLOSE
+
+            ars.close();
+            aps.close();
+            trs.close();
+            tps.close();
+            rrs.close();
+            rps.close();
+            crs.close();
+            cps.close();
+            rs.close();
+            ps.close();
+            conn.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return event;
+    }
+
+    // endregion
+
+    // region CHANGE TEAM REGISTRATION STATUS
+
+    public String changeTeamRegistrationStatus(
+            String authHeader,
+            ChangeTeamRegistrationStatusRequest request) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return "Invalid token";
+        }
+        Claims claims = JwtUtil.extractClaims(
+                authHeader.replace("Bearer ", ""));
+
+        String roleString = claims.get("role", String.class);
+        if (roleString == null || !roleString.equalsIgnoreCase("COORDINATOR")) {
+            return "Only coordinator can change registration status.";
+        }
+
+        String registrationId = request.getRegistrationId();
+        String status = request.getStatus();
+
+        if (registrationId == null || registrationId.trim().isEmpty()) {
+            return "Registration ID is required.";
+        }
+
+        if (status == null || status.trim().isEmpty()) {
+            return "Status is required.";
+        }
+        registrationId = registrationId.trim();
+        status = status.trim().toUpperCase();
+        try {
+            Long.parseLong(registrationId);
+        } catch (Exception e) {
+            return "Invalid registration ID.";
+        }
+
+        if (!status.equals("PENDING") && !status.equals("APPROVED") && !status.equals("REJECTED")) {
+            return "Invalid status.";
+        }
+
+        try {
+            Connection conn = dataSource.getConnection();
+            String checkSql = "SELECT registration_id FROM team_registrations WHERE registration_id = ?";
+            PreparedStatement cps = conn.prepareStatement(checkSql);
+            cps.setString(1, registrationId);
+            ResultSet crs = cps.executeQuery();
+            if (!crs.next()) {
+                crs.close();
+                cps.close();
+                conn.close();
+                return "Registration not found.";
+            }
+            crs.close();
+            cps.close();
+            String updateSql = "UPDATE team_registrations SET status = ? WHERE registration_id = ?";
+            PreparedStatement ups = conn.prepareStatement(updateSql);
+            ups.setString(1, status);
+            ups.setString(2, registrationId);
+            int rows = ups.executeUpdate();
+            ups.close();
+            conn.close();
+            if (rows == 0) {
+                return "Update failed.";
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Change registration status failed.";
+        }
+        return "Registration status updated successfully.";
+    }
+
+    // endregion
+
     // region CHECK ROLE
     public String checkRole(String userId) {
 
@@ -384,4 +754,5 @@ public class StaffService {
         return result;
     }
     // endregion
+
 }

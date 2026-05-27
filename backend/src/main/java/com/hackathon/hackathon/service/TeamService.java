@@ -284,7 +284,7 @@ public class TeamService {
         String teamId = "";
         String eventId = request.getEventId().trim();
         String categoryId = request.getCategoryId().trim();
-        if (!roleString.equalsIgnoreCase("STUDENT_FPT") && !roleString.equalsIgnoreCase("STUDENT_EXTERNAL")) {
+        if (roleString == null || !roleString.equalsIgnoreCase("STUDENT_FPT") && !roleString.equalsIgnoreCase("STUDENT_EXTERNAL")) {
             return "Only students can join events.";
         }
         
@@ -320,11 +320,12 @@ public class TeamService {
                     return "Category is not valid";    
                 }
 
-                String sql2 = "INSERT INTO team_registrations (event_id, team_id, category_id) VALUES (?, ?, ?)";
+                String sql2 = "INSERT INTO team_registrations (event_id, team_id, category_id, status) VALUES (?, ?, ?, ?)";
                 PreparedStatement ps2 = conn.prepareStatement(sql2);
                 ps2.setString(1, eventId);
                 ps2.setString(2, teamId);
                 ps2.setString(3, categoryId);
+                ps2.setString(4, "PENDING");
                 ps2.executeUpdate();
                 ps2.close();
                 conn.close();

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import DashboardShell from "./DashboardShell";
 import FormField from "../../components/common/FormField";
 import FormMessage from "../../components/common/FormMessage";
+import PendingTeamsBadge from "../../components/common/PendingTeamsBadge";
 import LoadingButton from "../../components/common/LoadingButton";
 import {
 	createStaffAccount,
@@ -10,6 +12,7 @@ import {
 	getAllAccounts,
 	normalizeAccountUserId,
 } from "../../api/staff";
+import { getAllEvents, attachPendingTeamsToEvents } from "../../api/event";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { localizeError } from "../../utils/errors";
@@ -18,7 +21,6 @@ const EVENT_STATUSES = [
 	{ value: "UPCOMING", label: "Sắp diễn ra (UPCOMING)" },
 	{ value: "ONGOING", label: "Đang diễn ra (ONGOING)" },
 	{ value: "COMPLETED", label: "Đã kết thúc (COMPLETED)" },
-	{ value: "CANCELLED", label: "Đã huỷ (CANCELLED)" },
 ];
 
 // Dropdown options ↔ giá trị BE chấp nhận trong field `role`
@@ -40,6 +42,44 @@ const ROLE_LABELS = {
 
 // Khớp CHECK constraint DB users.status: PENDING | APPROVED | REJECTED
 const ACCOUNT_STATUSES = ["PENDING", "APPROVED", "REJECTED"];
+
+function DashboardSection({
+	title,
+	hint,
+	defaultOpen = false,
+	badgeCount,
+	children,
+}) {
+	const [open, setOpen] = useState(defaultOpen);
+	const hasBadge = Number(badgeCount) > 0;
+
+	return (
+		<div
+			className={`dashboard-section${open ? " is-open" : ""}${
+				hasBadge ? " has-pending-badge" : ""
+			}`}
+		>
+			<PendingTeamsBadge count={badgeCount} />
+			<button
+				type="button"
+				className="dashboard-section-trigger"
+				onClick={() => setOpen((v) => !v)}
+				aria-expanded={open}
+			>
+				<span className="dashboard-section-heading">
+					<h2>{title}</h2>
+					{hint ? <span className="hint">{hint}</span> : null}
+				</span>
+				<span className="dashboard-section-chevron" aria-hidden="true">
+					▼
+				</span>
+			</button>
+			<div className="dashboard-section-body" hidden={!open}>
+				{children}
+			</div>
+		</div>
+	);
+}
 
 function statusPillClass(status) {
 	const key = (status || "").toLowerCase();
@@ -210,80 +250,267 @@ function CreateStaffAccountForm({ onSuccess }) {
 	);
 }
 
-// ─── Change Event Status Form ─────────────────────────────────────────────────
-function ChangeEventStatusForm({ onSuccess }) {
+function eventStatusPillClass(status) {
+	const key = (status || "").toUpperCase();
+	if (key === "UPCOMING") return "status-pending";
+	if (key === "ONGOING") return "status-active";
+	if (key === "COMPLETED") return "status-default";
+	if (key === "CANCELLED") return "status-rejected";
+	return "status-default";
+}
+
+function EventStatusPicker({ event, onUpdated }) {
 	const { showToast } = useToast();
-	const [loading, setLoading] = useState(false);
-	const [message, setMessage] = useState(null);
-	const [form, setForm] = useState({ eventId: "", newStatus: "UPCOMING" });
+	const [open, setOpen] = useState(false);
+	const [saving, setSaving] = useState(false);
+	const eventId = event?.eventId ?? "";
 
-	const handle = (e) =>
-		setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+	const handleSelect = async (e) => {
+		const next = e.target.value;
+		setOpen(false);
+		const currentStatus = String(event.status ?? "").trim().toUpperCase();
+		if (next === currentStatus) return;
 
-	const handleSubmit = async (e) => {
-		e.preventDefault();
-		setMessage(null);
-
-		const eventId = form.eventId.trim();
 		if (!eventId) {
-			setMessage({ text: "Vui lòng nhập Event ID", type: "error" });
+			showToast("Thiếu Event ID — vui lòng tải lại danh sách", "error");
 			return;
 		}
 
-		setLoading(true);
+		setSaving(true);
 		try {
-			await changeEventStatus({ eventId, newStatus: form.newStatus });
-			setMessage({
-				text: `Đã cập nhật event ${eventId} → ${form.newStatus}`,
-				type: "success",
-			});
-			showToast("Cập nhật trạng thái event thành công", "success");
-			onSuccess?.(`Đổi trạng thái event ${eventId} → ${form.newStatus}`);
+			await changeEventStatus({ eventId, newStatus: next });
+			onUpdated(eventId, next);
+			showToast(`Đã cập nhật trạng thái → ${next}`, "success");
 		} catch (err) {
-			setMessage({ text: localizeError(err.message), type: "error" });
+			showToast(localizeError(err.message), "error");
 		} finally {
-			setLoading(false);
+			setSaving(false);
 		}
+	};
+
+	if (open) {
+		return (
+			<div className="status-picker">
+				<select
+					className="status-picker-select"
+					value={event.status}
+					onChange={handleSelect}
+					onBlur={() => setOpen(false)}
+					disabled={saving}
+					autoFocus
+				>
+					{EVENT_STATUSES.map((s) => (
+						<option key={s.value} value={s.value}>
+							{s.value}
+						</option>
+					))}
+				</select>
+			</div>
+		);
+	}
+
+	return (
+		<div className="status-picker">
+			<button
+				type="button"
+				className={`status-pill ${eventStatusPillClass(event.status)}`}
+				onClick={() => !saving && setOpen(true)}
+				disabled={saving}
+				title="Nhấn để đổi trạng thái"
+				style={{ alignSelf: "center", flexShrink: 0 }}
+			>
+				{event.status}
+			</button>
+		</div>
+	);
+}
+
+function formatEventDate(value) {
+	if (!value) return "—";
+	const d = new Date(value);
+	if (Number.isNaN(d.getTime())) return String(value);
+	return d.toLocaleDateString("vi-VN", {
+		day: "2-digit",
+		month: "2-digit",
+		year: "numeric",
+	});
+}
+
+// ─── Events List Section ──────────────────────────────────────────────────────
+function EventsListSection({
+	refreshKey = 0,
+	onStatusChanged,
+	onPendingTotalChange,
+}) {
+	const { showToast } = useToast();
+	const [status, setStatus] = useState("ALL");
+	const [events, setEvents] = useState([]);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState(null);
+	const [loaded, setLoaded] = useState(false);
+
+	useEffect(() => {
+		let cancelled = false;
+
+		(async () => {
+			setLoading(true);
+			setError(null);
+			try {
+				const data = await getAllEvents(status);
+				const enriched = await attachPendingTeamsToEvents(data);
+				if (!cancelled) {
+					setEvents(enriched);
+					setLoaded(true);
+				}
+			} catch (err) {
+				if (!cancelled) {
+					setError(localizeError(err.message));
+					setEvents([]);
+					showToast("Không tải được danh sách sự kiện", "error");
+				}
+			} finally {
+				if (!cancelled) setLoading(false);
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [status, refreshKey, showToast]);
+
+	const totalPending = events.reduce(
+		(sum, ev) => sum + (Number(ev.pendingTeams) || 0),
+		0
+	);
+
+	useEffect(() => {
+		onPendingTotalChange?.(totalPending);
+	}, [totalPending, onPendingTotalChange]);
+
+	const handleStatusChange = (e) => setStatus(e.target.value);
+
+	const handleEventStatusUpdated = (eventId, newStatus) => {
+		setEvents((prev) =>
+			prev.map((ev) =>
+				ev.eventId === eventId ? { ...ev, status: newStatus } : ev
+			)
+		);
+		onStatusChanged?.(eventId, newStatus);
 	};
 
 	return (
 		<div className="card">
 			<div className="card-head">
-				<div className="card-title">Đổi trạng thái sự kiện</div>
+				<div className="card-title">Danh sách sự kiện</div>
 			</div>
 			<p className="card-sub">
-				Nhập <strong>Event ID</strong> và chọn trạng thái mới. Chỉ COORDINATOR
-				có quyền thao tác này.
+				Xem tất cả hackathon trong hệ thống. Nhấn badge trạng thái để đổi — chỉ
+				COORDINATOR có quyền thao tác.
 			</p>
-			<form className="form" onSubmit={handleSubmit}>
-				<FormField label="Event ID">
-					<input
-						name="eventId"
-						value={form.eventId}
-						onChange={handle}
-						required
-						placeholder="VD: 1001"
-					/>
-				</FormField>
-				<FormField label="Trạng thái mới">
-					<select
-						name="newStatus"
-						value={form.newStatus}
-						onChange={handle}
-						required
+
+			<FormField label="Lọc theo trạng thái">
+				<select
+					name="status"
+					value={status}
+					onChange={handleStatusChange}
+					disabled={loading}
+				>
+					<option value="ALL">Tất cả</option>
+					{EVENT_STATUSES.map((s) => (
+						<option key={s.value} value={s.value}>
+							{s.label}
+						</option>
+					))}
+				</select>
+			</FormField>
+
+			{error && <FormMessage message={error} type="error" />}
+
+			{loading && (
+				<div className="empty-state" style={{ marginTop: 12 }}>
+					Đang tải danh sách…
+				</div>
+			)}
+
+			{!loading && loaded && events.length === 0 && !error && (
+				<div className="empty-state" style={{ marginTop: 12 }}>
+					Chưa có sự kiện nào khớp với bộ lọc.
+				</div>
+			)}
+
+			{!loading && events.length > 0 && (
+				<>
+					<div
+						className="card-sub"
+						style={{ marginTop: 12, marginBottom: 6 }}
 					>
-						{EVENT_STATUSES.map((s) => (
-							<option key={s.value} value={s.value}>
-								{s.label}
-							</option>
+						Tổng cộng <strong>{events.length}</strong> sự kiện
+					</div>
+					<div className="kv-list">
+						{events.map((ev) => (
+							<div
+								className={`kv event-list-item${
+									Number(ev.pendingTeams) > 0
+										? " has-pending-badge"
+										: ""
+								}`}
+								key={ev.eventId}
+							>
+								<PendingTeamsBadge count={ev.pendingTeams} />
+								<span style={{ minWidth: 0, flex: 1, textAlign: "left" }}>
+									<div style={{ fontWeight: 600, color: "var(--text)" }}>
+										{ev.title || "—"}
+									</div>
+									{ev.description ? (
+										<div
+											style={{
+												fontSize: 12,
+												color: "var(--text-dim)",
+												marginTop: 2,
+											}}
+										>
+											{ev.description}
+										</div>
+									) : null}
+									<div
+										style={{
+											fontSize: 11,
+											color: "var(--text-mute)",
+											marginTop: 4,
+										}}
+									>
+										ID: {ev.eventId}
+										{ev.startDate || ev.endDate
+											? ` · ${formatEventDate(ev.startDate)} → ${formatEventDate(ev.endDate)}`
+											: ""}
+									</div>
+								</span>
+								<span
+									style={{
+										display: "flex",
+										alignItems: "center",
+										gap: 8,
+										flexShrink: 0,
+										alignSelf: "center",
+									}}
+								>
+									<Link
+										to={`/staff/events/${ev.eventId}`}
+										className="btn btn-outline"
+										style={{ fontSize: 12, padding: "4px 10px" }}
+									>
+										Chi tiết
+									</Link>
+									<EventStatusPicker
+										event={ev}
+										onUpdated={handleEventStatusUpdated}
+									/>
+								</span>
+							</div>
 						))}
-					</select>
-				</FormField>
-				<LoadingButton loading={loading} type="submit">
-					Cập nhật trạng thái
-				</LoadingButton>
-				<FormMessage message={message?.text} type={message?.type} />
-			</form>
+					</div>
+				</>
+			)}
 		</div>
 	);
 }
@@ -481,9 +708,16 @@ function ActivityLog({ activities }) {
 export default function StaffDashboard() {
 	const { auth } = useAuth();
 	const [activities, setActivities] = useState([]);
+	const [eventsRefresh, setEventsRefresh] = useState(0);
+	const [eventsPendingTotal, setEventsPendingTotal] = useState(0);
 
 	const logActivity = (text) =>
 		setActivities((prev) => [{ text, at: new Date() }, ...prev]);
+
+	const handleEventStatusChanged = (eventId, newStatus) => {
+		logActivity(`Đổi trạng thái event ${eventId} → ${newStatus}`);
+		setEventsRefresh((k) => k + 1);
+	};
 
 	return (
 		<DashboardShell
@@ -492,48 +726,61 @@ export default function StaffDashboard() {
 			subtitle="Bảng điều khiển dành cho Coordinator — quản lý tài khoản và sự kiện."
 			role="COORDINATOR"
 		>
-			<div className="section-title">
-				<h2>Quản trị tài khoản &amp; sự kiện</h2>
-			</div>
+			<DashboardSection
+				title="Quản trị tài khoản & sự kiện"
+				hint="Tạo tài khoản Judge / Mentor"
+			>
+				<div className="cards">
+					<CreateStaffAccountForm onSuccess={logActivity} />
+				</div>
+			</DashboardSection>
 
-			<div className="cards">
-				<CreateStaffAccountForm onSuccess={logActivity} />
-				<ChangeEventStatusForm onSuccess={logActivity} />
-			</div>
+			<DashboardSection
+				title="Sự kiện trong hệ thống"
+				hint="Xem và đổi trạng thái sự kiện"
+				badgeCount={eventsPendingTotal}
+				defaultOpen
+			>
+				<EventsListSection
+					refreshKey={eventsRefresh}
+					onStatusChanged={handleEventStatusChanged}
+					onPendingTotalChange={setEventsPendingTotal}
+				/>
+			</DashboardSection>
 
-			<div className="section-title">
-				<h2>Tài khoản trong hệ thống</h2>
-			</div>
-			<AccountsListSection />
+			<DashboardSection
+				title="Tài khoản trong hệ thống"
+				hint="Danh sách và phê duyệt tài khoản"
+			>
+				<AccountsListSection />
+			</DashboardSection>
 
-			<div className="section-title">
-				<h2>Hoạt động gần đây</h2>
-			</div>
-			<ActivityLog activities={activities} />
+			<DashboardSection title="Hoạt động gần đây" hint="Nhật ký thao tác trong phiên">
+				<ActivityLog activities={activities} />
+			</DashboardSection>
 
-			<div className="section-title">
-				<h2>Thông tin tài khoản</h2>
-			</div>
-			<div className="card">
-				<div className="kv-list">
-					<div className="kv">
-						<span>Họ tên</span>
-						<span>{auth.fullName || "—"}</span>
-					</div>
-					<div className="kv">
-						<span>Email</span>
-						<span>{auth.email}</span>
-					</div>
-					<div className="kv">
-						<span>Vai trò</span>
-						<span>Staff (COORDINATOR)</span>
-					</div>
-					<div className="kv">
-						<span>Trạng thái phiên</span>
-						<span>Đã đăng nhập</span>
+			<DashboardSection title="Thông tin tài khoản" hint="Coordinator đang đăng nhập">
+				<div className="card">
+					<div className="kv-list">
+						<div className="kv">
+							<span>Họ tên</span>
+							<span>{auth.fullName || "—"}</span>
+						</div>
+						<div className="kv">
+							<span>Email</span>
+							<span>{auth.email}</span>
+						</div>
+						<div className="kv">
+							<span>Vai trò</span>
+							<span>Staff (COORDINATOR)</span>
+						</div>
+						<div className="kv">
+							<span>Trạng thái phiên</span>
+							<span>Đã đăng nhập</span>
+						</div>
 					</div>
 				</div>
-			</div>
+			</DashboardSection>
 		</DashboardShell>
 	);
 }
