@@ -58,8 +58,8 @@ The system serves a dual purpose: a robust competition management platform and a
 
 1. Install and start your SQL Server instance.
 2. Create a new database named `Hackathon`.
-3. Locate the SQL script at `database/scripts/SQL4.sql`.
-4. Run the script against the `Hackathon` database to initialize the schema and seed initial data (including users and roles).
+3. Locate the SQL scripts at `database/scripts/schema.sql` and `database/scripts/seeding.sql`.
+4. Run `schema.sql` first to initialize the schema, followed by `seeding.sql` to seed initial data (including users and roles).
 
 ### 2. Backend Configuration
 
