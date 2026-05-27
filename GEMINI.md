@@ -48,5 +48,5 @@ Navigate to the `frontend/` directory first:
 
 ## Environment Setup
 
-- **Database**: Run `database/scripts/SQL4.sql`.
+- **Database**: Run `database/scripts/schema.sql` first to create the tables, then `database/scripts/seeding.sql` to populate initial data.
 - **Configuration**: Backend loads config from `backend/src/main/resources/application.properties` and `backend/.env.properties`.
