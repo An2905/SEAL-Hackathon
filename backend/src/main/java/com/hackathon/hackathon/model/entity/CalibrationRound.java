@@ -4,8 +4,8 @@ import lombok.Data;
 
 @Data
 public class CalibrationRound {
-  private String calibrationId;
-  private String eventId;
-  private String name;
-  private String createdAt;
+    private String calibrationId;
+    private String eventId;
+    private String name;
+    private String createdAt;
 }

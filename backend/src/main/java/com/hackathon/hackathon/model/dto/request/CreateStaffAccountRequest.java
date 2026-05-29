@@ -4,9 +4,9 @@ import lombok.Data;
 
 @Data
 public class CreateStaffAccountRequest {
-  private String email;
+    private String email;
 
-  private String fullName;
+    private String fullName;
 
-  private String role; // JUDGE, MENTOR
+    private String role; // JUDGE, MENTOR
 }

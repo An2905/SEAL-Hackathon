@@ -4,5 +4,6 @@ import lombok.Data;
 
 @Data
 public class CreateTeamRequest {
-  private String teamName;
+    private String teamName;
+
 }

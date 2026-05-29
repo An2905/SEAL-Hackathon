@@ -4,7 +4,7 @@ import lombok.Data;
 
 @Data
 public class ChangeTeamRegistrationStatusRequest {
-  private String registrationId;
+    private String registrationId;
 
-  private String status;
+    private String status;
 }
