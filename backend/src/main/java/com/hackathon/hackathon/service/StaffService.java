@@ -147,7 +147,7 @@ public class StaffService {
             roleFilter = "ALL";
         }
 
-        for (User user : userRepository.findAllByRole(roleFilter)) {
+        for (User user : userRepository.findByRoleOrAllUsers(roleFilter)) {
             accounts.add(userMapper.toAccountResponse(user));
         }
         return accounts;
