@@ -1,8 +1,26 @@
 Huy:
-//region CREATE EVENT
+
+
 Đạt:
-//region CHANGE EVENT STATUS
+Làm các function cho Mentor 
+Rules: chỉ code trong MentorService và MentorController, tạo các file response/request trong folder DTO, hạn chế AI sửa code trực tiếp
 
-/region CREATE ACCOUNTS
+// View Assigned Events
+METHOD / API : GET /mentor/events
+API yêu cầu JWT Token hợp lệ trong Authorization Header theo format Bearer Token.
 
-//region CHANGE STATUS
+
+//public String joinEvent(String authHeader, JoinEventRequest request) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return "Invalid token";
+            }
+
+
+Backend cần validate token và kiểm tra role của user phải là MENTOR, các role khác không được phép truy cập endpoint này. 
+
+String roleString = claims.get("role", String.class);
+if (roleString == null || !roleString.equalsIgnoreCase("MENTOR")) {
+            return " // ";
+        }
+
+API chỉ trả về danh sách các event mà mentor được assign thông qua bảng category_mentors, nghĩa là mentor chỉ có thể xem các event và category mình phụ trách. Response nên bao gồm các thông tin cơ bản của event như eventId, title, status và danh sách category được assign. Nếu token không hợp lệ hoặc thiếu token thì trả về unauthorized, nếu user không phải mentor thì trả về forbidden access.

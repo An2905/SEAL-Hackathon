@@ -13,13 +13,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import com.hackathon.hackathon.dto.GetAllAccountReponse;
-import com.hackathon.hackathon.dto.GetAllEventResponse;
-import com.hackathon.hackathon.dto.GetEventDetailResponse;
-import com.hackathon.hackathon.dto.ChangeAccountStatusRequest;
-import com.hackathon.hackathon.dto.ChangeEventStatusRequest;
-import com.hackathon.hackathon.dto.ChangeTeamRegistrationStatusRequest;
-import com.hackathon.hackathon.dto.CreateStaffAccountRequest;
+import com.hackathon.hackathon.model.dto.response.AccountResponse;
+import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
+import com.hackathon.hackathon.model.dto.response.EventDetailResponse;
+import com.hackathon.hackathon.model.dto.request.ChangeAccountStatusRequest;
+import com.hackathon.hackathon.model.dto.request.ChangeEventStatusRequest;
+import com.hackathon.hackathon.model.dto.request.ChangeTeamRegistrationStatusRequest;
+import com.hackathon.hackathon.model.dto.request.CreateStaffAccountRequest;
 import com.hackathon.hackathon.service.AuthService;
 import com.hackathon.hackathon.service.StaffService;
 
@@ -58,29 +58,29 @@ public class StaffController {
     }
 
     @GetMapping("/accounts")
-    public ResponseEntity<List<GetAllAccountReponse>> getAllAccounts(
+    public ResponseEntity<List<AccountResponse>> getAllAccounts(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam(required = false, defaultValue = "ALL") String role,
             @RequestParam(required = false) String input) {
-        GetAllAccountReponse request = new GetAllAccountReponse();
+        AccountResponse request = new AccountResponse();
         request.setRole(role);
-        List<GetAllAccountReponse> result = staffService.getAllAccounts(authHeader, request);
+        List<AccountResponse> result = staffService.getAllAccounts(authHeader, request);
         return ResponseEntity.ok(result);
     }
 
     @GetMapping("/events")
-    public ResponseEntity<List<GetAllEventResponse>> getAllEvents(
+    public ResponseEntity<List<EventSummaryResponse>> getAllEvents(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam(required = false, defaultValue = "ALL") String status) {
-        List<GetAllEventResponse> result = staffService.getAllEvents(authHeader, status);
+        List<EventSummaryResponse> result = staffService.getAllEvents(authHeader, status);
         return ResponseEntity.ok(result);
     }
 
     @GetMapping("/events/detail")
-    public ResponseEntity<GetEventDetailResponse> getEventDetail(
+    public ResponseEntity<EventDetailResponse> getEventDetail(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam String eventId) {
-        GetEventDetailResponse event = staffService.getEventDetail(authHeader, eventId);
+        EventDetailResponse event = staffService.getEventDetail(authHeader, eventId);
 
         return ResponseEntity.ok(event);
     }

@@ -1,6 +1,6 @@
 package com.hackathon.hackathon.controller;
 
-import com.hackathon.hackathon.dto.LoginRequest;
+import com.hackathon.hackathon.model.dto.request.LoginRequest;
 import com.hackathon.hackathon.service.AuthService;
 import mockit.Injectable;
 import mockit.Tested;

@@ -1,10 +1,10 @@
 package com.hackathon.hackathon.controller;
 
-import com.hackathon.hackathon.dto.DeleteTeamMemberRequest;
-import com.hackathon.hackathon.dto.JoinTeamRequest;
-import com.hackathon.hackathon.dto.CreateTeamRequest;
+import com.hackathon.hackathon.model.dto.request.DeleteTeamMemberRequest;
+import com.hackathon.hackathon.model.dto.request.JoinTeamRequest;
+import com.hackathon.hackathon.model.dto.request.CreateTeamRequest;
 import com.hackathon.hackathon.service.TeamService;
-import com.hackathon.hackathon.dto.JoinEventRequest;
+import com.hackathon.hackathon.model.dto.request.JoinEventRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;

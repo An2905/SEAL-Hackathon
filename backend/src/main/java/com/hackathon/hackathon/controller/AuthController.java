@@ -1,12 +1,12 @@
 package com.hackathon.hackathon.controller;
 
-import com.hackathon.hackathon.dto.VerifyRegisterRequest;
-import com.hackathon.hackathon.dto.ResetPassOtpRequest;
-import com.hackathon.hackathon.dto.ResetPasswordRequest;
-import com.hackathon.hackathon.dto.UpdateProfileRequest;
-import com.hackathon.hackathon.dto.UpdatePasswordRequest;
-import com.hackathon.hackathon.dto.RegisterRequest;
-import com.hackathon.hackathon.dto.LoginRequest;
+import com.hackathon.hackathon.model.dto.request.VerifyStudentRegisterRequest;
+import com.hackathon.hackathon.model.dto.request.ResetPasswordOtpRequest;
+import com.hackathon.hackathon.model.dto.request.ResetPasswordRequest;
+import com.hackathon.hackathon.model.dto.request.UpdateProfileRequest;
+import com.hackathon.hackathon.model.dto.request.UpdatePasswordRequest;
+import com.hackathon.hackathon.model.dto.request.StudentRegisterRequest;
+import com.hackathon.hackathon.model.dto.request.LoginRequest;
 import com.hackathon.hackathon.service.AuthService;
 
 import jakarta.servlet.http.HttpSession;
@@ -52,7 +52,7 @@ public class AuthController {
     }
 
     @PostMapping("/sendresetpasswordotp")
-    public String sendResetPasswordOtp(@RequestBody ResetPassOtpRequest request, HttpSession session) {
+    public String sendResetPasswordOtp(@RequestBody ResetPasswordOtpRequest request, HttpSession session) {
         return authService.sendResetPasswordOtp(request, session);
     }
 
@@ -61,12 +61,12 @@ public class AuthController {
         return authService.verifyAndResetPassword(request, session);
     }
     @PostMapping("/sendregisterotp")
-    public String sendRegisterOtp(@RequestBody RegisterRequest request, HttpSession session) {
+    public String sendRegisterOtp(@RequestBody StudentRegisterRequest request, HttpSession session) {
         return authService.sendRegisterOtp(request, session);
     }
 
     @PostMapping("/verifyandregister")
-    public String verifyAndRegister(@RequestBody VerifyRegisterRequest request, HttpSession session) {
+    public String verifyAndRegister(@RequestBody VerifyStudentRegisterRequest request, HttpSession session) {
         return authService.verifyAndRegister(request, session);
     }
 

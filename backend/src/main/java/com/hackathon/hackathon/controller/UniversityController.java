@@ -1,5 +1,5 @@
 package com.hackathon.hackathon.controller;
-import com.hackathon.hackathon.dto.UniversityResponse;
+import com.hackathon.hackathon.model.dto.response.UniversityResponse;
 import com.hackathon.hackathon.service.UniversityService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
