@@ -4,7 +4,7 @@ import lombok.Data;
 
 @Data
 public class CategoryMentor {
-  private String categoryId;
-  private String mentorId;
-  private String assignedAt;
+    private String categoryId;
+    private String mentorId;
+    private String assignedAt;
 }

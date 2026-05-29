@@ -4,7 +4,7 @@ import lombok.Data;
 
 @Data
 public class ChangeAccountStatusRequest {
-  private String userId;
-
-  private String status;
+    private String userId;
+    
+    private String status;
 }

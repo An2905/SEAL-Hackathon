@@ -4,13 +4,13 @@ import lombok.Data;
 
 @Data
 public class StudentRegisterRequest {
-  private String email;
+    private String email;
 
-  private String password;
+    private String password;
 
-  private String fullName;
+    private String fullName;
 
-  private String university;
+    private String university;
 
-  private String studentId;
+    private String studentId;    
 }
