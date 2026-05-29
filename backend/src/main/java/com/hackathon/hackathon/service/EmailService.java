@@ -1,32 +1,29 @@
 package com.hackathon.hackathon.service;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;    
-
-
-import org.springframework.http.MediaType;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-
-
 @Service
 public class EmailService {
-    @Value("${brevo.api.key}")
-    private String brevoApiKey;
+  @Value("${brevo.api.key}")
+  private String brevoApiKey;
 
-    public boolean sendResetPasswordOtpEmail(String toEmail, String otp) {
+  public boolean sendResetPasswordOtpEmail(String toEmail, String otp) {
 
-        try {
-            RestTemplate restTemplate = new RestTemplate();
-            String url = "https://api.brevo.com/v3/smtp/email";
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("api-key", brevoApiKey);
-            String body = """
+    try {
+      RestTemplate restTemplate = new RestTemplate();
+      String url = "https://api.brevo.com/v3/smtp/email";
+      HttpHeaders headers = new HttpHeaders();
+      headers.setContentType(MediaType.APPLICATION_JSON);
+      headers.set("api-key", brevoApiKey);
+      String body =
+          """
             {
                 "sender":{
                     "name":"Hackathon System",
@@ -36,29 +33,31 @@ public class EmailService {
                 "subject":"Reset Password OTP",
                 "htmlContent":"<h2>Your OTP is: %s</h2>"
             }
-            """.formatted(toEmail, otp);
+            """
+              .formatted(toEmail, otp);
 
-            HttpEntity<String> entity = new HttpEntity<>(body, headers);
-            ResponseEntity<String> response = restTemplate.exchange(url,HttpMethod.POST,entity,String.class);
-            
-            return response.getStatusCode().is2xxSuccessful();
-        } catch (Exception e) {
-            e.printStackTrace();
+      HttpEntity<String> entity = new HttpEntity<>(body, headers);
+      ResponseEntity<String> response =
+          restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
 
-            return false;
-        }
+      return response.getStatusCode().is2xxSuccessful();
+    } catch (Exception e) {
+      e.printStackTrace();
+
+      return false;
     }
+  }
 
+  public boolean sendRegisterOtpEmail(String toEmail, String otp) {
 
-    public boolean sendRegisterOtpEmail(String toEmail, String otp) {
-
-        try {
-            RestTemplate restTemplate = new RestTemplate();
-            String url = "https://api.brevo.com/v3/smtp/email";
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("api-key", brevoApiKey);
-            String body = """
+    try {
+      RestTemplate restTemplate = new RestTemplate();
+      String url = "https://api.brevo.com/v3/smtp/email";
+      HttpHeaders headers = new HttpHeaders();
+      headers.setContentType(MediaType.APPLICATION_JSON);
+      headers.set("api-key", brevoApiKey);
+      String body =
+          """
             {
                 "sender":{
                     "name":"Hackathon System",
@@ -68,46 +67,37 @@ public class EmailService {
                 "subject":"Register OTP",
                 "htmlContent":"<h2>Your OTP is: %s</h2>"
             }
-            """.formatted(toEmail, otp);
-            
-            HttpEntity<String> entity = new HttpEntity<>(body, headers);
-            ResponseEntity<String> response = restTemplate.exchange(url,HttpMethod.POST,entity,String.class);
-            
-            return response.getStatusCode().is2xxSuccessful();
-        } catch (Exception e) {
-            e.printStackTrace();
+            """
+              .formatted(toEmail, otp);
 
-            return false;
-        }
+      HttpEntity<String> entity = new HttpEntity<>(body, headers);
+      ResponseEntity<String> response =
+          restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+
+      return response.getStatusCode().is2xxSuccessful();
+    } catch (Exception e) {
+      e.printStackTrace();
+
+      return false;
     }
-    public boolean sendMentorInvite(
-        String toEmail,
-        String fullName,
-        String password,
-        String role
-) {
+  }
+
+  public boolean sendMentorInvite(String toEmail, String fullName, String password, String role) {
 
     try {
 
-        RestTemplate restTemplate =
-                new RestTemplate();
+      RestTemplate restTemplate = new RestTemplate();
 
-        String url =
-                "https://api.brevo.com/v3/smtp/email";
+      String url = "https://api.brevo.com/v3/smtp/email";
 
-        HttpHeaders headers =
-                new HttpHeaders();
+      HttpHeaders headers = new HttpHeaders();
 
-        headers.setContentType(
-                MediaType.APPLICATION_JSON
-        );
+      headers.setContentType(MediaType.APPLICATION_JSON);
 
-        headers.set(
-                "api-key",
-                brevoApiKey
-        );
+      headers.set("api-key", brevoApiKey);
 
-        String body = """
+      String body =
+          """
         {
             "sender":{
                 "name":"Hackathon System",
@@ -117,42 +107,21 @@ public class EmailService {
             "subject":"Hackathon Invitation",
             "htmlContent":"<h2>Hello %s</h2><p>Your %s account has been created.</p><p>Email: %s</p><p>Password: <b>%s</b></p><p>Please change your password after login.</p>"
         }
-        """.formatted(
-                toEmail,
-                fullName,
-                role,
-                toEmail,
-                password
-        );
+        """
+              .formatted(toEmail, fullName, role, toEmail, password);
 
-        HttpEntity<String> entity =
-                new HttpEntity<>(
-                        body,
-                        headers
-                );
+      HttpEntity<String> entity = new HttpEntity<>(body, headers);
 
-        ResponseEntity<String> response =
-                restTemplate.exchange(
-                        url,
-                        HttpMethod.POST,
-                        entity,
-                        String.class
-                );
+      ResponseEntity<String> response =
+          restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
 
-        return response
-                .getStatusCode()
-                .is2xxSuccessful();
+      return response.getStatusCode().is2xxSuccessful();
 
     } catch (Exception e) {
 
-        e.printStackTrace();
+      e.printStackTrace();
 
-        return false;
+      return false;
     }
+  }
 }
-}
-
-    
-
-
-

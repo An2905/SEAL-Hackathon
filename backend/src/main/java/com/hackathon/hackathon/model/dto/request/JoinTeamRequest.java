@@ -4,5 +4,5 @@ import lombok.Data;
 
 @Data
 public class JoinTeamRequest {
-    private String enrollCode;
+  private String enrollCode;
 }

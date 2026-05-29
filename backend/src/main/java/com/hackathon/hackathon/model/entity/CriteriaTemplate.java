@@ -4,8 +4,8 @@ import lombok.Data;
 
 @Data
 public class CriteriaTemplate {
-    private String templateId;
-    private String name;
-    private String description;
-    private String createdAt;
+  private String templateId;
+  private String name;
+  private String description;
+  private String createdAt;
 }
