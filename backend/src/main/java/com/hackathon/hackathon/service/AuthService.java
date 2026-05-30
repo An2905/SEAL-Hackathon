@@ -114,18 +114,12 @@ public class AuthService {
         String token = JwtUtil.generateToken(user.getEmail(), user.getRole(), user.getUserId(),
                 user.getFullName());
 
-        if ("COORDINATOR".equalsIgnoreCase(user.getRole())) {
-            return "Login success - Role: Staff\nToken: " + token;
-        } else if ("STUDENT_FPT".equalsIgnoreCase(user.getRole())
-                || "STUDENT_EXTERNAL".equalsIgnoreCase(user.getRole())) {
-            return "Login success - Role: Student\nToken: " + token;
-        } else if ("MENTOR".equalsIgnoreCase(user.getRole())) {
-            return "Login success - Role: Mentor\nToken: " + token;
-        } else if ("JUDGE_INTERNAL".equalsIgnoreCase(user.getRole())) {
-            return "Login success - Role: Judge\nToken: " + token;
-        }
-
-        return "Login success";
+        StringBuilder json = new StringBuilder();
+        json.append("{");
+        json.append("\"message\":\"Login success\",");
+        json.append("\"token\":\"").append(token).append("\"");
+        json.append("}");
+        return json.toString();
     }
 
 //#endregion
@@ -156,7 +150,11 @@ public class AuthService {
             throw new BadRequestException("Failed to update password.");
         }
 
-        return "Password updated successfully.";
+        StringBuilder json = new StringBuilder();
+        json.append("{");
+        json.append("\"message\":\"Password updated successfully.\"");
+        json.append("}");
+        return json.toString();
     }
 
 //#endregion
@@ -206,7 +204,12 @@ public class AuthService {
         }
 
         String token = JwtUtil.generateToken(newEmail, role, userId, newFullName);
-        return "Profile updated successfully.\nNew Token: " + token;
+        StringBuilder json = new StringBuilder();
+        json.append("{");
+        json.append("\"message\":\"Profile updated successfully.\",");
+        json.append("\"newToken\":\"").append(token).append("\"");
+        json.append("}");
+        return json.toString();
     }
 
 //#endregion
@@ -258,7 +261,11 @@ public class AuthService {
         session.setAttribute("OTP_EXPIRE", expireTime);
         session.setAttribute("OTP_EMAIL", email);
 
-        return "OTP sent to email. Please check your inbox (Valid for 5 minutes).";
+        StringBuilder json = new StringBuilder();
+        json.append("{");
+        json.append("\"message\":\"OTP sent to email. Please check your inbox (Valid for 5 minutes).\"");
+        json.append("}");
+        return json.toString();
     }
 
 //#endregion
@@ -292,7 +299,11 @@ public class AuthService {
         }
 
         session.invalidate();
-        return "Password reset successfully. Please login with your new password.";
+        StringBuilder json = new StringBuilder();
+        json.append("{");
+        json.append("\"message\":\"Password reset successfully. Please login with your new password.\"");
+        json.append("}");
+        return json.toString();
     }
 
 //#endregion
@@ -328,7 +339,11 @@ public class AuthService {
         session.setAttribute("REG_OTP_EXPIRE", expireTime);
         session.setAttribute("REG_DATA", request);
 
-        return "OTP sent to email. Please verify to complete registration.";
+        StringBuilder json = new StringBuilder();
+        json.append("{");
+        json.append("\"message\":\"OTP sent to email. Please verify to complete registration.\"");
+        json.append("}");
+        return json.toString();
     }
 
     public String verifyAndRegister(VerifyStudentRegisterRequest request, HttpSession session) {
@@ -377,7 +392,11 @@ public class AuthService {
         session.removeAttribute("REG_OTP_EXPIRE");
         session.removeAttribute("REG_DATA");
 
-        return "Registration successful. Your account is now active!";
+        StringBuilder json = new StringBuilder();
+        json.append("{");
+        json.append("\"message\":\"Registration successful. Your account is now active!\"");
+        json.append("}");
+        return json.toString();
     }
 
 //#endregion
