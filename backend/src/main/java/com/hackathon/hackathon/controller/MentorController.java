@@ -1,14 +1,16 @@
 package com.hackathon.hackathon.controller;
 
-import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.hackathon.hackathon.service.MentorService;
 
 
 
 
 @RestController
-@RequestMapping(value = "/api/mentor", produces = MediaType.TEXT_PLAIN_VALUE + ";charset=UTF-8")
+@RequestMapping("/api/mentor")
 @CrossOrigin("*")
 
 public class MentorController {

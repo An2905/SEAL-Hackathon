@@ -190,4 +190,27 @@ public class EventRepository {
         }
         return awards;
     }
+
+    public List<Event> findEventsByMentorId(String mentorId) {
+        List<Event> events = new ArrayList<>();
+        String sql = "SELECT DISTINCT e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at "
+                + "FROM events e "
+                + "JOIN categories c ON e.event_id = c.event_id "
+                + "JOIN category_mentors cm ON c.category_id = cm.category_id "
+                + "WHERE cm.mentor_id = ? "
+                + "ORDER BY e.start_date DESC";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, mentorId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    events.add(eventMapper.fromSummaryRow(rs));
+                }
+            }
+        } catch (Exception e) {
+            return events;
+        }
+        return events;
+    }
 }
