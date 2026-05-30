@@ -3,6 +3,7 @@ package com.hackathon.hackathon.repository;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,40 +24,110 @@ public class UserRepository {
     @Autowired
     private UserMapper userMapper;
 
+    // #region CREATE
+
+    /// Insert new staff user
+    ///
+    /// Params: String fullName, String email, String passwordHash, String role
+    /// Excep: RuntimeException
+    /// Return: True if updated successfully, else False
+    public boolean insertStaffUser(String fullName, String email, String passwordHash, String role) {
+        String sql = "INSERT INTO users(full_name, email, password_hash, role, status)"
+                + " VALUES (?, ?, ?, ?, 'APPROVED')";
+
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, fullName);
+            ps.setString(2, email);
+            ps.setString(3, passwordHash);
+            ps.setString(4, role);
+
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql);
+        }
+    }
+
+    /// Insert new student user
+    ///
+    /// Params: String fullName, String email, String passwordHash, String role
+    /// Excep: RuntimeException
+    /// Return: student user if inserted successfully, else null
+    public String insertStudentUser(String fullName, String email, String passwordHash, String role) {
+        String sql = "INSERT INTO users (full_name, email, password_hash, role, status) OUTPUT inserted.user_id VALUES (?, ?, ?, ?, 'APPROVED')";
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, fullName);
+            ps.setString(2, email);
+            ps.setString(3, passwordHash);
+            ps.setString(4, role);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("user_id");
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(sql);
+        }
+
+        return null;
+    }
+
+    // #endregion
+
+    // #region READ
+
+    /// Find one user by email
+    ///
+    /// Param: String email
+    /// Excep: RuntimeException
+    /// Return: User if found, else null
     public User findByEmail(String email) {
         String sql = "SELECT * FROM users WHERE email = ?";
-        try (
-                Connection conn = dataSource.getConnection();
+
+        try (Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
+
             ps.setString(1, email);
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return userMapper.fromResultSet(rs);
                 }
             }
-        } catch (Exception e) {
-            return null;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql);
         }
+
         return null;
     }
 
+    /// Check exist email
+    ///
+    /// Param: String email
+    /// Return: True if found, else False
     public boolean existsByEmail(String email) {
         return findByEmail(email) != null;
     }
 
-    public List<User> findAllByRole(String roleFilter) {
+    /// Find users by role or all available users
+    ///
+    /// Param: String roleFilter
+    /// Excep: RuntimeException
+    /// Return: List of users found by role or all available users
+    public List<User> findByRoleOrAllUsers(String roleFilter) {
         List<User> users = new ArrayList<>();
-        try {
-            Connection conn = dataSource.getConnection();
-            PreparedStatement ps;
-            String sql;
 
-            if ("ALL".equals(roleFilter)) {
-                sql = "SELECT user_id, email, full_name, role, status FROM users";
-                ps = conn.prepareStatement(sql);
-            } else {
-                sql = "SELECT user_id, email, full_name, role, status FROM users WHERE role = ?";
-                ps = conn.prepareStatement(sql);
+        String sql = "SELECT user_id, email, full_name, role, status FROM users";
+
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            if (!"ALL".equals(roleFilter)) {
+                sql += " WHERE role = ?";
                 ps.setString(1, roleFilter);
             }
 
@@ -65,114 +136,119 @@ public class UserRepository {
                     users.add(userMapper.fromAccountRow(rs));
                 }
             }
-
-            ps.close();
-            conn.close();
-        } catch (Exception e) {
-            return users;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql);
         }
+
         return users;
     }
 
-    public boolean updatePasswordHash(String email, String passwordHash) {
-        String sql = "UPDATE users SET password_hash = ? WHERE email = ?";
-        try (
-                Connection conn = dataSource.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, passwordHash);
-            ps.setString(2, email);
-            return ps.executeUpdate() > 0;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
+    /// Find user's role by user ID
+    ///
+    /// Param: String userId
+    /// Excep: RuntimeException
+    /// Return: User's role if found, else null
     public String findRoleByUserId(String userId) {
         String sql = "SELECT role FROM users WHERE user_id = ?";
-        try (
-                Connection conn = dataSource.getConnection();
+
+        try (Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
+
             ps.setString(1, userId);
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getString("role");
                 }
             }
-        } catch (Exception e) {
-            return "";
+        } catch (SQLException e) {
+            throw new RuntimeException(sql);
         }
-        return "";
+
+        return null;
     }
 
+    // #endregion
+
+    // #region UPDATE
+
+    /// Update hashed password by email
+    ///
+    /// Params: String email, String hashedPassword
+    /// Excep: RuntimeException
+    /// Return: True if updated successfully, else False
+    public boolean updatePasswordHash(String email, String passwordHash) {
+        String sql = "UPDATE users SET password_hash = ? WHERE email = ?";
+
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, passwordHash);
+            ps.setString(2, email);
+
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql);
+        }
+    }
+
+    /// Update user status by user's ID
+    ///
+    /// Param: String userId, String status
+    /// Excep: RuntimeException
+    /// Return: True if updated successfully, else False
     public boolean updateStatus(String userId, String status) {
         String sql = "UPDATE users SET status = ? WHERE user_id = ?";
-        try (
-                Connection conn = dataSource.getConnection();
+
+        try (Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
+
             ps.setString(1, status);
             ps.setLong(2, Long.parseLong(userId));
+
             return ps.executeUpdate() > 0;
-        } catch (Exception e) {
-            return false;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql);
         }
     }
 
-    public User updateProfile(String oldEmail, String fullName, String newEmail) {
-        String sql = "UPDATE users SET full_name = ?, email = ? OUTPUT inserted.user_id, inserted.role WHERE email = ?";
-        try (
-                Connection conn = dataSource.getConnection();
+    /// Update user's full name, email by old email
+    ///
+    /// Params: String newFullName, String oldEmail, String newEmail
+    /// Except: RuntimeException
+    /// Return: User if updated successfully, else null
+    public User updateProfile(String newFullName, String oldEmail, String newEmail) {
+        String sql = "UPDATE users SET full_name = ?, email = ?"
+                + " OUTPUT inserted.user_id, inserted.role"
+                + " WHERE email = ?";
+
+        try (Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, fullName);
+
+            ps.setString(1, newFullName);
             ps.setString(2, newEmail);
             ps.setString(3, oldEmail);
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     User user = new User();
                     user.setUserId(rs.getString("user_id"));
                     user.setRole(rs.getString("role"));
-                    user.setFullName(fullName);
+                    user.setFullName(newFullName);
                     user.setEmail(newEmail);
                     return user;
                 }
             }
-        } catch (Exception e) {
-            return null;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql);
         }
+
         return null;
     }
 
-    public boolean insertStaffUser(String fullName, String email, String passwordHash, String role) {
-        String sql = "INSERT INTO users(full_name, email, password_hash, role, status) VALUES (?, ?, ?, ?, 'APPROVED')";
-        try (
-                Connection conn = dataSource.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, fullName);
-            ps.setString(2, email);
-            ps.setString(3, passwordHash);
-            ps.setString(4, role);
-            return ps.executeUpdate() > 0;
-        } catch (Exception e) {
-            return false;
-        }
-    }
+    // #endregion
 
-    public String insertStudentUser(String fullName, String email, String passwordHash, String role) {
-        String sql = "INSERT INTO users (full_name, email, password_hash, role, status) OUTPUT inserted.user_id VALUES (?, ?, ?, ?, 'APPROVED')";
-        try (
-                Connection conn = dataSource.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, fullName);
-            ps.setString(2, email);
-            ps.setString(3, passwordHash);
-            ps.setString(4, role);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("user_id");
-                }
-            }
-        } catch (Exception e) {
-            return null;
-        }
-        return null;
-    }
+    // #region DELETE
+
+    // #endregion
 }
