@@ -10,57 +10,59 @@ import com.hackathon.hackathon.model.dto.request.LoginRequest;
 import com.hackathon.hackathon.service.AuthService;
 
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@RestController @RequestMapping(value = "/api/auth", produces = MediaType.TEXT_PLAIN_VALUE
-        + ";charset=UTF-8") @CrossOrigin("*")
+@RestController
+@RequestMapping(value = "/api/auth", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
+@CrossOrigin("*")
 public class AuthController {
 
     @Autowired
     private AuthService authService;
 
     @PostMapping("/login")
-    public String login(@RequestBody LoginRequest request) {
-        return authService.login(request);
+    public ResponseEntity<String> login(@Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(authService.login(request));
     }
 
     @PutMapping("/password")
-    public String updatePassword(@RequestHeader("Authorization") String authHeader,
-            @RequestBody UpdatePasswordRequest request) {
-        return authService.updatePassword(authHeader, request);
+    public ResponseEntity<String> updatePassword(@RequestHeader("Authorization") String authHeader,
+            @Valid @RequestBody UpdatePasswordRequest request) {
+        return ResponseEntity.ok(authService.updatePassword(authHeader, request));
     }
 
     @PutMapping("/profile")
-    public String updateProfile(@RequestHeader("Authorization") String authHeader,
-            @RequestBody UpdateProfileRequest request) {
-
-        return authService.updateProfile(authHeader, request);
+    public ResponseEntity<String> updateProfile(@RequestHeader("Authorization") String authHeader,
+            @Valid @RequestBody UpdateProfileRequest request) {
+        return ResponseEntity.ok(authService.updateProfile(authHeader, request));
     }
 
     @PostMapping("/password/reset-otp")
-    public String sendResetPasswordOtp(@RequestBody ResetPasswordOtpRequest request,
+    public ResponseEntity<String> sendResetPasswordOtp(@Valid @RequestBody ResetPasswordOtpRequest request,
             HttpSession session) {
-        return authService.sendResetPasswordOtp(request, session);
+        return ResponseEntity.ok(authService.sendResetPasswordOtp(request, session));
     }
 
     @PostMapping("/password/reset")
-    public String verifyAndResetPassword(@RequestBody ResetPasswordRequest request,
+    public ResponseEntity<String> verifyAndResetPassword(@Valid @RequestBody ResetPasswordRequest request,
             HttpSession session) {
-        return authService.verifyAndResetPassword(request, session);
+        return ResponseEntity.ok(authService.verifyAndResetPassword(request, session));
     }
 
     @PostMapping("/register/otp")
-    public String sendRegisterOtp(@RequestBody StudentRegisterRequest request,
+    public ResponseEntity<String> sendRegisterOtp(@Valid @RequestBody StudentRegisterRequest request,
             HttpSession session) {
-        return authService.sendRegisterOtp(request, session);
+        return ResponseEntity.ok(authService.sendRegisterOtp(request, session));
     }
 
     @PostMapping("/register")
-    public String verifyAndRegister(@RequestBody VerifyStudentRegisterRequest request,
+    public ResponseEntity<String> verifyAndRegister(@Valid @RequestBody VerifyStudentRegisterRequest request,
             HttpSession session) {
-        return authService.verifyAndRegister(request, session);
+        return ResponseEntity.ok(authService.verifyAndRegister(request, session));
     }
 }
