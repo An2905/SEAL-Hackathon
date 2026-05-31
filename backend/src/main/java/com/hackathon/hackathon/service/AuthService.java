@@ -11,7 +11,6 @@ import jakarta.servlet.http.HttpSession;
 import java.security.SecureRandom;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.hackathon.hackathon.exception.BadRequestException;
@@ -28,10 +27,6 @@ import com.hackathon.hackathon.model.dto.request.VerifyStudentRegisterRequest;
 import com.hackathon.hackathon.model.entity.User;
 import com.hackathon.hackathon.repository.StudentProfileRepository;
 import com.hackathon.hackathon.repository.UserRepository;
-import com.hackathon.hackathon.security.JwtUtil;
-
-import io.jsonwebtoken.Claims;
-import jakarta.servlet.http.HttpSession;
 
 @Service
 public class AuthService {

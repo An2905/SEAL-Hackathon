@@ -4,7 +4,11 @@ import { ToastProvider } from "./context/ToastContext";
 import HomePage from "./pages/HomePage";
 import RequireRole from "./guards/RequireRole";
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
-import StaffDashboard from "./pages/dashboards/StaffDashboard";
+import StaffLayout from "./pages/dashboards/staff/StaffLayout";
+import StaffOverviewPage from "./pages/dashboards/staff/StaffOverviewPage";
+import StaffAccountsPage from "./pages/dashboards/staff/StaffAccountsPage";
+import StaffEventsPage from "./pages/dashboards/staff/StaffEventsPage";
+import StaffAssignPage from "./pages/dashboards/staff/StaffAssignPage";
 import MentorDashboard from "./pages/dashboards/MentorDashboard";
 import JudgeDashboard from "./pages/dashboards/JudgeDashboard";
 import EventDetailsPage from "./pages/dashboards/EventDetailsPage";
@@ -25,15 +29,22 @@ export default function App() {
 						}
 					/>
 
+					{/* Staff area — nested pages under a shared layout + sub-navbar */}
 					<Route
 						path="/staff"
 						element={
 							<RequireRole role="Staff">
-								<StaffDashboard />
+								<StaffLayout />
 							</RequireRole>
 						}
-					/>
+					>
+						<Route index element={<StaffOverviewPage />} />
+						<Route path="accounts" element={<StaffAccountsPage />} />
+						<Route path="events" element={<StaffEventsPage />} />
+						<Route path="assign" element={<StaffAssignPage />} />
+					</Route>
 
+					{/* Event detail is a standalone full page (own shell) */}
 					<Route
 						path="/staff/events/:eventId"
 						element={

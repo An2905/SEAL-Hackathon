@@ -20,6 +20,8 @@ import com.hackathon.hackathon.model.dto.request.ChangeAccountStatusRequest;
 import com.hackathon.hackathon.model.dto.request.ChangeEventStatusRequest;
 import com.hackathon.hackathon.model.dto.request.ChangeTeamRegistrationStatusRequest;
 import com.hackathon.hackathon.model.dto.request.CreateStaffAccountRequest;
+import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
+import com.hackathon.hackathon.model.dto.request.AssignMentorCategoryRequest;
 import com.hackathon.hackathon.service.AuthService;
 import com.hackathon.hackathon.service.StaffService;
 
@@ -62,9 +64,7 @@ public class StaffController {
             @RequestHeader("Authorization") String authHeader,
             @RequestParam(required = false, defaultValue = "ALL") String role,
             @RequestParam(required = false) String input) {
-        AccountResponse request = new AccountResponse();
-        request.setRole(role);
-        List<AccountResponse> result = staffService.getAllAccounts(authHeader, request);
+        List<AccountResponse> result = staffService.getAllAccounts(authHeader, role, input);
         return ResponseEntity.ok(result);
     }
 
@@ -91,6 +91,18 @@ public class StaffController {
             @RequestBody ChangeTeamRegistrationStatusRequest request) {
         String result = staffService.changeTeamRegistrationStatus(authHeader,request);
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/assign/judge")
+    public ResponseEntity<String> assignJudge(@RequestHeader("Authorization") String authHeader,
+            @RequestBody AssignJudgeRequest request) {
+        return ResponseEntity.ok(staffService.assignJudge(authHeader, request));
+    }
+
+    @PostMapping("/assign/mentor")
+    public ResponseEntity<String> assignMentor(@RequestHeader("Authorization") String authHeader,
+            @RequestBody AssignMentorCategoryRequest request) {
+        return ResponseEntity.ok(staffService.assignMentor(authHeader, request));
     }
 
 }

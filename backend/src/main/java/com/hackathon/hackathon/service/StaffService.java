@@ -15,12 +15,15 @@ import com.hackathon.hackathon.model.dto.request.ChangeAccountStatusRequest;
 import com.hackathon.hackathon.model.dto.request.ChangeEventStatusRequest;
 import com.hackathon.hackathon.model.dto.request.ChangeTeamRegistrationStatusRequest;
 import com.hackathon.hackathon.model.dto.request.CreateStaffAccountRequest;
+import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
+import com.hackathon.hackathon.model.dto.request.AssignMentorCategoryRequest;
 import com.hackathon.hackathon.model.entity.Event;
 import com.hackathon.hackathon.model.entity.User;
 import com.hackathon.hackathon.model.mapper.EventMapper;
 import com.hackathon.hackathon.model.mapper.UserMapper;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
+import com.hackathon.hackathon.repository.AssignmentRepository;
 import com.hackathon.hackathon.repository.UserRepository;
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
@@ -47,6 +50,9 @@ public class StaffService {
 
     @Autowired
     private TeamRegistrationRepository teamRegistrationRepository;
+
+    @Autowired
+    private AssignmentRepository assignmentRepository;
 
     @Autowired
     private AuthService authService;
@@ -109,12 +115,10 @@ public class StaffService {
     // endregion
 
     // region GET ALL ACCOUNTS
-    public List<AccountResponse> getAllAccounts(String authHeader, AccountResponse request) {
+    public List<AccountResponse> getAllAccounts(String authHeader, String role, String input) {
         authService.validateRole(authHeader, "COORDINATOR");
 
-        List<AccountResponse> accounts = new ArrayList<>();
-        String roleFilter = request.getRole();
-
+        String roleFilter = role;
         if (roleFilter != null && !roleFilter.trim().isEmpty()) {
             roleFilter = roleFilter.trim();
             if (!roleFilter.equals("JUDGE_INTERNAL") && !roleFilter.equals("MENTOR")
@@ -126,8 +130,19 @@ public class StaffService {
             roleFilter = "ALL";
         }
 
+        String keyword = (input == null) ? "" : input.trim().toLowerCase();
+
+        List<AccountResponse> accounts = new ArrayList<>();
         for (User user : userRepository.findByRoleOrAllUsers(roleFilter)) {
-            accounts.add(userMapper.toAccountResponse(user));
+            AccountResponse acc = userMapper.toAccountResponse(user);
+            if (!keyword.isEmpty()) {
+                String name = acc.getFullName() == null ? "" : acc.getFullName().toLowerCase();
+                String email = acc.getEmail() == null ? "" : acc.getEmail().toLowerCase();
+                if (!name.contains(keyword) && !email.contains(keyword)) {
+                    continue;
+                }
+            }
+            accounts.add(acc);
         }
         return accounts;
     }
@@ -254,6 +269,53 @@ public class StaffService {
         }
 
         return "Team registration status updated successfully";
+    }
+
+    // endregion
+
+    // region ASSIGN JUDGE / MENTOR
+
+    public String assignJudge(String authHeader, AssignJudgeRequest request) {
+        authService.validateRole(authHeader, "COORDINATOR");
+
+        String judgeId = request.getJudgeId() == null ? "" : request.getJudgeId().trim();
+        String roundId = request.getRoundId() == null ? "" : request.getRoundId().trim();
+        String categoryId = request.getCategoryId() == null ? "" : request.getCategoryId().trim();
+
+        if (judgeId.isEmpty() || roundId.isEmpty() || categoryId.isEmpty()) {
+            throw new BadRequestException("Judge ID, Round ID and Category ID are required.");
+        }
+
+        if (assignmentRepository.judgeAssignmentExists(judgeId, roundId, categoryId)) {
+            throw new ConflictException("Judge đã được phân công cho vòng/track này.");
+        }
+
+        if (!assignmentRepository.insertJudgeAssignment(judgeId, roundId, categoryId)) {
+            throw new BadRequestException("Phân công judge thất bại.");
+        }
+
+        return "Judge assigned successfully";
+    }
+
+    public String assignMentor(String authHeader, AssignMentorCategoryRequest request) {
+        authService.validateRole(authHeader, "COORDINATOR");
+
+        String mentorId = request.getUserId() == null ? "" : request.getUserId().trim();
+        String categoryId = request.getCategoryId() == null ? "" : request.getCategoryId().trim();
+
+        if (mentorId.isEmpty() || categoryId.isEmpty()) {
+            throw new BadRequestException("Mentor ID and Category ID are required.");
+        }
+
+        if (assignmentRepository.mentorAssignmentExists(categoryId, mentorId)) {
+            throw new ConflictException("Mentor đã được phân công cho track này.");
+        }
+
+        if (!assignmentRepository.insertCategoryMentor(categoryId, mentorId)) {
+            throw new BadRequestException("Phân công mentor thất bại.");
+        }
+
+        return "Mentor assigned successfully";
     }
 
     // endregion

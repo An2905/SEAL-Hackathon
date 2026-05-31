@@ -27,9 +27,10 @@ function mapAccountRow(row) {
 // Requires Authorization Bearer of a COORDINATOR.
 // Backend returns plain text: success line or one of the validation errors.
 export async function createStaffAccount({ email, fullName, role }) {
+	const apiRole = role === "JUDGE_INTERNAL" ? "JUDGE" : role;
 	const text = await apiFetch("/api/staff/register", {
 		method: "POST",
-		body: { email, fullName, role },
+		body: { email, fullName, role: apiRole },
 	});
 	if (!/account created.*email sent successfully/i.test(text))
 		throw new Error(text);
@@ -122,5 +123,36 @@ export async function changeTeamRegistrationStatus({ registrationId, status }) {
 	});
 	if (!/registration status updated successfully/i.test(text))
 		throw new Error(text);
+	return true;
+}
+
+// POST /api/staff/assign/judge
+// Body: { judgeId, roundId, categoryId }. Assigns a judge to a round + track.
+// Requires a Bearer token of a COORDINATOR.
+export async function assignJudge({ judgeId, roundId, categoryId }) {
+	const text = await apiFetch("/api/staff/assign/judge", {
+		method: "POST",
+		body: {
+			judgeId: normalizeAccountUserId(judgeId),
+			roundId: normalizeEventId(roundId),
+			categoryId: normalizeEventId(categoryId),
+		},
+	});
+	if (!/judge assigned successfully/i.test(text)) throw new Error(text);
+	return true;
+}
+
+// POST /api/staff/assign/mentor
+// Body: { userId, categoryId } — userId is the mentor's account id. Mentors are
+// assigned per track (category). Requires a Bearer token of a COORDINATOR.
+export async function assignMentor({ mentorId, categoryId }) {
+	const text = await apiFetch("/api/staff/assign/mentor", {
+		method: "POST",
+		body: {
+			userId: normalizeAccountUserId(mentorId),
+			categoryId: normalizeEventId(categoryId),
+		},
+	});
+	if (!/mentor assigned successfully/i.test(text)) throw new Error(text);
 	return true;
 }
