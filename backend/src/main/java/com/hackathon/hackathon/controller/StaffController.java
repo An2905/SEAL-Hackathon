@@ -27,7 +27,6 @@ import com.hackathon.hackathon.model.dto.request.SendParticipantAnnouncementRequ
 import com.hackathon.hackathon.model.dto.response.AnnouncementResponse;
 import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
 import com.hackathon.hackathon.model.dto.request.AssignMentorCategoryRequest;
-import com.hackathon.hackathon.service.AuthService;
 import com.hackathon.hackathon.service.StaffService;
 
 @RestController
@@ -119,6 +118,12 @@ public class StaffController {
     public ResponseEntity<String> assignMentor(@RequestHeader("Authorization") String authHeader,
             @RequestBody AssignMentorCategoryRequest request) {
         return ResponseEntity.ok(staffService.assignMentor(authHeader, request));
+    }
+
+    @GetMapping("/events/export")
+    public ResponseEntity<byte[]> exportEventsExcel(
+            @RequestHeader("Authorization") String authHeader) {
+        return staffService.exportEventsExcel(authHeader);
     }
 
 }

@@ -4,9 +4,17 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+
 import java.util.ArrayList;
+import org.springframework.http.HttpHeaders;
+import java.io.ByteArrayOutputStream;
+
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import com.hackathon.hackathon.model.dto.response.AccountResponse;
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
@@ -84,6 +92,7 @@ public class StaffService {
      */
     // endregion
 
+    // region REGIS ACCOUNT FOR ADS
     public String registerAccount(String authHeader, CreateStaffAccountRequest request) {
         authService.validateRole(authHeader, "COORDINATOR");
 
@@ -156,9 +165,11 @@ public class StaffService {
     }
     // endregion
 
+    // region CHECK MAIL
     public boolean checkEmail(String email) {
         return userRepository.existsByEmail(email);
     }
+    // endregion
 
     // region CHANGE ACCOUNT STATUS
 
@@ -281,7 +292,7 @@ public class StaffService {
 
     // endregion
 
-    // region SEND ANNOUNCEMENT
+    // region SEND ANNOUNCEMENT ALL
 
     public AnnouncementResponse sendAnnouncementToAll(String authHeader,
             SendAllAnnouncementRequest request) {
@@ -309,6 +320,10 @@ public class StaffService {
         response.setStatus("SENT");
         return response;
     }
+
+    // endregion
+
+    // region SEND ANNOUNCEMENT PARTI
 
     public AnnouncementResponse sendAnnouncementToParticipants(String authHeader,
             SendParticipantAnnouncementRequest request) {
@@ -365,7 +380,6 @@ public class StaffService {
         response.setStatus("SENT");
         return response;
     }
-
     // region ASSIGN JUDGE / MENTOR
 
     public String assignJudge(String authHeader, AssignJudgeRequest request) {
@@ -409,6 +423,100 @@ public class StaffService {
         }
 
         return "Mentor assigned successfully";
+    }
+
+    // endregion
+
+    // region EXPORT EVENTS
+    public ResponseEntity<byte[]> exportEventsExcel(
+            String authHeader) {
+
+        authService.validateRole(
+                authHeader,
+                "COORDINATOR");
+
+        List<EventSummaryResponse> events = getAllEvents(authHeader, null);
+
+        try {
+
+            XSSFWorkbook workbook = new XSSFWorkbook();
+
+            Sheet sheet = workbook.createSheet("Events");
+
+            Row header = sheet.createRow(0);
+
+            header.createCell(0)
+                    .setCellValue("Event ID");
+
+            header.createCell(1)
+                    .setCellValue("Title");
+
+            header.createCell(2)
+                    .setCellValue("Description");
+
+            header.createCell(3)
+                    .setCellValue("Start Date");
+
+            header.createCell(4)
+                    .setCellValue("End Date");
+
+            header.createCell(5)
+                    .setCellValue("Status");
+
+            header.createCell(6)
+                    .setCellValue("Created At");
+
+            int rowNum = 1;
+
+            for (EventSummaryResponse event : events) {
+
+                Row row = sheet.createRow(rowNum++);
+
+                row.createCell(0)
+                        .setCellValue(event.getEventId());
+
+                row.createCell(1)
+                        .setCellValue(event.getTitle());
+
+                row.createCell(2)
+                        .setCellValue(event.getDescription());
+
+                row.createCell(3)
+                        .setCellValue(event.getStartDate());
+
+                row.createCell(4)
+                        .setCellValue(event.getEndDate());
+
+                row.createCell(5)
+                        .setCellValue(event.getStatus());
+
+                row.createCell(6)
+                        .setCellValue(event.getCreatedAt());
+            }
+
+            for (int i = 0; i < 7; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+            workbook.write(output);
+
+            workbook.close();
+
+            return ResponseEntity.ok()
+
+                    .header(
+                            HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=events.xlsx")
+
+                    .body(output.toByteArray());
+
+        } catch (Exception e) {
+
+            return ResponseEntity.internalServerError()
+                    .build();
+        }
     }
 
     // endregion
