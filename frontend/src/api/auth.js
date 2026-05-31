@@ -18,7 +18,7 @@ export async function sendRegisterOtp({
 	studentId,
 	password,
 }) {
-	const text = await apiFetch("/api/auth/sendregisterotp", {
+	const text = await apiFetch("/api/auth/register/otp", {
 		method: "POST",
 		body: { fullName, email, university, studentId, password },
 		auth: false,
@@ -30,7 +30,7 @@ export async function sendRegisterOtp({
 // Step 2 of register: confirm the OTP. BE pulls the pending data from session
 // and creates the account.
 export async function verifyAndRegister({ email, otp }) {
-	const text = await apiFetch("/api/auth/verifyandregister", {
+	const text = await apiFetch("/api/auth/register", {
 		method: "POST",
 		body: { email, otp },
 		auth: false,
@@ -42,7 +42,7 @@ export async function verifyAndRegister({ email, otp }) {
 // Step 1 of password reset: BE generates an OTP, emails it, and stores it
 // in HttpSession with a 5-minute expiry.
 export async function sendResetPasswordOtp({ email }) {
-	const text = await apiFetch("/api/auth/sendresetpasswordotp", {
+	const text = await apiFetch("/api/auth/password/reset-otp", {
 		method: "POST",
 		body: { email },
 		auth: false,
@@ -54,7 +54,7 @@ export async function sendResetPasswordOtp({ email }) {
 // Step 2 of password reset: confirm the OTP and set a new password. BE
 // invalidates the session on success.
 export async function verifyAndResetPassword({ email, otp, newPassword }) {
-	const text = await apiFetch("/api/auth/verifyandresetpassword", {
+	const text = await apiFetch("/api/auth/password/reset", {
 		method: "POST",
 		body: { email, otp, newPassword },
 		auth: false,
@@ -64,7 +64,7 @@ export async function verifyAndResetPassword({ email, otp, newPassword }) {
 }
 
 export async function updateProfile({ fullName, email, university, studentId }) {
-	const text = await apiFetch("/api/auth/updateprofile", {
+	const text = await apiFetch("/api/auth/profile", {
 		method: "PUT",
 		body: { fullName, email, university, studentId },
 	});
@@ -78,7 +78,7 @@ export async function updatePassword({
 	newPassword,
 	confirmPassword,
 }) {
-	const text = await apiFetch("/api/auth/updatepassword", {
+	const text = await apiFetch("/api/auth/password", {
 		method: "PUT",
 		body: { oldPassword, newPassword, confirmPassword },
 	});

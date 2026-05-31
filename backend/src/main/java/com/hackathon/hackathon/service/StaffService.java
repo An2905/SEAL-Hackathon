@@ -6,7 +6,6 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import java.util.Collections;
 import java.util.ArrayList;
 
 import com.hackathon.hackathon.model.dto.response.AccountResponse;
@@ -23,9 +22,8 @@ import com.hackathon.hackathon.model.mapper.UserMapper;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.repository.UserRepository;
-import com.hackathon.hackathon.security.JwtUtil;
-
-import io.jsonwebtoken.Claims;
+import com.hackathon.hackathon.exception.BadRequestException;
+import com.hackathon.hackathon.exception.ConflictException;
 
 @Service
 public class StaffService {
@@ -50,21 +48,16 @@ public class StaffService {
     @Autowired
     private TeamRegistrationRepository teamRegistrationRepository;
 
+    @Autowired
+    private AuthService authService;
+
     // region CHANGE STATUS
 
     public String changeEventStatus(String authHeader, ChangeEventStatusRequest request) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return "Invalid token";
-        }
-        Claims claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
-        String roleString = claims.get("role", String.class);
-
-        if (roleString == null || !roleString.equals("COORDINATOR")) {
-            return "Unauthorized: Only COORDINATOR can change event status";
-        }
+        authService.validateRole(authHeader, "COORDINATOR");
 
         if (!eventRepository.updateStatus(request.getEventId(), request.getNewStatus())) {
-            return "Event not found.";
+            throw new BadRequestException("Event not found.");
         }
 
         return "Event status updated successfully";
@@ -77,44 +70,38 @@ public class StaffService {
      */
     // endregion
 
-    // region CREATE ACCOUNTS
     public String registerAccount(String authHeader, CreateStaffAccountRequest request) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return "Invalid token";
-        }
-        Claims claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
-        String roleString = claims.get("role", String.class);
-
-        if (roleString == null || !roleString.equals("COORDINATOR")) {
-            return "Unauthorized: Only COORDINATOR can create staff accounts";
-        }
+        authService.validateRole(authHeader, "COORDINATOR");
 
         String email = request.getEmail().trim();
         String fullName = request.getFullName().trim();
         String rawPassword = UUID.randomUUID().toString().substring(0, 8);
+
         if (email.isEmpty()) {
-            return "Email cannot be empty";
+            throw new BadRequestException("Email cannot be empty.");
         }
 
         if (checkEmail(email)) {
-            return "Email already exists";
+            throw new ConflictException("Email already exists.");
         }
 
         if (fullName.isEmpty()) {
-            return "Full name cannot be empty";
+            throw new BadRequestException("Full name cannot be empty.");
         }
-        if (request.getRole() == null
-                || (!request.getRole().trim().equals("JUDGE") && !request.getRole().trim().equals("MENTOR"))) {
-            return "Role must be either JUDGE or MENTOR";
-        }
-
-        if (!userRepository.insertStaffUser(fullName, email, encoder.encode(rawPassword), request.getRole().trim())) {
-            return "Failed to create account.";
+        if (request.getRole() == null || (!request.getRole().trim().equals("JUDGE")
+                && !request.getRole().trim().equals("MENTOR"))) {
+            throw new BadRequestException("Role must be either JUDGE or MENTOR.");
         }
 
-        boolean emailSent = emailService.sendMentorInvite(email, fullName, rawPassword, request.getRole().trim());
+        if (!userRepository.insertStaffUser(fullName, email, encoder.encode(rawPassword),
+                request.getRole().trim())) {
+            throw new BadRequestException("Failed to create account.");
+        }
+
+        boolean emailSent = emailService.sendMentorInvite(email, fullName, rawPassword,
+                request.getRole().trim());
         if (!emailSent) {
-            return "Account created but failed to send email";
+            throw new BadRequestException("Account created but failed to send email.");
         }
 
         return "Account created and email sent successfully";
@@ -123,15 +110,7 @@ public class StaffService {
 
     // region GET ALL ACCOUNTS
     public List<AccountResponse> getAllAccounts(String authHeader, AccountResponse request) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return Collections.emptyList();
-        }
-        Claims claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
-        String roleString = claims.get("role", String.class);
-
-        if (roleString == null || !roleString.equals("COORDINATOR")) {
-            return Collections.emptyList();
-        }
+        authService.validateRole(authHeader, "COORDINATOR");
 
         List<AccountResponse> accounts = new ArrayList<>();
         String roleFilter = request.getRole();
@@ -139,9 +118,9 @@ public class StaffService {
         if (roleFilter != null && !roleFilter.trim().isEmpty()) {
             roleFilter = roleFilter.trim();
             if (!roleFilter.equals("JUDGE_INTERNAL") && !roleFilter.equals("MENTOR")
-                    && !roleFilter.equals("STUDENT_FPT")
-                    && !roleFilter.equals("STUDENT_EXTERNAL") && !roleFilter.equals("ALL")) {
-                return Collections.emptyList();
+                    && !roleFilter.equals("STUDENT_FPT") && !roleFilter.equals("STUDENT_EXTERNAL")
+                    && !roleFilter.equals("ALL")) {
+                throw new BadRequestException("Invalid role filter.");
             }
         } else {
             roleFilter = "ALL";
@@ -161,48 +140,40 @@ public class StaffService {
     // region CHANGE ACCOUNT STATUS
 
     public String changeAccountStatus(String authHeader, ChangeAccountStatusRequest request) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return "Invalid token";
-        }
-        Claims claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
-        String roleString = claims.get("role", String.class);
-
-        if (roleString == null || !roleString.equals("COORDINATOR")) {
-            return "Unauthorized: Only COORDINATOR can change account status";
-        }
+        authService.validateRole(authHeader, "COORDINATOR");
 
         String userId = request.getUserId();
         String status = request.getStatus();
 
         if (userId == null || userId.trim().isEmpty()) {
-            return "User ID cannot be empty";
+            throw new BadRequestException("User ID cannot be empty.");
         }
         userId = userId.trim();
 
         try {
             Long.parseLong(userId);
         } catch (NumberFormatException e) {
-            return "Invalid user ID";
+            throw new BadRequestException("Invalid user ID format.");
         }
 
         String checkRoleUser = userRepository.findRoleByUserId(userId);
 
         if (checkRoleUser == null || checkRoleUser.isEmpty()) {
-            return "Cannot find role";
-        } else if (checkRoleUser.equalsIgnoreCase("COORDINATOR")) {
-            return "You cannot change Coordinator status";
+            throw new BadRequestException("Cannot find user role.");
+        } else if ("COORDINATOR".equalsIgnoreCase(checkRoleUser)) {
+            throw new BadRequestException("You cannot change Coordinator status.");
         }
         if (status == null || status.trim().isEmpty()) {
-            return "Status cannot be empty";
+            throw new BadRequestException("Status cannot be empty.");
         }
 
         status = status.trim().toUpperCase();
         if (!status.equals("PENDING") && !status.equals("APPROVED") && !status.equals("REJECTED")) {
-            return "Invalid status";
+            throw new BadRequestException("Invalid status value.");
         }
 
         if (!userRepository.updateStatus(userId, status)) {
-            return "Account not found.";
+            throw new BadRequestException("Account not found.");
         }
 
         return "Account status updated successfully";
@@ -212,16 +183,7 @@ public class StaffService {
 
     // region GET ALL EVENTS
     public List<EventSummaryResponse> getAllEvents(String authHeader, String status) {
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return Collections.emptyList();
-        }
-        Claims claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
-        String roleString = claims.get("role", String.class);
-
-        if (roleString == null || !roleString.equals("COORDINATOR")) {
-            return Collections.emptyList();
-        }
+        authService.validateRole(authHeader, "COORDINATOR");
 
         String statusFilter = (status == null) ? "" : status.trim().toUpperCase();
         List<EventSummaryResponse> events = new ArrayList<>();
@@ -235,101 +197,63 @@ public class StaffService {
 
     // region GET EVENT DETAIL
 
-    public EventDetailResponse getEventDetail(
-            String authHeader,
-            String eventId) {
+    public EventDetailResponse getEventDetail(String authHeader, String eventId) {
+        authService.validateRole(authHeader, "COORDINATOR");
 
-        if (authHeader == null
-                ||
-                !authHeader.startsWith("Bearer ")) {
-
-            return null;
+        if (eventId == null || eventId.trim().isEmpty()) {
+            throw new BadRequestException("Event ID cannot be empty.");
         }
-
-        Claims claims = JwtUtil.extractClaims(
-                authHeader.replace(
-                        "Bearer ",
-                        ""));
-
-        String roleString = claims.get(
-                "role",
-                String.class);
-
-        if (roleString == null) {
-
-            return null;
-        }
-
-        if (eventId == null
-                ||
-                eventId.trim().isEmpty()) {
-
-            return null;
-        }
+        eventId = eventId.trim();
 
         Event event = eventRepository.findDetailHeader(eventId);
         if (event == null) {
-            return new EventDetailResponse();
+            throw new BadRequestException("Event not found.");
         }
 
-        return eventMapper.toDetailResponse(
-                event,
-                eventRepository.findCategoriesByEventId(eventId),
+        return eventMapper.toDetailResponse(event, eventRepository.findCategoriesByEventId(eventId),
                 eventRepository.findRoundsByEventId(eventId),
                 eventRepository.findTeamRegistrationsByEventId(eventId),
                 eventRepository.findAwardsByEventId(eventId));
     }
-
     // endregion
 
     // region CHANGE TEAM REGISTRATION STATUS
 
-    public String changeTeamRegistrationStatus(
-            String authHeader,
+    public String changeTeamRegistrationStatus(String authHeader,
             ChangeTeamRegistrationStatusRequest request) {
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return "Invalid token";
-        }
-        Claims claims = JwtUtil.extractClaims(
-                authHeader.replace("Bearer ", ""));
-
-        String roleString = claims.get("role", String.class);
-        if (roleString == null || !roleString.equalsIgnoreCase("COORDINATOR")) {
-            return "Only coordinator can change registration status.";
-        }
+        authService.validateRole(authHeader, "COORDINATOR");
 
         String registrationId = request.getRegistrationId();
         String status = request.getStatus();
 
         if (registrationId == null || registrationId.trim().isEmpty()) {
-            return "Registration ID is required.";
+            throw new BadRequestException("Registration ID is required.");
         }
 
         if (status == null || status.trim().isEmpty()) {
-            return "Status is required.";
+            throw new BadRequestException("Status is required.");
         }
         registrationId = registrationId.trim();
         status = status.trim().toUpperCase();
         try {
             Long.parseLong(registrationId);
         } catch (Exception e) {
-            return "Invalid registration ID.";
+            throw new BadRequestException("Invalid registration ID format.");
         }
 
         if (!status.equals("PENDING") && !status.equals("APPROVED") && !status.equals("REJECTED")) {
-            return "Invalid status.";
+            throw new BadRequestException("Invalid status value.");
         }
 
         if (!teamRegistrationRepository.existsByRegistrationId(registrationId)) {
-            return "Registration not found.";
+            throw new BadRequestException("Registration not found.");
         }
 
         if (!teamRegistrationRepository.updateStatus(registrationId, status)) {
-            return "Update failed.";
+            throw new BadRequestException("Update failed.");
         }
 
-        return "Registration status updated successfully.";
+        return "Team registration status updated successfully";
     }
 
     // endregion

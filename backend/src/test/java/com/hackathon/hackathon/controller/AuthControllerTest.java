@@ -6,10 +6,10 @@ import mockit.Injectable;
 import mockit.Tested;
 import mockit.Expectations;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 
 public class AuthControllerTest {
 
@@ -25,24 +25,23 @@ public class AuthControllerTest {
     // ====== TEST STUDENT ROLE ======
     @Test
     public void testLoginStudentSuccess() {
-         // Tạo request giả lập login
+        // Tạo request giả lập login
         LoginRequest request = new LoginRequest();
 
         // Set email cho request
-        request.setEmail("student@fpt.edu.vn");
+        request.setEmail("student1@fpt.edu.vn");
 
         // Set password cho request
-        request.setPassword("password123");
+        request.setPassword("123456");
 
         // Kết quả mong đợi sau khi login thành công
-        String expectedResponse = "Login Success\nToken: student_token_abc123\nRole: STUDENT";
+        String expectedResponse = "{\"message\":\"Login success\",\"token\":\"student_token_abc123\"}";
 
         // Expectations:
-        
+
         // Define behavior cho mock object
         new Expectations() {
             {
-
                 // Nếu authService.login(request) được gọi
                 authService.login(request);
 
@@ -52,11 +51,12 @@ public class AuthControllerTest {
         };
 
         // Gọi method login của controller
-        String response = authController.login(request);
+        ResponseEntity<String> response = authController.login(request);
 
         // Kiểm tra:
         // response thực tế có giống expectedResponse không
-        assertEquals(expectedResponse, response);
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(expectedResponse, response.getBody());
 
         // In thông báo PASS ra terminal
         System.out.println("✓ Test STUDENT login success");
@@ -69,7 +69,7 @@ public class AuthControllerTest {
         request.setEmail("mentor@fpt.edu.vn");
         request.setPassword("password123");
 
-        String expectedResponse = "Login Success\nToken: mentor_token_def456\nRole: MENTOR";
+        String expectedResponse = "{\"message\":\"Login success\",\"token\":\"mentor_token_def456\"}";
 
         new Expectations() {
             {
@@ -78,8 +78,9 @@ public class AuthControllerTest {
             }
         };
 
-        String response = authController.login(request);
-        assertEquals(expectedResponse, response);
+        ResponseEntity<String> response = authController.login(request);
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(expectedResponse, response.getBody());
         System.out.println("✓ Test MENTOR login success");
     }
 
@@ -90,7 +91,7 @@ public class AuthControllerTest {
         request.setEmail("judge@fpt.edu.vn");
         request.setPassword("password123");
 
-        String expectedResponse = "Login Success\nToken: judge_token_ghi789\nRole: JUDGE";
+        String expectedResponse = "{\"message\":\"Login success\",\"token\":\"judge_token_ghi789\"}";
 
         new Expectations() {
             {
@@ -99,8 +100,9 @@ public class AuthControllerTest {
             }
         };
 
-        String response = authController.login(request);
-        assertEquals(expectedResponse, response);
+        ResponseEntity<String> response = authController.login(request);
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(expectedResponse, response.getBody());
         System.out.println("✓ Test JUDGE login success");
     }
 
@@ -111,7 +113,7 @@ public class AuthControllerTest {
         request.setEmail("staff@fpt.edu.vn");
         request.setPassword("password123");
 
-        String expectedResponse = "Login Success\nToken: staff_token_jkl101112\nRole: STAFF";
+        String expectedResponse = "{\"message\":\"Login success\",\"token\":\"staff_token_jkl101112\"}";
 
         new Expectations() {
             {
@@ -120,8 +122,9 @@ public class AuthControllerTest {
             }
         };
 
-        String response = authController.login(request);
-        assertEquals(expectedResponse, response);
+        ResponseEntity<String> response = authController.login(request);
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(expectedResponse, response.getBody());
         System.out.println("✓ Test STAFF login success");
     }
 
@@ -132,7 +135,7 @@ public class AuthControllerTest {
         request.setEmail("notexist@fpt.edu.vn");
         request.setPassword("password123");
 
-        String expectedResponse = "Email not found";
+        String expectedResponse = "{\"message\":\"Email not found\"}";
 
         new Expectations() {
             {
@@ -141,8 +144,9 @@ public class AuthControllerTest {
             }
         };
 
-        String response = authController.login(request);
-        assertEquals(expectedResponse, response);
+        ResponseEntity<String> response = authController.login(request);
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(expectedResponse, response.getBody());
         System.out.println("✓ Test email not found");
     }
 
@@ -152,7 +156,7 @@ public class AuthControllerTest {
         request.setEmail("student@fpt.edu.vn");
         request.setPassword("wrongpassword");
 
-        String expectedResponse = "Wrong password";
+        String expectedResponse = "{\"message\":\"Wrong password\"}";
 
         new Expectations() {
             {
@@ -161,8 +165,9 @@ public class AuthControllerTest {
             }
         };
 
-        String response = authController.login(request);
-        assertEquals(expectedResponse, response);
+        ResponseEntity<String> response = authController.login(request);
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(expectedResponse, response.getBody());
         System.out.println("✓ Test wrong password");
     }
 
@@ -172,7 +177,7 @@ public class AuthControllerTest {
         request.setEmail("inactive@fpt.edu.vn");
         request.setPassword("password123");
 
-        String expectedResponse = "Account is inactive";
+        String expectedResponse = "{\"message\":\"Account is inactive\"}";
 
         new Expectations() {
             {
@@ -181,8 +186,9 @@ public class AuthControllerTest {
             }
         };
 
-        String response = authController.login(request);
-        assertEquals(expectedResponse, response);
+        ResponseEntity<String> response = authController.login(request);
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(expectedResponse, response.getBody());
         System.out.println("✓ Test account inactive");
     }
 
@@ -192,7 +198,7 @@ public class AuthControllerTest {
         request.setEmail("student@fpt.edu.vn");
         request.setPassword("password123");
 
-        String expectedResponse = "Database error";
+        String expectedResponse = "{\"message\":\"Database error\"}";
 
         new Expectations() {
             {
@@ -201,8 +207,9 @@ public class AuthControllerTest {
             }
         };
 
-        String response = authController.login(request);
-        assertEquals(expectedResponse, response);
+        ResponseEntity<String> response = authController.login(request);
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(expectedResponse, response.getBody());
         System.out.println("✓ Test database error");
     }
 
@@ -217,8 +224,8 @@ public class AuthControllerTest {
         request2.setEmail("student2@fpt.edu.vn");
         request2.setPassword("pass2");
 
-        String response1 = "Login Success\nToken: token1\nRole: STUDENT";
-        String response2 = "Login Success\nToken: token2\nRole: STUDENT";
+        String response1 = "{\"message\":\"Login success\",\"token\":\"token1\"}";
+        String response2 = "{\"message\":\"Login success\",\"token\":\"token2\"}";
 
         new Expectations() {
             {
@@ -229,11 +236,13 @@ public class AuthControllerTest {
             }
         };
 
-        String actual1 = authController.login(request1);
-        String actual2 = authController.login(request2);
+        ResponseEntity<String> actual1 = authController.login(request1);
+        ResponseEntity<String> actual2 = authController.login(request2);
 
-        assertEquals(response1, actual1);
-        assertEquals(response2, actual2);
+        assertEquals(200, actual1.getStatusCode().value());
+        assertEquals(response1, actual1.getBody());
+        assertEquals(200, actual2.getStatusCode().value());
+        assertEquals(response2, actual2.getBody());
         System.out.println("✓ Test multiple student logins");
     }
 
@@ -252,9 +261,9 @@ public class AuthControllerTest {
         judgeReq.setEmail("judge@fpt.edu.vn");
         judgeReq.setPassword("pass");
 
-        String studentRes = "Login Success\nToken: student_t\nRole: STUDENT";
-        String mentorRes = "Login Success\nToken: mentor_t\nRole: MENTOR";
-        String judgeRes = "Login Success\nToken: judge_t\nRole: JUDGE";
+        String studentRes = "{\"message\":\"Login success\",\"token\":\"student_t\"}";
+        String mentorRes = "{\"message\":\"Login success\",\"token\":\"mentor_t\"}";
+        String judgeRes = "{\"message\":\"Login success\",\"token\":\"judge_t\"}";
 
         new Expectations() {
             {
@@ -267,9 +276,9 @@ public class AuthControllerTest {
             }
         };
 
-        assertEquals(studentRes, authController.login(studentReq));
-        assertEquals(mentorRes, authController.login(mentorReq));
-        assertEquals(judgeRes, authController.login(judgeReq));
+        assertEquals(studentRes, authController.login(studentReq).getBody());
+        assertEquals(mentorRes, authController.login(mentorReq).getBody());
+        assertEquals(judgeRes, authController.login(judgeReq).getBody());
         System.out.println("✓ Test mixed roles login");
     }
 
@@ -280,7 +289,7 @@ public class AuthControllerTest {
         request.setEmail("");
         request.setPassword("password123");
 
-        String expectedResponse = "Email is required";
+        String expectedResponse = "{\"message\":\"Email is required\"}";
 
         new Expectations() {
             {
@@ -289,8 +298,9 @@ public class AuthControllerTest {
             }
         };
 
-        String response = authController.login(request);
-        assertEquals(expectedResponse, response);
+        ResponseEntity<String> response = authController.login(request);
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(expectedResponse, response.getBody());
         System.out.println("✓ Test empty email");
     }
 
@@ -300,7 +310,7 @@ public class AuthControllerTest {
         request.setEmail("student@fpt.edu.vn");
         request.setPassword("");
 
-        String expectedResponse = "Password is required";
+        String expectedResponse = "{\"message\":\"Password is required\"}";
 
         new Expectations() {
             {
@@ -309,8 +319,9 @@ public class AuthControllerTest {
             }
         };
 
-        String response = authController.login(request);
-        assertEquals(expectedResponse, response);
+        ResponseEntity<String> response = authController.login(request);
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(expectedResponse, response.getBody());
         System.out.println("✓ Test empty password");
     }
 
@@ -320,7 +331,7 @@ public class AuthControllerTest {
         request.setEmail("invalid-email");
         request.setPassword("password123");
 
-        String expectedResponse = "Invalid email format";
+        String expectedResponse = "{\"message\":\"Invalid email format\"}";
 
         new Expectations() {
             {
@@ -329,8 +340,9 @@ public class AuthControllerTest {
             }
         };
 
-        String response = authController.login(request);
-        assertEquals(expectedResponse, response);
+        ResponseEntity<String> response = authController.login(request);
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(expectedResponse, response.getBody());
         System.out.println("✓ Test invalid email format");
     }
 
@@ -340,7 +352,7 @@ public class AuthControllerTest {
         request.setEmail(null);
         request.setPassword(null);
 
-        String expectedResponse = "Request is invalid";
+        String expectedResponse = "{\"message\":\"Request is invalid\"}";
 
         new Expectations() {
             {
@@ -349,8 +361,9 @@ public class AuthControllerTest {
             }
         };
 
-        String response = authController.login(request);
-        assertEquals(expectedResponse, response);
+        ResponseEntity<String> response = authController.login(request);
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(expectedResponse, response.getBody());
         System.out.println("✓ Test null request");
     }
 }
