@@ -364,7 +364,8 @@ public class StaffService {
         response.setTotalRecipients(String.valueOf(totalRecipients));
         response.setStatus("SENT");
         return response;
-      
+    }
+
     // region ASSIGN JUDGE / MENTOR
 
     public String assignJudge(String authHeader, AssignJudgeRequest request) {
