@@ -45,6 +45,20 @@ public class EventRepository {
         return false;
     }
 
+    public boolean existsById(String eventId) {
+        String sql = "SELECT 1 FROM [dbo].[events] WHERE event_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, eventId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public boolean updateStatus(String eventId, String status) {
         String sql = "UPDATE [dbo].[events] SET status = ? WHERE event_id = ?";
         try (
@@ -60,28 +74,21 @@ public class EventRepository {
 
     public List<Event> findAllByStatus(String statusFilter) {
         List<Event> events = new ArrayList<>();
-        try {
-            Connection conn = dataSource.getConnection();
-            PreparedStatement ps;
-            String sql;
-
-            if (statusFilter == null || statusFilter.isEmpty() || "ALL".equals(statusFilter)) {
-                sql = "SELECT event_id, title, description, start_date, end_date, status, created_at FROM events";
-                ps = conn.prepareStatement(sql);
-            } else {
-                sql = "SELECT event_id, title, description, start_date, end_date, status, created_at FROM events WHERE status = ?";
-                ps = conn.prepareStatement(sql);
+        boolean filterAll = (statusFilter == null || statusFilter.isEmpty() || "ALL".equals(statusFilter));
+        String sql = filterAll
+                ? "SELECT event_id, title, description, start_date, end_date, status, created_at FROM events"
+                : "SELECT event_id, title, description, start_date, end_date, status, created_at FROM events WHERE status = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            if (!filterAll) {
                 ps.setString(1, statusFilter);
             }
-
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     events.add(eventMapper.fromSummaryRow(rs));
                 }
             }
-
-            ps.close();
-            conn.close();
         } catch (Exception e) {
             return events;
         }

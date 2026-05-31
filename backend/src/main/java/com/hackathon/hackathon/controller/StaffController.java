@@ -20,6 +20,9 @@ import com.hackathon.hackathon.model.dto.request.ChangeAccountStatusRequest;
 import com.hackathon.hackathon.model.dto.request.ChangeEventStatusRequest;
 import com.hackathon.hackathon.model.dto.request.ChangeTeamRegistrationStatusRequest;
 import com.hackathon.hackathon.model.dto.request.CreateStaffAccountRequest;
+import com.hackathon.hackathon.model.dto.request.SendAllAnnouncementRequest;
+import com.hackathon.hackathon.model.dto.request.SendParticipantAnnouncementRequest;
+import com.hackathon.hackathon.model.dto.response.AnnouncementResponse;
 import com.hackathon.hackathon.service.AuthService;
 import com.hackathon.hackathon.service.StaffService;
 
@@ -91,6 +94,20 @@ public class StaffController {
             @RequestBody ChangeTeamRegistrationStatusRequest request) {
         String result = staffService.changeTeamRegistrationStatus(authHeader,request);
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/announcements/send-all")
+    public ResponseEntity<AnnouncementResponse> sendAnnouncementToAll(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody SendAllAnnouncementRequest request) {
+        return ResponseEntity.ok(staffService.sendAnnouncementToAll(authHeader, request));
+    }
+
+    @PostMapping("/announcements/send-participant")
+    public ResponseEntity<AnnouncementResponse> sendAnnouncementToParticipants(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody SendParticipantAnnouncementRequest request) {
+        return ResponseEntity.ok(staffService.sendAnnouncementToParticipants(authHeader, request));
     }
 
 }

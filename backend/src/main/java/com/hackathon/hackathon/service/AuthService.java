@@ -11,7 +11,6 @@ import jakarta.servlet.http.HttpSession;
 import java.security.SecureRandom;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.hackathon.hackathon.exception.BadRequestException;
@@ -28,10 +27,6 @@ import com.hackathon.hackathon.model.dto.request.VerifyStudentRegisterRequest;
 import com.hackathon.hackathon.model.entity.User;
 import com.hackathon.hackathon.repository.StudentProfileRepository;
 import com.hackathon.hackathon.repository.UserRepository;
-import com.hackathon.hackathon.security.JwtUtil;
-
-import io.jsonwebtoken.Claims;
-import jakarta.servlet.http.HttpSession;
 
 @Service
 public class AuthService {
@@ -58,7 +53,7 @@ public class AuthService {
         }
         String token = authHeader.substring(7);
         Claims claims = JwtUtil.extractClaims(token);
-        
+
         String userRole = claims.get("role", String.class);
         if (userRole == null) {
             throw new UnauthorizedException("Access Denied: Missing role.");
@@ -102,7 +97,7 @@ public class AuthService {
     @Autowired
     private StudentProfileRepository studentProfileRepository;
 
-//#region LOGIN
+    // #region LOGIN
 
     public LoginResponse login(LoginRequest request) {
         requireValidEmail(request.getEmail());
@@ -125,8 +120,8 @@ public class AuthService {
         return new LoginResponse("Login success", token);
     }
 
-//#endregion
-//#region UPDATE PASSWORD
+    // #endregion
+    // #region UPDATE PASSWORD
 
     public MessageResponse updatePassword(String authHeader, UpdatePasswordRequest request) {
         String email = extractEmailFromToken(authHeader);
@@ -156,8 +151,8 @@ public class AuthService {
         return new MessageResponse("Password updated successfully.");
     }
 
-//#endregion
-//#region UPDATE PROFILE
+    // #endregion
+    // #region UPDATE PROFILE
 
     public ProfileUpdateResponse updateProfile(String authHeader, UpdateProfileRequest request) {
         String email = extractEmailFromToken(authHeader);
@@ -206,22 +201,22 @@ public class AuthService {
         return new ProfileUpdateResponse("Profile updated successfully.", token);
     }
 
-//#endregion
-//#region CHECK MAIL
+    // #endregion
+    // #region CHECK MAIL
 
     public boolean checkEmail(String email) {
         return userRepository.existsByEmail(email);
     }
 
-//#endregion
-//#region CHECK STUDENT ID
+    // #endregion
+    // #region CHECK STUDENT ID
 
     public boolean checkStudentId(String studentId, String university) {
         return studentProfileRepository.existsByStudentCodeAndUniversity(studentId, university);
     }
 
-//#endregion
-//#region CHECK PASSWORD
+    // #endregion
+    // #region CHECK PASSWORD
 
     public boolean checkOldPassword(String email, String oldPassword) {
         User user = userRepository.findByEmail(email);
@@ -231,10 +226,11 @@ public class AuthService {
         return encoder.matches(oldPassword, user.getPasswordHash());
     }
 
-//#endregion
-//#region RESET PASSWORD STEPS
+    // #endregion
+    // #region RESET PASSWORD STEPS
 
-    public MessageResponse sendResetPasswordOtp(ResetPasswordOtpRequest request, HttpSession session) {
+    public MessageResponse sendResetPasswordOtp(ResetPasswordOtpRequest request,
+            HttpSession session) {
         String email = request.getEmail();
         requireValidEmail(email);
 
@@ -255,13 +251,15 @@ public class AuthService {
         session.setAttribute("OTP_EXPIRE", expireTime);
         session.setAttribute("OTP_EMAIL", email);
 
-        return new MessageResponse("OTP sent to email. Please check your inbox (Valid for 5 minutes).");
+        return new MessageResponse(
+                "OTP sent to email. Please check your inbox (Valid for 5 minutes).");
     }
 
-//#endregion
-//#region VERIFY OTP AND RESET PASSWORD
+    // #endregion
+    // #region VERIFY OTP AND RESET PASSWORD
 
-    public MessageResponse verifyAndResetPassword(ResetPasswordRequest request, HttpSession session) {
+    public MessageResponse verifyAndResetPassword(ResetPasswordRequest request,
+            HttpSession session) {
         String sessionOtp = (String) session.getAttribute("OTP_CODE");
         Long otpTimestamp = (Long) session.getAttribute("OTP_EXPIRE");
         String sessionEmail = (String) session.getAttribute("OTP_EMAIL");
@@ -289,11 +287,12 @@ public class AuthService {
         }
 
         session.invalidate();
-        return new MessageResponse("Password reset successfully. Please login with your new password.");
+        return new MessageResponse(
+                "Password reset successfully. Please login with your new password.");
     }
 
-//#endregion
-//#region REGISTER STEPS WITH OTP
+    // #endregion
+    // #region REGISTER STEPS WITH OTP
 
     public MessageResponse sendRegisterOtp(StudentRegisterRequest request, HttpSession session) {
         String email = request.getEmail();
@@ -328,7 +327,8 @@ public class AuthService {
         return new MessageResponse("OTP sent to email. Please verify to complete registration.");
     }
 
-    public MessageResponse verifyAndRegister(VerifyStudentRegisterRequest request, HttpSession session) {
+    public MessageResponse verifyAndRegister(VerifyStudentRegisterRequest request,
+            HttpSession session) {
         String sessionOtp = (String) session.getAttribute("REG_OTP_CODE");
         Long otpTimestamp = (Long) session.getAttribute("REG_OTP_EXPIRE");
         StudentRegisterRequest regData = (StudentRegisterRequest) session.getAttribute("REG_DATA");
@@ -352,21 +352,19 @@ public class AuthService {
             throw new BadRequestException("Email mismatch. Invalid request.");
         }
 
-        String role = regData.getUniversity() != null && regData.getUniversity().toLowerCase().contains("fpt")
-                ? "STUDENT_FPT"
-                : "STUDENT_EXTERNAL";
+        String role = regData.getUniversity() != null
+                && regData.getUniversity().toLowerCase().contains("fpt") ? "STUDENT_FPT"
+                        : "STUDENT_EXTERNAL";
 
-        String userId = userRepository.insertStudentUser(
-                regData.getFullName(),
-                regData.getEmail(),
-                encoder.encode(regData.getPassword()),
-                role);
+        String userId = userRepository.insertStudentUser(regData.getFullName(), regData.getEmail(),
+                encoder.encode(regData.getPassword()), role);
 
         if (userId == null) {
             throw new BadRequestException("Database error while creating user.");
         }
 
-        if (!studentProfileRepository.insert(userId, regData.getStudentId(), regData.getUniversity())) {
+        if (!studentProfileRepository.insert(userId, regData.getStudentId(),
+                regData.getUniversity())) {
             throw new BadRequestException("Database error while creating profile.");
         }
 
@@ -377,6 +375,6 @@ public class AuthService {
         return new MessageResponse("Registration successful. Your account is now active!");
     }
 
-//#endregion
+    // #endregion
 
 }
