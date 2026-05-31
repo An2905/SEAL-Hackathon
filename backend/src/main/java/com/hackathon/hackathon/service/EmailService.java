@@ -150,6 +150,31 @@ public class EmailService {
         return false;
     }
 }
+
+    public boolean sendAnnouncement(String toEmail, String fullName, String title, String content) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            String url = "https://api.brevo.com/v3/smtp/email";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("api-key", brevoApiKey);
+            String body = """
+            {
+                "sender":{"name":"Hackathon System","email":"quocannguyen385@gmail.com"},
+                "to":[{"email":"%s"}],
+                "subject":"%s",
+                "htmlContent":"<h2>Xin ch\\u00e0o %s</h2><p>%s</p>"
+            }
+            """.formatted(toEmail, title, fullName, content);
+            HttpEntity<String> entity = new HttpEntity<>(body, headers);
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+            return response.getStatusCode().is2xxSuccessful();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
 }
 
     

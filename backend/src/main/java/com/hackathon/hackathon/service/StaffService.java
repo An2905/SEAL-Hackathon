@@ -25,8 +25,13 @@ import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.repository.AssignmentRepository;
 import com.hackathon.hackathon.repository.UserRepository;
+import java.util.Arrays;
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
+import com.hackathon.hackathon.model.dto.request.SendAllAnnouncementRequest;
+import com.hackathon.hackathon.model.dto.request.SendParticipantAnnouncementRequest;
+import com.hackathon.hackathon.model.dto.response.AnnouncementResponse;
+import com.hackathon.hackathon.repository.AnnouncementRepository;
 
 @Service
 public class StaffService {
@@ -56,6 +61,9 @@ public class StaffService {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private AnnouncementRepository announcementRepository;
 
     // region CHANGE STATUS
 
@@ -273,6 +281,90 @@ public class StaffService {
 
     // endregion
 
+    // region SEND ANNOUNCEMENT
+
+    public AnnouncementResponse sendAnnouncementToAll(String authHeader,
+            SendAllAnnouncementRequest request) {
+        authService.validateRole(authHeader, "COORDINATOR");
+
+        String title = request.getTitle() != null ? request.getTitle().trim() : "";
+        String content = request.getContent() != null ? request.getContent().trim() : "";
+
+        if (title.isEmpty())
+            throw new BadRequestException("Title cannot be empty.");
+        if (content.isEmpty())
+            throw new BadRequestException("Content cannot be empty.");
+
+        // Reuse existing UserRepository — no new JDBC needed
+        List<User> allUsers = userRepository.findByRoleOrAllUsers("ALL");
+
+        int totalRecipients = 0;
+        for (User user : allUsers) {
+            emailService.sendAnnouncement(user.getEmail(), user.getFullName(), title, content);
+            totalRecipients++;
+        }
+
+        AnnouncementResponse response = new AnnouncementResponse();
+        response.setTotalRecipients(String.valueOf(totalRecipients));
+        response.setStatus("SENT");
+        return response;
+    }
+
+    public AnnouncementResponse sendAnnouncementToParticipants(String authHeader,
+            SendParticipantAnnouncementRequest request) {
+        authService.validateRole(authHeader, "COORDINATOR");
+
+        String eventId = request.getEventId() != null ? request.getEventId().trim() : "";
+        String title = request.getTitle() != null ? request.getTitle().trim() : "";
+        String content = request.getContent() != null ? request.getContent().trim() : "";
+        List<String> roles = request.getRoles();
+
+        if (eventId.isEmpty())
+            throw new BadRequestException("Event ID cannot be empty.");
+        if (title.isEmpty())
+            throw new BadRequestException("Title cannot be empty.");
+        if (content.isEmpty())
+            throw new BadRequestException("Content cannot be empty.");
+        if (roles == null || roles.isEmpty())
+            throw new BadRequestException("Roles cannot be empty.");
+
+        try {
+            Long.parseLong(eventId);
+        } catch (NumberFormatException e) {
+            throw new BadRequestException("Invalid event ID format.");
+        }
+
+        List<String> validRoles = Arrays.asList("STUDENT_FPT", "STUDENT_EXTERNAL", "MENTOR",
+                "JUDGE_INTERNAL");
+        for (String role : roles) {
+            if (!validRoles.contains(role))
+                throw new BadRequestException(
+                        "Invalid role: " + role + ". Accepted: " + validRoles);
+        }
+
+        if (!eventRepository.existsById(eventId))
+            throw new BadRequestException("Event not found.");
+
+        // Persist announcement — get back announcementId + createdAt
+        AnnouncementResponse response = announcementRepository.insert(eventId, title, content);
+        if (response == null)
+            throw new BadRequestException("Failed to create announcement.");
+
+        // Send emails per role and accumulate recipient count
+        int totalRecipients = 0;
+        for (String role : roles) {
+            List<User> participants = announcementRepository.findEventParticipantsByRole(eventId,
+                    role);
+            for (User user : participants) {
+                emailService.sendAnnouncement(user.getEmail(), user.getFullName(), title, content);
+                totalRecipients++;
+            }
+        }
+
+        response.setTotalRecipients(String.valueOf(totalRecipients));
+        response.setStatus("SENT");
+        return response;
+      
     // region ASSIGN JUDGE / MENTOR
 
     public String assignJudge(String authHeader, AssignJudgeRequest request) {
