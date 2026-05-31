@@ -1,5 +1,13 @@
 package com.hackathon.hackathon.service;
 
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import com.hackathon.hackathon.model.dto.response.LoginResponse;
+import com.hackathon.hackathon.model.dto.response.ProfileUpdateResponse;
+import com.hackathon.hackathon.model.dto.response.MessageResponse;
+
+import com.hackathon.hackathon.security.JwtUtil;
+import io.jsonwebtoken.Claims;
+import jakarta.servlet.http.HttpSession;
 import java.security.SecureRandom;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -96,7 +104,7 @@ public class AuthService {
 
 //#region LOGIN
 
-    public String login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request) {
         requireValidEmail(request.getEmail());
         requireNonBlank(request.getPassword(), "Password");
 
@@ -114,18 +122,13 @@ public class AuthService {
         String token = JwtUtil.generateToken(user.getEmail(), user.getRole(), user.getUserId(),
                 user.getFullName());
 
-        StringBuilder json = new StringBuilder();
-        json.append("{");
-        json.append("\"message\":\"Login success\",");
-        json.append("\"token\":\"").append(token).append("\"");
-        json.append("}");
-        return json.toString();
+        return new LoginResponse("Login success", token);
     }
 
 //#endregion
 //#region UPDATE PASSWORD
 
-    public String updatePassword(String authHeader, UpdatePasswordRequest request) {
+    public MessageResponse updatePassword(String authHeader, UpdatePasswordRequest request) {
         String email = extractEmailFromToken(authHeader);
 
         requireNonBlank(request.getOldPassword(), "Old password");
@@ -150,17 +153,13 @@ public class AuthService {
             throw new BadRequestException("Failed to update password.");
         }
 
-        StringBuilder json = new StringBuilder();
-        json.append("{");
-        json.append("\"message\":\"Password updated successfully.\"");
-        json.append("}");
-        return json.toString();
+        return new MessageResponse("Password updated successfully.");
     }
 
 //#endregion
 //#region UPDATE PROFILE
 
-    public String updateProfile(String authHeader, UpdateProfileRequest request) {
+    public ProfileUpdateResponse updateProfile(String authHeader, UpdateProfileRequest request) {
         String email = extractEmailFromToken(authHeader);
         String newFullName = request.getFullName();
         String newUniversity = request.getUniversity();
@@ -204,12 +203,7 @@ public class AuthService {
         }
 
         String token = JwtUtil.generateToken(newEmail, role, userId, newFullName);
-        StringBuilder json = new StringBuilder();
-        json.append("{");
-        json.append("\"message\":\"Profile updated successfully.\",");
-        json.append("\"newToken\":\"").append(token).append("\"");
-        json.append("}");
-        return json.toString();
+        return new ProfileUpdateResponse("Profile updated successfully.", token);
     }
 
 //#endregion
@@ -240,7 +234,7 @@ public class AuthService {
 //#endregion
 //#region RESET PASSWORD STEPS
 
-    public String sendResetPasswordOtp(ResetPasswordOtpRequest request, HttpSession session) {
+    public MessageResponse sendResetPasswordOtp(ResetPasswordOtpRequest request, HttpSession session) {
         String email = request.getEmail();
         requireValidEmail(email);
 
@@ -261,17 +255,13 @@ public class AuthService {
         session.setAttribute("OTP_EXPIRE", expireTime);
         session.setAttribute("OTP_EMAIL", email);
 
-        StringBuilder json = new StringBuilder();
-        json.append("{");
-        json.append("\"message\":\"OTP sent to email. Please check your inbox (Valid for 5 minutes).\"");
-        json.append("}");
-        return json.toString();
+        return new MessageResponse("OTP sent to email. Please check your inbox (Valid for 5 minutes).");
     }
 
 //#endregion
 //#region VERIFY OTP AND RESET PASSWORD
 
-    public String verifyAndResetPassword(ResetPasswordRequest request, HttpSession session) {
+    public MessageResponse verifyAndResetPassword(ResetPasswordRequest request, HttpSession session) {
         String sessionOtp = (String) session.getAttribute("OTP_CODE");
         Long otpTimestamp = (Long) session.getAttribute("OTP_EXPIRE");
         String sessionEmail = (String) session.getAttribute("OTP_EMAIL");
@@ -299,17 +289,13 @@ public class AuthService {
         }
 
         session.invalidate();
-        StringBuilder json = new StringBuilder();
-        json.append("{");
-        json.append("\"message\":\"Password reset successfully. Please login with your new password.\"");
-        json.append("}");
-        return json.toString();
+        return new MessageResponse("Password reset successfully. Please login with your new password.");
     }
 
 //#endregion
 //#region REGISTER STEPS WITH OTP
 
-    public String sendRegisterOtp(StudentRegisterRequest request, HttpSession session) {
+    public MessageResponse sendRegisterOtp(StudentRegisterRequest request, HttpSession session) {
         String email = request.getEmail();
 
         requireValidEmail(email);
@@ -339,14 +325,10 @@ public class AuthService {
         session.setAttribute("REG_OTP_EXPIRE", expireTime);
         session.setAttribute("REG_DATA", request);
 
-        StringBuilder json = new StringBuilder();
-        json.append("{");
-        json.append("\"message\":\"OTP sent to email. Please verify to complete registration.\"");
-        json.append("}");
-        return json.toString();
+        return new MessageResponse("OTP sent to email. Please verify to complete registration.");
     }
 
-    public String verifyAndRegister(VerifyStudentRegisterRequest request, HttpSession session) {
+    public MessageResponse verifyAndRegister(VerifyStudentRegisterRequest request, HttpSession session) {
         String sessionOtp = (String) session.getAttribute("REG_OTP_CODE");
         Long otpTimestamp = (Long) session.getAttribute("REG_OTP_EXPIRE");
         StudentRegisterRequest regData = (StudentRegisterRequest) session.getAttribute("REG_DATA");
@@ -392,11 +374,7 @@ public class AuthService {
         session.removeAttribute("REG_OTP_EXPIRE");
         session.removeAttribute("REG_DATA");
 
-        StringBuilder json = new StringBuilder();
-        json.append("{");
-        json.append("\"message\":\"Registration successful. Your account is now active!\"");
-        json.append("}");
-        return json.toString();
+        return new MessageResponse("Registration successful. Your account is now active!");
     }
 
 //#endregion
