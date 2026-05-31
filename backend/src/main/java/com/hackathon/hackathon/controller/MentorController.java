@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
+import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.service.MentorService;
 
 @RestController
@@ -25,5 +26,11 @@ public class MentorController {
     public List<EventSummaryResponse> getAssignedEvents(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         return mentorService.getAssignedEvents(authHeader);
+    }
+
+    @GetMapping("/events/current-rounds")
+    public List<MentorAssignedCurrentRoundResponse> getAssignedCurrentRounds(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return mentorService.getAssignedCurrentRounds(authHeader);
     }
 }

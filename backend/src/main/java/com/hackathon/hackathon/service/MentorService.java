@@ -1,17 +1,17 @@
 package com.hackathon.hackathon.service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.hackathon.hackathon.exception.UnauthorizedException;
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
+import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.model.entity.Event;
 import com.hackathon.hackathon.model.mapper.EventMapper;
 import com.hackathon.hackathon.repository.EventRepository;
-import com.hackathon.hackathon.security.JwtUtil;
 
 import io.jsonwebtoken.Claims;
 
@@ -24,20 +24,15 @@ public class MentorService {
     @Autowired
     private EventMapper eventMapper;
 
-    public List<EventSummaryResponse> getAssignedEvents(String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return Collections.emptyList();
-        }
+    @Autowired
+    private AuthService authService;
 
-        Claims claims = JwtUtil.extractClaims(authHeader.replace("Bearer ", ""));
-        String roleString = claims.get("role", String.class);
-        if (roleString == null || !roleString.equalsIgnoreCase("MENTOR")) {
-            return Collections.emptyList();
-        }
+    public List<EventSummaryResponse> getAssignedEvents(String authHeader) {
+        Claims claims = authService.validateRole(authHeader, "MENTOR");
 
         String mentorId = claims.get("userId", String.class);
         if (mentorId == null || mentorId.trim().isEmpty()) {
-            return Collections.emptyList();
+            throw new UnauthorizedException("Invalid or missing token.");
         }
 
         List<EventSummaryResponse> summaries = new ArrayList<>();
@@ -45,5 +40,16 @@ public class MentorService {
             summaries.add(eventMapper.toSummaryResponse(event));
         }
         return summaries;
+    }
+
+    public List<MentorAssignedCurrentRoundResponse> getAssignedCurrentRounds(String authHeader) {
+        Claims claims = authService.validateRole(authHeader, "MENTOR");
+
+        String mentorId = claims.get("userId", String.class);
+        if (mentorId == null || mentorId.trim().isEmpty()) {
+            throw new UnauthorizedException("Invalid or missing token.");
+        }
+
+        return eventRepository.findAssignedCurrentRoundsByMentorId(mentorId.trim());
     }
 }

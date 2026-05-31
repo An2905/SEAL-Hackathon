@@ -12,6 +12,7 @@ import com.hackathon.hackathon.model.dto.response.EventDetailResponse;
 import com.hackathon.hackathon.model.dto.response.EventRoundResponse;
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
 import com.hackathon.hackathon.model.dto.response.EventTeamResponse;
+import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.model.entity.Award;
 import com.hackathon.hackathon.model.entity.Category;
 import com.hackathon.hackathon.model.entity.Event;
@@ -88,6 +89,18 @@ public class EventMapper {
         response.setEndDate(event.getEndDate());
         response.setStatus(event.getStatus());
         response.setCreatedAt(event.getCreatedAt());
+        return response;
+    }
+
+    public MentorAssignedCurrentRoundResponse toMentorAssignedCurrentRoundResponse(ResultSet rs) throws SQLException {
+        MentorAssignedCurrentRoundResponse response = new MentorAssignedCurrentRoundResponse();
+        response.setEventId(rs.getString("event_id"));
+        response.setEventTitle(rs.getString("title"));
+        response.setRoundId(rs.getString("round_id"));
+        response.setRoundName(rs.getString("name"));
+        response.setStartDate(rs.getString("start_date"));
+        response.setEndDate(rs.getString("end_date"));
+        response.setRoundStatus(rs.getString("round_status"));
         return response;
     }
 
