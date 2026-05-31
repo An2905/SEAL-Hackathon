@@ -11,6 +11,7 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
+import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.model.entity.Award;
 import com.hackathon.hackathon.model.entity.Category;
 import com.hackathon.hackathon.model.entity.Event;
@@ -212,5 +213,31 @@ public class EventRepository {
             return events;
         }
         return events;
+    }
+
+    public List<MentorAssignedCurrentRoundResponse> findAssignedCurrentRoundsByMentorId(String mentorId) {
+        List<MentorAssignedCurrentRoundResponse> rounds = new ArrayList<>();
+        String sql = "SELECT DISTINCT e.event_id, e.title, r.round_id, r.name, r.start_date, r.end_date, "
+                + "'ONGOING' AS round_status "
+                + "FROM events e "
+                + "JOIN categories c ON e.event_id = c.event_id "
+                + "JOIN category_mentors cm ON c.category_id = cm.category_id "
+                + "JOIN rounds r ON e.event_id = r.event_id "
+                + "WHERE cm.mentor_id = ? "
+                + "AND GETDATE() BETWEEN r.start_date AND r.end_date "
+                + "ORDER BY e.start_date DESC";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, mentorId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    rounds.add(eventMapper.toMentorAssignedCurrentRoundResponse(rs));
+                }
+            }
+        } catch (Exception e) {
+            return rounds;
+        }
+        return rounds;
     }
 }
