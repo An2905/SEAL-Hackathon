@@ -105,6 +105,7 @@ public class StaffController {
             @RequestHeader("Authorization") String authHeader,
             @RequestBody SendParticipantAnnouncementRequest request) {
         return ResponseEntity.ok(staffService.sendAnnouncementToParticipants(authHeader, request));
+    }
       
     @PostMapping("/assign/judge")
     public ResponseEntity<String> assignJudge(@RequestHeader("Authorization") String authHeader,
