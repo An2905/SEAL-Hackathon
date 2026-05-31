@@ -27,7 +27,6 @@ import com.hackathon.hackathon.model.dto.request.SendParticipantAnnouncementRequ
 import com.hackathon.hackathon.model.dto.response.AnnouncementResponse;
 import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
 import com.hackathon.hackathon.model.dto.request.AssignMentorCategoryRequest;
-import com.hackathon.hackathon.service.AuthService;
 import com.hackathon.hackathon.service.StaffService;
 
 @RestController @RequestMapping(value = "/api/staff", produces = MediaType.APPLICATION_JSON_VALUE
@@ -105,7 +104,8 @@ public class StaffController {
             @RequestHeader("Authorization") String authHeader,
             @RequestBody SendParticipantAnnouncementRequest request) {
         return ResponseEntity.ok(staffService.sendAnnouncementToParticipants(authHeader, request));
-      
+    }
+
     @PostMapping("/assign/judge")
     public ResponseEntity<String> assignJudge(@RequestHeader("Authorization") String authHeader,
             @RequestBody AssignJudgeRequest request) {
