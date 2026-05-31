@@ -20,7 +20,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -93,9 +92,11 @@ public class StaffServiceTest {
 
         new Verifications() {
             {
-                emailService.sendAnnouncement("user1@example.com", "User One", "System Maintenance", "The system will be down for 1 hour tonight.");
+                emailService.sendAnnouncement("user1@example.com", "User One", "System Maintenance",
+                        "The system will be down for 1 hour tonight.");
                 times = 1;
-                emailService.sendAnnouncement("user2@example.com", "User Two", "System Maintenance", "The system will be down for 1 hour tonight.");
+                emailService.sendAnnouncement("user2@example.com", "User Two", "System Maintenance",
+                        "The system will be down for 1 hour tonight.");
                 times = 1;
             }
         };
@@ -159,7 +160,8 @@ public class StaffServiceTest {
                 authService.validateRole(authHeader, "COORDINATOR");
                 eventRepository.existsById("1");
                 result = true;
-                announcementRepository.insert("1", "Hackathon Rules", "Please read the guidelines before submitting.");
+                announcementRepository.insert("1", "Hackathon Rules",
+                        "Please read the guidelines before submitting.");
                 result = mockInsertedResponse;
                 announcementRepository.findEventParticipantsByRole("1", "STUDENT_FPT");
                 result = Arrays.asList(student);
@@ -168,7 +170,8 @@ public class StaffServiceTest {
             }
         };
 
-        AnnouncementResponse response = staffService.sendAnnouncementToParticipants(authHeader, request);
+        AnnouncementResponse response = staffService.sendAnnouncementToParticipants(authHeader,
+                request);
 
         assertEquals("SENT", response.getStatus());
         assertEquals("2", response.getTotalRecipients());
@@ -177,9 +180,11 @@ public class StaffServiceTest {
 
         new Verifications() {
             {
-                emailService.sendAnnouncement("student@fpt.edu.vn", "FPT Student", "Hackathon Rules", "Please read the guidelines before submitting.");
+                emailService.sendAnnouncement("student@fpt.edu.vn", "FPT Student",
+                        "Hackathon Rules", "Please read the guidelines before submitting.");
                 times = 1;
-                emailService.sendAnnouncement("mentor@example.com", "Hackathon Mentor", "Hackathon Rules", "Please read the guidelines before submitting.");
+                emailService.sendAnnouncement("mentor@example.com", "Hackathon Mentor",
+                        "Hackathon Rules", "Please read the guidelines before submitting.");
                 times = 1;
             }
         };
