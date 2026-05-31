@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import DashboardShell from "./DashboardShell";
 import FormField from "../../components/common/FormField";
 import FormMessage from "../../components/common/FormMessage";
 import PendingTeamsBadge from "../../components/common/PendingTeamsBadge";
@@ -13,7 +12,6 @@ import {
 	normalizeAccountUserId,
 } from "../../api/staff";
 import { getAllEvents, attachPendingTeamsToEvents } from "../../api/event";
-import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { localizeError } from "../../utils/errors";
 
@@ -42,44 +40,6 @@ const ROLE_LABELS = {
 
 // Khớp CHECK constraint DB users.status: PENDING | APPROVED | REJECTED
 const ACCOUNT_STATUSES = ["PENDING", "APPROVED", "REJECTED"];
-
-function DashboardSection({
-	title,
-	hint,
-	defaultOpen = false,
-	badgeCount,
-	children,
-}) {
-	const [open, setOpen] = useState(defaultOpen);
-	const hasBadge = Number(badgeCount) > 0;
-
-	return (
-		<div
-			className={`dashboard-section${open ? " is-open" : ""}${
-				hasBadge ? " has-pending-badge" : ""
-			}`}
-		>
-			<PendingTeamsBadge count={badgeCount} />
-			<button
-				type="button"
-				className="dashboard-section-trigger"
-				onClick={() => setOpen((v) => !v)}
-				aria-expanded={open}
-			>
-				<span className="dashboard-section-heading">
-					<h2>{title}</h2>
-					{hint ? <span className="hint">{hint}</span> : null}
-				</span>
-				<span className="dashboard-section-chevron" aria-hidden="true">
-					▼
-				</span>
-			</button>
-			<div className="dashboard-section-body" hidden={!open}>
-				{children}
-			</div>
-		</div>
-	);
-}
 
 function statusPillClass(status) {
 	const key = (status || "").toLowerCase();
@@ -165,7 +125,7 @@ function AccountStatusPicker({ account, onUpdated }) {
 }
 
 // ─── Create Staff Account Form ────────────────────────────────────────────────
-function CreateStaffAccountForm({ onSuccess }) {
+export function CreateStaffAccountForm({ onSuccess }) {
 	const { showToast } = useToast();
 	const [loading, setLoading] = useState(false);
 	const [message, setMessage] = useState(null);
@@ -337,7 +297,7 @@ function formatEventDate(value) {
 }
 
 // ─── Events List Section ──────────────────────────────────────────────────────
-function EventsListSection({
+export function EventsListSection({
 	refreshKey = 0,
 	onStatusChanged,
 	onPendingTotalChange,
@@ -516,7 +476,7 @@ function EventsListSection({
 }
 
 // ─── Accounts List Section ────────────────────────────────────────────────────
-function AccountsListSection() {
+export function AccountsListSection() {
 	const { showToast } = useToast();
 	const [role, setRole] = useState("ALL");
 	const [search, setSearch] = useState("");
@@ -678,109 +638,3 @@ function AccountsListSection() {
 	);
 }
 
-// ─── Activity Log ─────────────────────────────────────────────────────────────
-function ActivityLog({ activities }) {
-	if (!activities.length) {
-		return (
-			<div className="empty-state">
-				Chưa có hoạt động nào trong phiên này.
-			</div>
-		);
-	}
-	return (
-		<div className="kv-list">
-			{activities.map((a, i) => (
-				<div className="kv" key={i}>
-					<span>
-						{a.at.toLocaleTimeString("vi-VN", {
-							hour: "2-digit",
-							minute: "2-digit",
-						})}
-					</span>
-					<span>{a.text}</span>
-				</div>
-			))}
-		</div>
-	);
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
-export default function StaffDashboard() {
-	const { auth } = useAuth();
-	const [activities, setActivities] = useState([]);
-	const [eventsRefresh, setEventsRefresh] = useState(0);
-	const [eventsPendingTotal, setEventsPendingTotal] = useState(0);
-
-	const logActivity = (text) =>
-		setActivities((prev) => [{ text, at: new Date() }, ...prev]);
-
-	const handleEventStatusChanged = (eventId, newStatus) => {
-		logActivity(`Đổi trạng thái event ${eventId} → ${newStatus}`);
-		setEventsRefresh((k) => k + 1);
-	};
-
-	return (
-		<DashboardShell
-			roleLabel="Staff"
-			title="Tài khoản nhân viên"
-			subtitle="Bảng điều khiển dành cho Coordinator — quản lý tài khoản và sự kiện."
-			role="COORDINATOR"
-		>
-			<DashboardSection
-				title="Quản trị tài khoản & sự kiện"
-				hint="Tạo tài khoản Judge / Mentor"
-			>
-				<div className="cards">
-					<CreateStaffAccountForm onSuccess={logActivity} />
-				</div>
-			</DashboardSection>
-
-			<DashboardSection
-				title="Sự kiện trong hệ thống"
-				hint="Xem và đổi trạng thái sự kiện"
-				badgeCount={eventsPendingTotal}
-				defaultOpen
-			>
-				<EventsListSection
-					refreshKey={eventsRefresh}
-					onStatusChanged={handleEventStatusChanged}
-					onPendingTotalChange={setEventsPendingTotal}
-				/>
-			</DashboardSection>
-
-			<DashboardSection
-				title="Tài khoản trong hệ thống"
-				hint="Danh sách và phê duyệt tài khoản"
-			>
-				<AccountsListSection />
-			</DashboardSection>
-
-			<DashboardSection title="Hoạt động gần đây" hint="Nhật ký thao tác trong phiên">
-				<ActivityLog activities={activities} />
-			</DashboardSection>
-
-			<DashboardSection title="Thông tin tài khoản" hint="Coordinator đang đăng nhập">
-				<div className="card">
-					<div className="kv-list">
-						<div className="kv">
-							<span>Họ tên</span>
-							<span>{auth.fullName || "—"}</span>
-						</div>
-						<div className="kv">
-							<span>Email</span>
-							<span>{auth.email}</span>
-						</div>
-						<div className="kv">
-							<span>Vai trò</span>
-							<span>Staff (COORDINATOR)</span>
-						</div>
-						<div className="kv">
-							<span>Trạng thái phiên</span>
-							<span>Đã đăng nhập</span>
-						</div>
-					</div>
-				</div>
-			</DashboardSection>
-		</DashboardShell>
-	);
-}

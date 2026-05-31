@@ -25,6 +25,9 @@ import com.hackathon.hackathon.model.dto.request.CreateStaffAccountRequest;
 import com.hackathon.hackathon.model.dto.request.SendAllAnnouncementRequest;
 import com.hackathon.hackathon.model.dto.request.SendParticipantAnnouncementRequest;
 import com.hackathon.hackathon.model.dto.response.AnnouncementResponse;
+import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
+import com.hackathon.hackathon.model.dto.request.AssignMentorCategoryRequest;
+import com.hackathon.hackathon.service.AuthService;
 import com.hackathon.hackathon.service.StaffService;
 
 @RestController @RequestMapping(value = "/api/staff", produces = MediaType.APPLICATION_JSON_VALUE
@@ -62,9 +65,7 @@ public class StaffController {
             @RequestHeader("Authorization") String authHeader,
             @RequestParam(required = false, defaultValue = "ALL") String role,
             @RequestParam(required = false) String input) {
-        AccountResponse request = new AccountResponse();
-        request.setRole(role);
-        List<AccountResponse> result = staffService.getAllAccounts(authHeader, request);
+        List<AccountResponse> result = staffService.getAllAccounts(authHeader, role, input);
         return ResponseEntity.ok(result);
     }
 
@@ -104,6 +105,17 @@ public class StaffController {
             @RequestHeader("Authorization") String authHeader,
             @RequestBody SendParticipantAnnouncementRequest request) {
         return ResponseEntity.ok(staffService.sendAnnouncementToParticipants(authHeader, request));
+      
+    @PostMapping("/assign/judge")
+    public ResponseEntity<String> assignJudge(@RequestHeader("Authorization") String authHeader,
+            @RequestBody AssignJudgeRequest request) {
+        return ResponseEntity.ok(staffService.assignJudge(authHeader, request));
+    }
+
+    @PostMapping("/assign/mentor")
+    public ResponseEntity<String> assignMentor(@RequestHeader("Authorization") String authHeader,
+            @RequestBody AssignMentorCategoryRequest request) {
+        return ResponseEntity.ok(staffService.assignMentor(authHeader, request));
     }
 
 }
