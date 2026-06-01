@@ -9,6 +9,7 @@ import com.hackathon.hackathon.repository.AnnouncementRepository;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.repository.UserRepository;
+import com.hackathon.hackathon.repository.AssignmentRepository;
 import com.hackathon.hackathon.model.mapper.EventMapper;
 import com.hackathon.hackathon.model.mapper.UserMapper;
 import mockit.Injectable;
@@ -56,6 +57,9 @@ public class StaffServiceTest {
 
     @Injectable
     private AnnouncementRepository announcementRepository;
+
+    @Injectable
+    private AssignmentRepository assignmentRepository;
 
     private final String authHeader = "Bearer mock_coordinator_token";
 
