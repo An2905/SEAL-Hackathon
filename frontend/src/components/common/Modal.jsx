@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-export default function Modal({ isOpen, onClose, title, subtitle, children }) {
+export default function Modal({ isOpen, onClose, title, subtitle, children, className }) {
 	useEffect(() => {
 		if (!isOpen) return;
 		document.body.style.overflow = "hidden";
@@ -26,7 +26,7 @@ export default function Modal({ isOpen, onClose, title, subtitle, children }) {
 				if (e.target === e.currentTarget) onClose();
 			}}
 		>
-			<div className="modal">
+			<div className={className ? `modal ${className}` : "modal"}>
 				<button className="modal-close" onClick={onClose} aria-label="Đóng">
 					&times;
 				</button>

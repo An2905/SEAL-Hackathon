@@ -5,6 +5,11 @@ import java.sql.SQLException;
 
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.hackathon.hackathon.model.dto.response.MyTeamMemberResponse;
+import com.hackathon.hackathon.model.dto.response.MyTeamResponse;
 import com.hackathon.hackathon.model.entity.Team;
 import com.hackathon.hackathon.model.entity.TeamDetail;
 import com.hackathon.hackathon.model.entity.TeamMemberInfo;
@@ -33,32 +38,28 @@ public class TeamMapper {
         return member;
     }
 
-    public String toMyTeamJson(TeamDetail detail) {
-        StringBuilder members = new StringBuilder();
-        for (int i = 0; i < detail.getMembers().size(); i++) {
-            if (i > 0) {
-                members.append(",");
-            }
-            TeamMemberInfo member = detail.getMembers().get(i);
-            members.append("{")
-                    .append("\"userId\":\"").append(member.getUserId()).append("\",")
-                    .append("\"fullName\":\"").append(member.getFullName()).append("\",")
-                    .append("\"email\":\"").append(member.getEmail()).append("\",")
-                    .append("\"isLeader\":").append(member.isLeader())
-                    .append("}");
-        }
+    public MyTeamResponse toMyTeamResponse(TeamDetail detail) {
+        MyTeamResponse response = new MyTeamResponse();
+        response.setTeamId(detail.getTeamId());
+        response.setTeamName(detail.getTeamName());
+        response.setStatus(detail.getStatus());
+        response.setEnrollCode(detail.getEnrollCode());
+        response.setLeaderId(detail.getLeaderId());
+        response.setLeaderName(detail.getLeaderName());
+        response.setLeaderEmail(detail.getLeaderEmail());
+        response.setLeader(detail.isCurrentUserLeader());
+        response.setMemberCount(detail.getMembers().size());
 
-        return "{"
-                + "\"teamId\":\"" + detail.getTeamId() + "\","
-                + "\"teamName\":\"" + detail.getTeamName() + "\","
-                + "\"status\":\"" + detail.getStatus() + "\","
-                + "\"enrollCode\":\"" + detail.getEnrollCode() + "\","
-                + "\"leaderId\":\"" + detail.getLeaderId() + "\","
-                + "\"leaderName\":\"" + detail.getLeaderName() + "\","
-                + "\"leaderEmail\":\"" + detail.getLeaderEmail() + "\","
-                + "\"isLeader\":" + detail.isCurrentUserLeader() + ","
-                + "\"memberCount\":" + detail.getMembers().size() + ","
-                + "\"members\":[" + members + "]"
-                + "}";
+        List<MyTeamMemberResponse> members = new ArrayList<>();
+        for (TeamMemberInfo member : detail.getMembers()) {
+            MyTeamMemberResponse row = new MyTeamMemberResponse();
+            row.setUserId(member.getUserId());
+            row.setFullName(member.getFullName());
+            row.setEmail(member.getEmail());
+            row.setLeader(member.isLeader());
+            members.add(row);
+        }
+        response.setMembers(members);
+        return response;
     }
 }

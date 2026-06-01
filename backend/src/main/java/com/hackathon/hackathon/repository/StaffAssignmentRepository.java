@@ -1,0 +1,44 @@
+package com.hackathon.hackathon.repository;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+
+import javax.sql.DataSource;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class StaffAssignmentRepository {
+
+    @Autowired
+    private DataSource dataSource;
+
+    public boolean deleteCategoryMentor(String categoryId, String mentorId) {
+        String sql = "DELETE FROM [dbo].[category_mentors] WHERE category_id = ? AND mentor_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, categoryId);
+            ps.setString(2, mentorId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean deleteJudgeAssignment(String judgeId, String roundId, String categoryId) {
+        String sql = "DELETE FROM [dbo].[judge_assignments] "
+                + "WHERE judge_id = ? AND round_id = ? AND category_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, judgeId);
+            ps.setString(2, roundId);
+            ps.setString(3, categoryId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+}

@@ -71,4 +71,22 @@ public class TeamRegistrationRepository {
             return false;
         }
     }
+
+    public String findStatusByTeamAndEvent(String teamId, String eventId) {
+        String sql = "SELECT status FROM [dbo].[team_registrations] WHERE team_id = ? AND event_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, teamId);
+            ps.setString(2, eventId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("status");
+                }
+            }
+        } catch (Exception e) {
+            return null;
+        }
+        return null;
+    }
 }

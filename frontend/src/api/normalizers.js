@@ -94,6 +94,30 @@ function mapTeamRow(row) {
   }
 }
 
+function mapAssignedMentorRow(row) {
+  const m = row && typeof row === 'object' ? row : {}
+  return {
+    categoryId: normalizeId(m.categoryId ?? m.category_id),
+    categoryName: m.categoryName ?? m.category_name ?? '',
+    mentorId: normalizeId(m.mentorId ?? m.mentor_id),
+    mentorName: m.mentorName ?? m.mentor_name ?? '',
+    mentorEmail: m.mentorEmail ?? m.mentor_email ?? ''
+  }
+}
+
+function mapAssignedJudgeRow(row) {
+  const j = row && typeof row === 'object' ? row : {}
+  return {
+    roundId: normalizeId(j.roundId ?? j.round_id),
+    roundName: j.roundName ?? j.round_name ?? '',
+    categoryId: normalizeId(j.categoryId ?? j.category_id),
+    categoryName: j.categoryName ?? j.category_name ?? '',
+    judgeId: normalizeId(j.judgeId ?? j.judge_id),
+    judgeName: j.judgeName ?? j.judge_name ?? '',
+    judgeEmail: j.judgeEmail ?? j.judge_email ?? ''
+  }
+}
+
 function mapAwardRow(row) {
   return {
     awardId: normalizeId(row.awardId ?? row.award_id),
@@ -114,6 +138,8 @@ export function mapEventDetailRow(row) {
     teams: mapList(r.teams, mapTeamRow),
     categories: mapList(r.categories, mapCategoryRow),
     rounds: mapList(r.rounds, mapRoundRow),
-    awards: mapList(r.awards, mapAwardRow)
+    awards: mapList(r.awards, mapAwardRow),
+    assignedMentors: mapList(r.assignedMentors ?? r.assigned_mentors, mapAssignedMentorRow),
+    assignedJudges: mapList(r.assignedJudges ?? r.assigned_judges, mapAssignedJudgeRow)
   }
 }

@@ -38,4 +38,8 @@ public class EventDetailResponse {
 
     private List<EventAwardResponse> awards;
 
+    private List<EventAssignedMentorResponse> assignedMentors;
+
+    private List<EventAssignedJudgeResponse> assignedJudges;
+
 }

@@ -104,6 +104,23 @@ public class TeamRepository {
         return null;
     }
 
+    public String findTeamStatusById(String teamId) {
+        String sql = "SELECT status FROM [dbo].[teams] WHERE team_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, teamId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("status");
+                }
+            }
+        } catch (Exception e) {
+            return null;
+        }
+        return null;
+    }
+
     public String findTeamIdByLeaderId(String leaderId) {
         String sql = "SELECT team_id FROM teams WHERE leader_id = ?";
         try (
