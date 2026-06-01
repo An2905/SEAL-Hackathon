@@ -120,14 +120,16 @@ public class UserRepository {
     /// Return: List of users found by role or all available users
     public List<User> findByRoleOrAllUsers(String roleFilter) {
         List<User> users = new ArrayList<>();
+        boolean filterByRole = !"ALL".equals(roleFilter);
 
-        String sql = "SELECT user_id, email, full_name, role, status FROM users";
+        // Xây dựng SQL TRƯỚC, rồi mới prepareStatement
+        String sql = "SELECT user_id, email, full_name, role, status FROM users"
+                + (filterByRole ? " WHERE role = ?" : "");
 
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            if (!"ALL".equals(roleFilter)) {
-                sql += " WHERE role = ?";
+            if (filterByRole) {
                 ps.setString(1, roleFilter);
             }
 
@@ -137,7 +139,7 @@ public class UserRepository {
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException(sql);
+            throw new RuntimeException(e.getMessage()); // ← trả message thật, không phải SQL
         }
 
         return users;
