@@ -6,12 +6,17 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.hackathon.hackathon.exception.BadRequestException;
+import com.hackathon.hackathon.exception.ForbiddenException;
 import com.hackathon.hackathon.exception.UnauthorizedException;
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
+import com.hackathon.hackathon.model.dto.response.MentorAssignedTeamResponse;
 import com.hackathon.hackathon.model.entity.Event;
 import com.hackathon.hackathon.model.mapper.EventMapper;
+import com.hackathon.hackathon.repository.AssignmentRepository;
 import com.hackathon.hackathon.repository.EventRepository;
+import com.hackathon.hackathon.repository.TeamRepository;
 
 import io.jsonwebtoken.Claims;
 
@@ -20,6 +25,12 @@ public class MentorService {
 
     @Autowired
     private EventRepository eventRepository;
+
+    @Autowired
+    private TeamRepository teamRepository;
+
+    @Autowired
+    private AssignmentRepository assignmentRepository;
 
     @Autowired
     private EventMapper eventMapper;
@@ -51,5 +62,48 @@ public class MentorService {
         }
 
         return eventRepository.findAssignedCurrentRoundsByMentorId(mentorId.trim());
+    }
+
+    public List<MentorAssignedTeamResponse> getAssignedTeams(
+            String authHeader,
+            String eventId,
+            String categoryId,
+            String registrationStatus) {
+        Claims claims = authService.validateRole(authHeader, "MENTOR");
+
+        String mentorId = claims.get("userId", String.class);
+        if (mentorId == null || mentorId.trim().isEmpty()) {
+            throw new UnauthorizedException("Invalid or missing token.");
+        }
+        //thỏa mãn các yêu cầu về việc eventid và cateID không được rỗng
+        if (eventId == null || eventId.trim().isEmpty()) {
+            throw new BadRequestException("eventId is required.");
+        }
+        if (categoryId == null || categoryId.trim().isEmpty()) {
+            throw new BadRequestException("categoryId is required.");
+        }
+
+        String normalizedEventId = eventId.trim();
+        String normalizedCategoryId = categoryId.trim();
+        //thỏa mãn yêu cầu về hạng mục phải thuộc event
+        if (!eventRepository.categoryBelongsToEvent(normalizedCategoryId, normalizedEventId)) {
+            throw new BadRequestException("categoryId does not belong to eventId.");
+        }
+        
+        if (!assignmentRepository.mentorAssignmentExists(normalizedCategoryId, mentorId.trim())) {
+            throw new ForbiddenException("Mentor chưa được phân công track này");
+        }
+
+        String statusFilter = registrationStatus == null || registrationStatus.trim().isEmpty()
+                ? "APPROVED"
+                : registrationStatus.trim().toUpperCase();
+
+        if (!statusFilter.equals("ALL") && !statusFilter.equals("PENDING")
+                && !statusFilter.equals("APPROVED") && !statusFilter.equals("REJECTED")) {
+            throw new BadRequestException("Invalid registrationStatus.");
+        }
+
+        return teamRepository.findAssignedTeamsByMentorAndCategory(
+                mentorId.trim(), normalizedEventId, normalizedCategoryId, statusFilter);
     }
 }

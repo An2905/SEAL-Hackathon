@@ -29,8 +29,10 @@ import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
 import com.hackathon.hackathon.model.dto.request.AssignMentorCategoryRequest;
 import com.hackathon.hackathon.service.StaffService;
 
-@RestController @RequestMapping(value = "/api/staff", produces = MediaType.APPLICATION_JSON_VALUE
-        + ";charset=UTF-8") @CrossOrigin("*")
+@RestController
+@RequestMapping(value = "/api/staff", produces = MediaType.APPLICATION_JSON_VALUE
+        + ";charset=UTF-8")
+@CrossOrigin("*")
 public class StaffController {
 
     @Autowired
@@ -118,4 +120,9 @@ public class StaffController {
         return ResponseEntity.ok(staffService.assignMentor(authHeader, request));
     }
 
+    @GetMapping("/events/export")
+    public ResponseEntity<byte[]> exportEventsExcel(
+            @RequestHeader("Authorization") String authHeader) {
+        return staffService.exportEventsExcel(authHeader);
+    }
 }

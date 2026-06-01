@@ -59,6 +59,21 @@ public class EventRepository {
         }
     }
 
+    public boolean categoryBelongsToEvent(String categoryId, String eventId) {
+        String sql = "SELECT 1 FROM [dbo].[categories] WHERE category_id = ? AND event_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, categoryId);
+            ps.setString(2, eventId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public boolean updateStatus(String eventId, String status) {
         String sql = "UPDATE [dbo].[events] SET status = ? WHERE event_id = ?";
         try (
