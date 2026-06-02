@@ -9,6 +9,8 @@ import com.hackathon.hackathon.model.dto.response.CreateTeamResponse;
 import com.hackathon.hackathon.model.dto.response.JoinTeamResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.dto.response.MyTeamResponse;
+import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
+import com.hackathon.hackathon.model.dto.response.TeamTrackMentorItemResponse;
 
 import com.hackathon.hackathon.model.entity.TeamDetail;
 import com.hackathon.hackathon.model.mapper.TeamMapper;
@@ -19,7 +21,9 @@ import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.repository.TeamRepository;
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
+import com.hackathon.hackathon.exception.ForbiddenException;
 import io.jsonwebtoken.Claims;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -265,6 +269,36 @@ public class TeamService {
         }
 
         return new MessageResponse("Submit project successfully");
+    }
+    // endregion
+
+    // region GET TEAM TRACK MENTORS
+    public TeamTrackMentorsResponse getTeamTrackMentors(String authHeader, String eventId) {
+        if (eventId == null || eventId.trim().isEmpty()) {
+            throw new BadRequestException("Event ID is required.");
+        }
+        String cleanEventId = eventId.trim();
+
+        Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
+        String userId = claims.get("userId", String.class);
+
+        TeamDetail detail = teamRepository.findTeamDetailByUserId(userId);
+        if (detail == null) {
+            throw new BadRequestException("No team found for this user.");
+        }
+        String teamId = detail.getTeamId();
+
+        TeamTrackMentorsResponse response = teamRegistrationRepository.findTrackDetailsByTeamAndEvent(teamId, cleanEventId)
+                .orElseThrow(() -> new BadRequestException("Your team has not joined this event."));
+
+        if (!"APPROVED".equalsIgnoreCase(response.getRegistrationStatus())) {
+            throw new ForbiddenException("Team registration is not approved yet.");
+        }
+
+        List<TeamTrackMentorItemResponse> mentors = eventRepository.findMentorsByCategoryId(response.getCategoryId());
+        response.setMentors(mentors);
+
+        return response;
     }
     // endregion
 }

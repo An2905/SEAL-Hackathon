@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 
 import com.hackathon.hackathon.model.dto.response.EventAssignedJudgeResponse;
 import com.hackathon.hackathon.model.dto.response.EventAssignedMentorResponse;
+import com.hackathon.hackathon.model.dto.response.TeamTrackMentorItemResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.model.entity.Award;
 import com.hackathon.hackathon.model.entity.Category;
@@ -461,5 +462,33 @@ public class EventRepository {
             return events;
         }
         return events;
+    }
+
+    public List<TeamTrackMentorItemResponse> findMentorsByCategoryId(String categoryId) {
+        List<TeamTrackMentorItemResponse> mentors = new ArrayList<>();
+        String sql = """
+            SELECT u.user_id AS mentor_id, u.full_name AS mentor_name, u.email AS mentor_email
+            FROM [dbo].[category_mentors] cm
+            JOIN [dbo].[users] u ON cm.mentor_id = u.user_id
+            WHERE cm.category_id = ?
+            ORDER BY u.full_name ASC
+            """;
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, categoryId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    TeamTrackMentorItemResponse mentor = new TeamTrackMentorItemResponse();
+                    mentor.setMentorId(rs.getString("mentor_id"));
+                    mentor.setMentorName(rs.getString("mentor_name"));
+                    mentor.setMentorEmail(rs.getString("mentor_email"));
+                    mentors.add(mentor);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(sql, e);
+        }
+        return mentors;
     }
 }
