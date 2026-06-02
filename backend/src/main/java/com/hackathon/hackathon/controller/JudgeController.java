@@ -2,6 +2,7 @@ package com.hackathon.hackathon.controller;
 
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
+import com.hackathon.hackathon.model.dto.response.JudgeAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.service.JudgeService;
 
 @RestController
@@ -28,6 +30,10 @@ public class JudgeController {
         return judgeService.getAssignedEvents(authHeader);
     }
 
-
+    @GetMapping("/events/current-rounds")
+    public ResponseEntity<List<JudgeAssignedCurrentRoundResponse>> getAssignedCurrentRounds(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return ResponseEntity.ok(judgeService.getAssignedCurrentRounds(authHeader));
+    }
 }
 

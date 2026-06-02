@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import com.hackathon.hackathon.exception.UnauthorizedException;
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
+import com.hackathon.hackathon.model.dto.response.JudgeAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.model.entity.Event;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.model.mapper.EventMapper;
@@ -44,5 +45,16 @@ public class JudgeService {
             summaries.add(eventMapper.toSummaryResponse(event));
         }
         return summaries;
+    }
+
+    public List<JudgeAssignedCurrentRoundResponse> getAssignedCurrentRounds(String authHeader) {
+        Claims claims = authService.validateRole(authHeader, "JUDGE_INTERNAL");
+
+        String judgeId = claims.get("userId", String.class);
+        if (judgeId == null || judgeId.trim().isEmpty()) {
+            throw new UnauthorizedException("Invalid or missing token.");
+        }
+
+        return eventRepository.findAssignedCurrentRoundsByJudgeId(judgeId.trim());
     }
 }

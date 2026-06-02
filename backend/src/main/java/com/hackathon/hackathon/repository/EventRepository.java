@@ -15,6 +15,7 @@ import com.hackathon.hackathon.model.dto.response.EventAssignedJudgeResponse;
 import com.hackathon.hackathon.model.dto.response.EventAssignedMentorResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorItemResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
+import com.hackathon.hackathon.model.dto.response.JudgeAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.model.entity.Award;
 import com.hackathon.hackathon.model.entity.Category;
 import com.hackathon.hackathon.model.entity.Event;
@@ -462,6 +463,41 @@ public class EventRepository {
             return events;
         }
         return events;
+    }
+
+    public List<JudgeAssignedCurrentRoundResponse> findAssignedCurrentRoundsByJudgeId(String judgeId) {
+        List<JudgeAssignedCurrentRoundResponse> responses = new ArrayList<>();
+        String sql = "SELECT DISTINCT e.event_id, e.title, r.round_id, r.name, c.name AS category_name, "
+                + "r.start_date, r.end_date, 'ONGOING' AS round_status "
+                + "FROM events e "
+                + "JOIN categories c ON e.event_id = c.event_id "
+                + "JOIN judge_assignments ja ON c.category_id = ja.category_id "
+                + "JOIN rounds r ON ja.round_id = r.round_id "
+                + "WHERE ja.judge_id = ? "
+                + "AND GETDATE() BETWEEN r.start_date AND r.end_date "
+                + "ORDER BY e.start_date DESC";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, judgeId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    JudgeAssignedCurrentRoundResponse response = new JudgeAssignedCurrentRoundResponse();
+                    response.setEventId(rs.getString("event_id"));
+                    response.setEventTitle(rs.getString("title"));
+                    response.setRoundId(rs.getString("round_id"));
+                    response.setRoundName(rs.getString("name"));
+                    response.setCategoryName(rs.getString("category_name"));
+                    response.setStartDate(rs.getTimestamp("start_date").toString());
+                    response.setEndDate(rs.getTimestamp("end_date").toString());
+                    response.setRoundStatus(rs.getString("round_status"));
+                    responses.add(response);
+                }
+            }
+        } catch (Exception e) {
+            return responses;
+        }
+        return responses;
     }
 
     public List<TeamTrackMentorItemResponse> findMentorsByCategoryId(String categoryId) {
