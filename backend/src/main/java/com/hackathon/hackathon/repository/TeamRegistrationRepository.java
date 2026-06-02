@@ -3,6 +3,8 @@ package com.hackathon.hackathon.repository;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.Optional;
+import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
 
 import javax.sql.DataSource;
 
@@ -88,5 +90,36 @@ public class TeamRegistrationRepository {
             return null;
         }
         return null;
+    }
+
+    public Optional<TeamTrackMentorsResponse> findTrackDetailsByTeamAndEvent(String teamId, String eventId) {
+        String sql = """
+            SELECT tr.registration_id, tr.status, tr.category_id, c.name AS category_name, e.title AS event_title
+            FROM [dbo].[team_registrations] tr
+            JOIN [dbo].[categories] c ON tr.category_id = c.category_id
+            JOIN [dbo].[events] e ON tr.event_id = e.event_id
+            WHERE tr.team_id = ? AND tr.event_id = ?
+            """;
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, teamId);
+            ps.setString(2, eventId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    TeamTrackMentorsResponse response = new TeamTrackMentorsResponse();
+                    response.setEventId(eventId);
+                    response.setEventTitle(rs.getString("event_title"));
+                    response.setCategoryId(rs.getString("category_id"));
+                    response.setCategoryName(rs.getString("category_name"));
+                    response.setRegistrationId(rs.getString("registration_id"));
+                    response.setRegistrationStatus(rs.getString("status"));
+                    return Optional.of(response);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(sql, e);
+        }
+        return Optional.empty();
     }
 }
