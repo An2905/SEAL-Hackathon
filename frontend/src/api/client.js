@@ -1,10 +1,8 @@
 import { parseJwt } from '../utils/jwt'
 
-// Empty base => requests go to FE origin (e.g. http://localhost:5174)
-// and Vite dev server proxies "/api/*" to http://localhost:8080.
-// This makes the call same-origin from the browser's point of view,
-// so the JSESSIONID cookie used by the OTP flow is preserved automatically.
-const API_BASE = ''
+// Dev: empty => Vite proxies /api to localhost:8080 (vite.config.js).
+// Vercel / prod: set VITE_API_BASE to your backend URL (no trailing slash).
+const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '')
 
 export async function apiFetch(path, { method = 'GET', body, auth = true } = {}) {
   const headers = { 'Content-Type': 'application/json' }
