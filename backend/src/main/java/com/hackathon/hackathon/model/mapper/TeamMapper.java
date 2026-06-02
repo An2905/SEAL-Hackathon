@@ -10,6 +10,7 @@ import java.util.List;
 
 import com.hackathon.hackathon.model.dto.response.MyTeamMemberResponse;
 import com.hackathon.hackathon.model.dto.response.MyTeamResponse;
+import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
 import com.hackathon.hackathon.model.entity.Team;
 import com.hackathon.hackathon.model.entity.TeamDetail;
 import com.hackathon.hackathon.model.entity.TeamMemberInfo;
@@ -60,6 +61,22 @@ public class TeamMapper {
             members.add(row);
         }
         response.setMembers(members);
+        return response;
+    }
+
+    public TeamEventRegistrationResponse toTeamEventRegistrationResponse(ResultSet rs) throws SQLException {
+        TeamEventRegistrationResponse response = new TeamEventRegistrationResponse();
+        response.setRegistrationId(rs.getString("registration_id"));
+        response.setEventId(rs.getString("event_id"));
+        response.setCategoryId(rs.getString("category_id"));
+        response.setRegistrationStatus(rs.getString("registration_status"));
+        response.setRegisteredAt(rs.getString("registered_at"));
+        response.setEventTitle(rs.getString("event_title"));
+        response.setEventDescription(rs.getString("event_description"));
+        response.setEventStartDate(rs.getString("event_start_date"));
+        response.setEventEndDate(rs.getString("event_end_date"));
+        response.setEventStatus(rs.getString("event_status"));
+        response.setCategoryName(rs.getString("category_name"));
         return response;
     }
 }
