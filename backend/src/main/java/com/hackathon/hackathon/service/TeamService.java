@@ -11,6 +11,7 @@ import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.dto.response.MyTeamResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorItemResponse;
+import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
 
 import com.hackathon.hackathon.model.entity.TeamDetail;
 import com.hackathon.hackathon.model.mapper.TeamMapper;
@@ -299,6 +300,21 @@ public class TeamService {
         response.setMentors(mentors);
 
         return response;
+    }
+    // endregion
+
+    // region GET TEAM EVENT REGISTRATIONS
+    public List<TeamEventRegistrationResponse> getTeamEventRegistrations(String authHeader) {
+        Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
+        String userId = claims.get("userId", String.class);
+
+        TeamDetail detail = teamRepository.findTeamDetailByUserId(userId);
+        if (detail == null) {
+            throw new BadRequestException("No team found for this user.");
+        }
+        String teamId = detail.getTeamId();
+
+        return teamRegistrationRepository.findAllByTeamId(teamId);
     }
     // endregion
 }

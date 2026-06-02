@@ -11,6 +11,8 @@ import com.hackathon.hackathon.model.dto.response.JoinTeamResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.dto.response.MyTeamResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
+import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -71,5 +73,11 @@ public class TeamController {
             @RequestHeader("Authorization") String authHeader,
             @RequestParam("eventId") String eventId) {
         return ResponseEntity.ok(teamService.getTeamTrackMentors(authHeader, eventId));
+    }
+
+    @GetMapping("/registrations")
+    public ResponseEntity<List<TeamEventRegistrationResponse>> getTeamEventRegistrations(
+            @RequestHeader("Authorization") String authHeader) {
+        return ResponseEntity.ok(teamService.getTeamEventRegistrations(authHeader));
     }
 }
