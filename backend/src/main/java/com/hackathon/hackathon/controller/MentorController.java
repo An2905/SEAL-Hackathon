@@ -2,6 +2,7 @@ package com.hackathon.hackathon.controller;
 
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -25,23 +26,23 @@ public class MentorController {
     }
 
     @GetMapping("/events")
-    public List<EventSummaryResponse> getAssignedEvents(
+    public ResponseEntity<List<EventSummaryResponse>> getAssignedEvents(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        return mentorService.getAssignedEvents(authHeader);
+        return ResponseEntity.ok(mentorService.getAssignedEvents(authHeader));
     }
 
     @GetMapping("/events/current-rounds")
-    public List<MentorAssignedCurrentRoundResponse> getAssignedCurrentRounds(
+    public ResponseEntity<List<MentorAssignedCurrentRoundResponse>> getAssignedCurrentRounds(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        return mentorService.getAssignedCurrentRounds(authHeader);
+        return ResponseEntity.ok(mentorService.getAssignedCurrentRounds(authHeader));
     }
 
     @GetMapping("/teams")
-    public List<MentorAssignedTeamResponse> getAssignedTeams(
+    public ResponseEntity<List<MentorAssignedTeamResponse>> getAssignedTeams(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam(value = "eventId", required = false) String eventId,
             @RequestParam(value = "categoryId", required = false) String categoryId,
             @RequestParam(value = "registrationStatus", required = false) String registrationStatus) {
-        return mentorService.getAssignedTeams(authHeader, eventId, categoryId, registrationStatus);
+        return ResponseEntity.ok(mentorService.getAssignedTeams(authHeader, eventId, categoryId, registrationStatus));
     }
 }
