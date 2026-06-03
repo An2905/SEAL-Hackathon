@@ -33,7 +33,7 @@ public class EventRepository {
     private EventMapper eventMapper;
 
     public boolean isUpcoming(String eventId) {
-        String sql = "SELECT status FROM [dbo].[events] WHERE event_id = ?";
+        String sql = "SELECT status FROM events WHERE event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -50,7 +50,7 @@ public class EventRepository {
     }
 
     public boolean existsById(String eventId) {
-        String sql = "SELECT 1 FROM [dbo].[events] WHERE event_id = ?";
+        String sql = "SELECT 1 FROM events WHERE event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -64,7 +64,7 @@ public class EventRepository {
     }
 
     public boolean categoryBelongsToEvent(String categoryId, String eventId) {
-        String sql = "SELECT 1 FROM [dbo].[categories] WHERE category_id = ? AND event_id = ?";
+        String sql = "SELECT 1 FROM categories WHERE category_id = ? AND event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -79,7 +79,7 @@ public class EventRepository {
     }
 
     public boolean updateStatus(String eventId, String status) {
-        String sql = "UPDATE [dbo].[events] SET status = ? WHERE event_id = ?";
+        String sql = "UPDATE events SET status = ? WHERE event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -222,9 +222,9 @@ public class EventRepository {
         List<EventAssignedMentorResponse> rows = new ArrayList<>();
         String sql = "SELECT c.category_id, c.name AS category_name, "
                 + "u.user_id AS mentor_id, u.full_name AS mentor_name, u.email AS mentor_email "
-                + "FROM [dbo].[categories] c "
-                + "INNER JOIN [dbo].[category_mentors] cm ON c.category_id = cm.category_id "
-                + "INNER JOIN [dbo].[users] u ON cm.mentor_id = u.user_id "
+                + "FROM categories c "
+                + "INNER JOIN category_mentors cm ON c.category_id = cm.category_id "
+                + "INNER JOIN users u ON cm.mentor_id = u.user_id "
                 + "WHERE c.event_id = ? "
                 + "ORDER BY c.name ASC, u.full_name ASC";
         try (
@@ -253,10 +253,10 @@ public class EventRepository {
         String sql = "SELECT r.round_id, r.name AS round_name, r.round_order, "
                 + "c.category_id, c.name AS category_name, "
                 + "u.user_id AS judge_id, u.full_name AS judge_name, u.email AS judge_email "
-                + "FROM [dbo].[judge_assignments] ja "
-                + "INNER JOIN [dbo].[rounds] r ON ja.round_id = r.round_id "
-                + "INNER JOIN [dbo].[categories] c ON ja.category_id = c.category_id "
-                + "INNER JOIN [dbo].[users] u ON ja.judge_id = u.user_id "
+                + "FROM judge_assignments ja "
+                + "INNER JOIN rounds r ON ja.round_id = r.round_id "
+                + "INNER JOIN categories c ON ja.category_id = c.category_id "
+                + "INNER JOIN users u ON ja.judge_id = u.user_id "
                 + "WHERE r.event_id = ? "
                 + "ORDER BY r.round_order ASC, c.name ASC, u.full_name ASC";
         try (
@@ -314,7 +314,7 @@ public class EventRepository {
                 + "JOIN category_mentors cm ON c.category_id = cm.category_id "
                 + "JOIN rounds r ON e.event_id = r.event_id "
                 + "WHERE cm.mentor_id = ? "
-                + "AND GETDATE() BETWEEN r.start_date AND r.end_date "
+                + "AND NOW() BETWEEN r.start_date AND r.end_date "
                 + "ORDER BY e.start_date DESC";
         try (
                 Connection conn = dataSource.getConnection();
@@ -332,7 +332,7 @@ public class EventRepository {
     }
 
     public Optional<String> findStatusById(String eventId) {
-        String sql = "SELECT status FROM [dbo].[events] WHERE event_id = ?";
+        String sql = "SELECT status FROM events WHERE event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -349,7 +349,7 @@ public class EventRepository {
     }
 
     public boolean roundBelongsToEvent(String roundId, String eventId) {
-        String sql = "SELECT 1 FROM [dbo].[rounds] WHERE round_id = ? AND event_id = ?";
+        String sql = "SELECT 1 FROM rounds WHERE round_id = ? AND event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -364,7 +364,7 @@ public class EventRepository {
     }
 
     public boolean isSubmissionDeadlinePassed(String roundId) {
-        String sql = "SELECT submission_deadline, end_date FROM [dbo].[rounds] WHERE round_id = ?";
+        String sql = "SELECT submission_deadline, end_date FROM rounds WHERE round_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -390,7 +390,7 @@ public class EventRepository {
     }
 
     public Optional<String> findSubmissionDeadlineByRoundId(String roundId) {
-        String sql = "SELECT submission_deadline FROM [dbo].[rounds] WHERE round_id = ?";
+        String sql = "SELECT submission_deadline FROM rounds WHERE round_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -409,10 +409,10 @@ public class EventRepository {
 
     /**
      * Submission allowed only while round is active: started, not ended, and before deadline (if set).
-     * Locks automatically when {@code GETDATE() > end_date} or past {@code submission_deadline}.
+     * Locks automatically when {@code NOW() > end_date} or past {@code submission_deadline}.
      */
     public boolean isRoundOpenForSubmission(String roundId) {
-        String sql = "SELECT start_date, end_date, submission_deadline FROM [dbo].[rounds] WHERE round_id = ?";
+        String sql = "SELECT start_date, end_date, submission_deadline FROM rounds WHERE round_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -469,8 +469,8 @@ public class EventRepository {
         List<TeamTrackMentorItemResponse> mentors = new ArrayList<>();
         String sql = """
             SELECT u.user_id AS mentor_id, u.full_name AS mentor_name, u.email AS mentor_email
-            FROM [dbo].[category_mentors] cm
-            JOIN [dbo].[users] u ON cm.mentor_id = u.user_id
+            FROM category_mentors cm
+            JOIN users u ON cm.mentor_id = u.user_id
             WHERE cm.category_id = ?
             ORDER BY u.full_name ASC
             """;

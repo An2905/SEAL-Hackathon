@@ -1,0 +1,12 @@
+# Railway — Root Directory: backend
+# Variable bắt buộc: SPRING_PROFILES_ACTIVE=prod
+
+[build]
+builder = "nixpacks"
+buildCommand = "./mvnw -DskipTests clean package"
+
+[deploy]
+startCommand = "java -jar target/hackathon-0.0.1-SNAPSHOT.jar"
+healthcheckPath = "/api/universities/all"
+healthcheckTimeout = 120
+restartPolicyType = "on_failure"

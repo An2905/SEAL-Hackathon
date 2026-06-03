@@ -17,8 +17,8 @@ public class StudentProfileRepository {
     private DataSource dataSource;
 
     public Optional<String> findStudentCodeByUserEmail(String email) {
-        String sql = "SELECT sp.student_code FROM [dbo].[users] u "
-                + "LEFT JOIN [dbo].[studentProfile] sp ON u.user_id = sp.user_id WHERE u.email = ?";
+        String sql = "SELECT sp.student_code FROM users u "
+                + "LEFT JOIN studentprofile sp ON u.user_id = sp.user_id WHERE u.email = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -35,7 +35,7 @@ public class StudentProfileRepository {
     }
 
     public boolean existsByStudentCodeAndUniversity(String studentCode, String university) {
-        String sql = "SELECT * FROM studentProfile WHERE student_code = ? AND university_name = ?";
+        String sql = "SELECT 1 FROM studentprofile WHERE student_code = ? AND university_name = ? LIMIT 1";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -50,7 +50,7 @@ public class StudentProfileRepository {
     }
 
     public boolean insert(String userId, String studentCode, String universityName) {
-        String sql = "INSERT INTO studentProfile (user_id, student_code, university_name) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO studentprofile (user_id, student_code, university_name) VALUES (?, ?, ?)";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -64,7 +64,7 @@ public class StudentProfileRepository {
     }
 
     public boolean update(String userId, String studentCode, String universityName) {
-        String sql = "UPDATE studentProfile SET student_code = ?, university_name = ? WHERE user_id = ?";
+        String sql = "UPDATE studentprofile SET student_code = ?, university_name = ? WHERE user_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {

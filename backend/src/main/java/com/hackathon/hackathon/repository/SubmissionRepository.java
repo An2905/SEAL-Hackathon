@@ -36,12 +36,12 @@ public class SubmissionRepository {
                 + "c.category_id, c.name AS category_name, "
                 + "s.github_url, s.demo_url, s.report_url, s.slide_url, s.repository_metadata, "
                 + "s.status, s.submitted_at "
-                + "FROM [dbo].[submissions] s "
-                + "JOIN [dbo].[teams] t ON s.team_id = t.team_id "
-                + "JOIN [dbo].[team_registrations] tr ON tr.team_id = t.team_id AND tr.event_id = ? "
-                + "JOIN [dbo].[categories] c ON tr.category_id = c.category_id AND c.category_id = ? "
-                + "JOIN [dbo].[judge_assignments] ja ON ja.judge_id = ? AND ja.round_id = ? AND ja.category_id = ? "
-                + "JOIN [dbo].[rounds] r ON s.round_id = r.round_id AND r.event_id = ? "
+                + "FROM submissions s "
+                + "JOIN teams t ON s.team_id = t.team_id "
+                + "JOIN team_registrations tr ON tr.team_id = t.team_id AND tr.event_id = ? "
+                + "JOIN categories c ON tr.category_id = c.category_id AND c.category_id = ? "
+                + "JOIN judge_assignments ja ON ja.judge_id = ? AND ja.round_id = ? AND ja.category_id = ? "
+                + "JOIN rounds r ON s.round_id = r.round_id AND r.event_id = ? "
                 + "WHERE s.round_id = ? AND tr.status = 'APPROVED' "
                 + "ORDER BY s.submitted_at DESC";
         try (
@@ -81,7 +81,7 @@ public class SubmissionRepository {
     }
 
     public boolean existsByTeamAndRound(String teamId, String roundId) {
-        String sql = "SELECT 1 FROM [dbo].[submissions] WHERE team_id = ? AND round_id = ?";
+        String sql = "SELECT 1 FROM submissions WHERE team_id = ? AND round_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -103,7 +103,7 @@ public class SubmissionRepository {
             String reportUrl,
             String slideUrl,
             String repositoryMetadata) {
-        String sql = "INSERT INTO [dbo].[submissions] "
+        String sql = "INSERT INTO submissions "
                 + "(team_id, round_id, github_url, demo_url, report_url, slide_url, repository_metadata, status) "
                 + "VALUES (?, ?, ?, ?, ?, ?, ?, 'SUBMITTED')";
         try (
@@ -130,8 +130,8 @@ public class SubmissionRepository {
             String reportUrl,
             String slideUrl,
             String repositoryMetadata) {
-        String sql = "UPDATE [dbo].[submissions] SET github_url = ?, demo_url = ?, report_url = ?, "
-                + "slide_url = ?, repository_metadata = ?, status = 'SUBMITTED', submitted_at = GETDATE() "
+        String sql = "UPDATE submissions SET github_url = ?, demo_url = ?, report_url = ?, "
+                + "slide_url = ?, repository_metadata = ?, status = 'SUBMITTED', submitted_at = NOW() "
                 + "WHERE team_id = ? AND round_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
@@ -161,8 +161,8 @@ public class SubmissionRepository {
                 SELECT s.submission_id, s.round_id, r.name AS round_name, r.round_order,
                        s.github_url, s.demo_url, s.report_url, s.slide_url,
                        s.repository_metadata, s.status, s.submitted_at
-                FROM [dbo].[submissions] s
-                JOIN [dbo].[rounds] r ON s.round_id = r.round_id AND r.event_id = ?
+                FROM submissions s
+                JOIN rounds r ON s.round_id = r.round_id AND r.event_id = ?
                 WHERE s.team_id = ?
                 ORDER BY r.round_order ASC, s.submitted_at DESC
                 """;
@@ -171,8 +171,8 @@ public class SubmissionRepository {
                 SELECT s.submission_id, s.round_id, r.name AS round_name, r.round_order,
                        s.github_url, s.demo_url, s.report_url, s.slide_url,
                        s.repository_metadata, s.status, s.submitted_at
-                FROM [dbo].[submissions] s
-                JOIN [dbo].[rounds] r ON s.round_id = r.round_id AND r.event_id = ?
+                FROM submissions s
+                JOIN rounds r ON s.round_id = r.round_id AND r.event_id = ?
                 WHERE s.team_id = ? AND s.round_id = ?
                 ORDER BY r.round_order ASC, s.submitted_at DESC
                 """;

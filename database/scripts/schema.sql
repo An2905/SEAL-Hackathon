@@ -1,676 +1,523 @@
-USE [master]
-GO
-/****** Object:  Database [Hackathon]    Script Date: 5/27/2026 7:59:01 PM ******/
-CREATE DATABASE [Hackathon]
-GO
-ALTER DATABASE [Hackathon] SET COMPATIBILITY_LEVEL = 150
-GO
-IF (1 = FULLTEXTSERVICEPROPERTY('IsFullTextInstalled'))
-begin
-EXEC [Hackathon].[dbo].[sp_fulltext_database] @action = 'enable'
-end
-GO
-ALTER DATABASE [Hackathon] SET ANSI_NULL_DEFAULT OFF 
-GO
-ALTER DATABASE [Hackathon] SET ANSI_NULLS OFF 
-GO
-ALTER DATABASE [Hackathon] SET ANSI_PADDING OFF 
-GO
-ALTER DATABASE [Hackathon] SET ANSI_WARNINGS OFF 
-GO
-ALTER DATABASE [Hackathon] SET ARITHABORT OFF 
-GO
-ALTER DATABASE [Hackathon] SET AUTO_CLOSE OFF 
-GO
-ALTER DATABASE [Hackathon] SET AUTO_SHRINK OFF 
-GO
-ALTER DATABASE [Hackathon] SET AUTO_UPDATE_STATISTICS ON 
-GO
-ALTER DATABASE [Hackathon] SET CURSOR_CLOSE_ON_COMMIT OFF 
-GO
-ALTER DATABASE [Hackathon] SET CURSOR_DEFAULT  GLOBAL 
-GO
-ALTER DATABASE [Hackathon] SET CONCAT_NULL_YIELDS_NULL OFF 
-GO
-ALTER DATABASE [Hackathon] SET NUMERIC_ROUNDABORT OFF 
-GO
-ALTER DATABASE [Hackathon] SET QUOTED_IDENTIFIER OFF 
-GO
-ALTER DATABASE [Hackathon] SET RECURSIVE_TRIGGERS OFF 
-GO
-ALTER DATABASE [Hackathon] SET  ENABLE_BROKER 
-GO
-ALTER DATABASE [Hackathon] SET AUTO_UPDATE_STATISTICS_ASYNC OFF 
-GO
-ALTER DATABASE [Hackathon] SET DATE_CORRELATION_OPTIMIZATION OFF 
-GO
-ALTER DATABASE [Hackathon] SET TRUSTWORTHY OFF 
-GO
-ALTER DATABASE [Hackathon] SET ALLOW_SNAPSHOT_ISOLATION OFF 
-GO
-ALTER DATABASE [Hackathon] SET PARAMETERIZATION SIMPLE 
-GO
-ALTER DATABASE [Hackathon] SET READ_COMMITTED_SNAPSHOT OFF 
-GO
-ALTER DATABASE [Hackathon] SET HONOR_BROKER_PRIORITY OFF 
-GO
-ALTER DATABASE [Hackathon] SET RECOVERY FULL 
-GO
-ALTER DATABASE [Hackathon] SET  MULTI_USER 
-GO
-ALTER DATABASE [Hackathon] SET PAGE_VERIFY CHECKSUM  
-GO
-ALTER DATABASE [Hackathon] SET DB_CHAINING OFF 
-GO
-ALTER DATABASE [Hackathon] SET FILESTREAM( NON_TRANSACTED_ACCESS = OFF ) 
-GO
-ALTER DATABASE [Hackathon] SET TARGET_RECOVERY_TIME = 60 SECONDS 
-GO
-ALTER DATABASE [Hackathon] SET DELAYED_DURABILITY = DISABLED 
-GO
-ALTER DATABASE [Hackathon] SET ACCELERATED_DATABASE_RECOVERY = OFF  
-GO
-EXEC sys.sp_db_vardecimal_storage_format N'Hackathon', N'ON'
-GO
-ALTER DATABASE [Hackathon] SET QUERY_STORE = OFF
-GO
-USE [Hackathon]
-GO
-/****** Object:  Table [dbo].[advancement_rules]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[advancement_rules](
-	[rule_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[round_id] [bigint] NOT NULL,
-	[category_id] [bigint] NOT NULL,
-	[top_n] [int] NOT NULL,
-	[created_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[rule_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[announcements]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[announcements](
-	[announcement_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[event_id] [bigint] NOT NULL,
-	[title] [varchar](200) NOT NULL,
-	[content] [nvarchar](max) NOT NULL,
-	[created_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[announcement_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[audit_logs]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[audit_logs](
-	[log_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[user_id] [bigint] NOT NULL,
-	[action] [varchar](100) NOT NULL,
-	[entity_type] [varchar](100) NULL,
-	[entity_id] [bigint] NULL,
-	[description] [nvarchar](max) NULL,
-	[created_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[log_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[awards]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[awards](
-	[award_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[event_id] [bigint] NOT NULL,
-	[team_id] [bigint] NOT NULL,
-	[title] [varchar](100) NOT NULL,
-	[rank] [int] NULL,
-	[created_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[award_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[calibration_rounds]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[calibration_rounds](
-	[calibration_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[event_id] [bigint] NOT NULL,
-	[name] [varchar](100) NULL,
-	[created_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[calibration_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[calibration_scores]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[calibration_scores](
-	[calibration_score_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[calibration_id] [bigint] NOT NULL,
-	[judge_id] [bigint] NOT NULL,
-	[criteria_id] [bigint] NOT NULL,
-	[score] [decimal](5, 2) NULL,
-	[created_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[calibration_score_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[categories]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[categories](
-	[category_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[event_id] [bigint] NOT NULL,
-	[name] [varchar](100) NOT NULL,
-	[description] [nvarchar](max) NULL,
-	[created_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[category_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[category_mentors]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[category_mentors](
-	[category_id] [bigint] NOT NULL,
-	[mentor_id] [bigint] NOT NULL,
-	[assigned_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[category_id] ASC,
-	[mentor_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[criteria_template_items]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[criteria_template_items](
-	[item_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[template_id] [bigint] NOT NULL,
-	[criterion_name] [varchar](100) NOT NULL,
-	[weight] [decimal](5, 2) NOT NULL,
-	[max_score] [decimal](5, 2) NOT NULL,
-	[description] [nvarchar](max) NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[item_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[criteria_templates]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[criteria_templates](
-	[template_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[name] [varchar](100) NOT NULL,
-	[description] [nvarchar](max) NULL,
-	[created_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[template_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[eliminations]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[eliminations](
-	[elimination_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[submission_id] [bigint] NOT NULL,
-	[reason] [nvarchar](max) NOT NULL,
-	[eliminated_by] [bigint] NOT NULL,
-	[created_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[elimination_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[event_criteria]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[event_criteria](
-	[criteria_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[event_id] [bigint] NOT NULL,
-	[criterion_name] [varchar](100) NOT NULL,
-	[weight] [decimal](5, 2) NOT NULL,
-	[max_score] [decimal](5, 2) NOT NULL,
-	[description] [nvarchar](max) NULL,
-	[created_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[criteria_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[events]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[events](
-	[event_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[title] [varchar](200) NOT NULL,
-	[description] [nvarchar](max) NULL,
-	[start_date] [datetime] NULL,
-	[end_date] [datetime] NULL,
-	[status] [nvarchar](255) NOT NULL,
-	[created_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[event_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[judge_assignments]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[judge_assignments](
-	[assignment_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[judge_id] [bigint] NOT NULL,
-	[round_id] [bigint] NOT NULL,
-	[category_id] [bigint] NOT NULL,
-	[assigned_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[assignment_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[rounds]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[rounds](
-	[round_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[event_id] [bigint] NOT NULL,
-	[name] [varchar](100) NOT NULL,
-	[round_order] [int] NOT NULL,
-	[submission_deadline] [datetime] NULL,
-	[start_date] [datetime] NULL,
-	[end_date] [datetime] NULL,
-	[created_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[round_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[score_details]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[score_details](
-	[detail_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[score_id] [bigint] NOT NULL,
-	[criteria_id] [bigint] NOT NULL,
-	[score] [decimal](5, 2) NOT NULL,
-	[feedback] [nvarchar](max) NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[detail_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[scores]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[scores](
-	[score_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[submission_id] [bigint] NOT NULL,
-	[judge_id] [bigint] NOT NULL,
-	[total_score] [decimal](6, 2) NULL,
-	[submitted_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[score_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[studentProfile]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[studentProfile](
-	[profile_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[user_id] [bigint] NOT NULL,
-	[student_code] [varchar](30) NULL,
-	[university_name] [varchar](150) NULL,
-	[created_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[profile_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[submissions]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[submissions](
-	[submission_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[team_id] [bigint] NOT NULL,
-	[round_id] [bigint] NOT NULL,
-	[github_url] [nvarchar](max) NULL,
-	[demo_url] [nvarchar](max) NULL,
-	[report_url] [nvarchar](max) NULL,
-	[slide_url] [nvarchar](max) NULL,
-	[repository_metadata] [nvarchar](max) NULL,
-	[status] [nvarchar](255) NOT NULL,
-	[submitted_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[submission_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[team_members]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[team_members](
-	[team_id] [bigint] NOT NULL,
-	[user_id] [bigint] NOT NULL,
-	[joined_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[team_id] ASC,
-	[user_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[team_registrations]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[team_registrations](
-	[registration_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[event_id] [bigint] NOT NULL,
-	[category_id] [bigint] NOT NULL,
-	[team_id] [bigint] NOT NULL,
-	[status] [nvarchar](255) NOT NULL,
-	[registered_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[registration_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[teams]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[teams](
-	[team_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[team_name] [varchar](100) NOT NULL,
-	[leader_id] [bigint] NOT NULL,
-	[status] [nvarchar](255) NOT NULL,
-	[created_at] [datetime] NULL,
-	[enrollCode] [varchar](50) NOT NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[team_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY],
-UNIQUE NONCLUSTERED 
-(
-	[team_name] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[universities]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[universities](
-	[university_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[university_name] [nvarchar](255) NOT NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[university_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY],
-UNIQUE NONCLUSTERED 
-(
-	[university_name] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[users]    Script Date: 5/27/2026 7:59:01 PM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[users](
-	[user_id] [bigint] IDENTITY(1,1) NOT NULL,
-	[full_name] [nvarchar](100) NULL,
-	[email] [varchar](150) NULL,
-	[password_hash] [nvarchar](max) NULL,
-	[role] [nvarchar](255) NOT NULL,
-	[status] [nvarchar](255) NOT NULL,
-	[created_at] [datetime] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[user_id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-GO
-ALTER TABLE [dbo].[advancement_rules] ADD  DEFAULT (getdate()) FOR [created_at]
-GO
-ALTER TABLE [dbo].[announcements] ADD  DEFAULT (getdate()) FOR [created_at]
-GO
-ALTER TABLE [dbo].[audit_logs] ADD  DEFAULT (getdate()) FOR [created_at]
-GO
-ALTER TABLE [dbo].[awards] ADD  DEFAULT (getdate()) FOR [created_at]
-GO
-ALTER TABLE [dbo].[calibration_rounds] ADD  DEFAULT (getdate()) FOR [created_at]
-GO
-ALTER TABLE [dbo].[calibration_scores] ADD  DEFAULT (getdate()) FOR [created_at]
-GO
-ALTER TABLE [dbo].[categories] ADD  DEFAULT (getdate()) FOR [created_at]
-GO
-ALTER TABLE [dbo].[category_mentors] ADD  DEFAULT (getdate()) FOR [assigned_at]
-GO
-ALTER TABLE [dbo].[criteria_templates] ADD  DEFAULT (getdate()) FOR [created_at]
-GO
-ALTER TABLE [dbo].[eliminations] ADD  DEFAULT (getdate()) FOR [created_at]
-GO
-ALTER TABLE [dbo].[event_criteria] ADD  DEFAULT (getdate()) FOR [created_at]
-GO
-ALTER TABLE [dbo].[events] ADD  DEFAULT ('UPCOMING') FOR [status]
-GO
-ALTER TABLE [dbo].[events] ADD  DEFAULT (getdate()) FOR [created_at]
-GO
-ALTER TABLE [dbo].[judge_assignments] ADD  DEFAULT (getdate()) FOR [assigned_at]
-GO
-ALTER TABLE [dbo].[rounds] ADD  DEFAULT (getdate()) FOR [created_at]
-GO
-ALTER TABLE [dbo].[scores] ADD  DEFAULT (getdate()) FOR [submitted_at]
-GO
-ALTER TABLE [dbo].[studentProfile] ADD  DEFAULT (getdate()) FOR [created_at]
-GO
-ALTER TABLE [dbo].[submissions] ADD  DEFAULT ('SUBMITTED') FOR [status]
-GO
-ALTER TABLE [dbo].[submissions] ADD  DEFAULT (getdate()) FOR [submitted_at]
-GO
-ALTER TABLE [dbo].[team_members] ADD  DEFAULT (getdate()) FOR [joined_at]
-GO
-ALTER TABLE [dbo].[team_registrations] ADD  DEFAULT ('PENDING') FOR [status]
-GO
-ALTER TABLE [dbo].[team_registrations] ADD  DEFAULT (getdate()) FOR [registered_at]
-GO
-ALTER TABLE [dbo].[teams] ADD  DEFAULT ('ACTIVE') FOR [status]
-GO
-ALTER TABLE [dbo].[teams] ADD  DEFAULT (getdate()) FOR [created_at]
-GO
-ALTER TABLE [dbo].[teams] ADD  DEFAULT ('TEMP_CODE') FOR [enrollCode]
-GO
-ALTER TABLE [dbo].[users] ADD  DEFAULT (getdate()) FOR [created_at]
-GO
-ALTER TABLE [dbo].[advancement_rules]  WITH CHECK ADD FOREIGN KEY([category_id])
-REFERENCES [dbo].[categories] ([category_id])
-GO
-ALTER TABLE [dbo].[advancement_rules]  WITH CHECK ADD FOREIGN KEY([round_id])
-REFERENCES [dbo].[rounds] ([round_id])
-GO
-ALTER TABLE [dbo].[announcements]  WITH CHECK ADD FOREIGN KEY([event_id])
-REFERENCES [dbo].[events] ([event_id])
-GO
-ALTER TABLE [dbo].[audit_logs]  WITH CHECK ADD FOREIGN KEY([user_id])
-REFERENCES [dbo].[users] ([user_id])
-GO
-ALTER TABLE [dbo].[awards]  WITH CHECK ADD FOREIGN KEY([event_id])
-REFERENCES [dbo].[events] ([event_id])
-GO
-ALTER TABLE [dbo].[awards]  WITH CHECK ADD FOREIGN KEY([team_id])
-REFERENCES [dbo].[teams] ([team_id])
-GO
-ALTER TABLE [dbo].[calibration_rounds]  WITH CHECK ADD FOREIGN KEY([event_id])
-REFERENCES [dbo].[events] ([event_id])
-GO
-ALTER TABLE [dbo].[calibration_scores]  WITH CHECK ADD FOREIGN KEY([calibration_id])
-REFERENCES [dbo].[calibration_rounds] ([calibration_id])
-GO
-ALTER TABLE [dbo].[calibration_scores]  WITH CHECK ADD FOREIGN KEY([criteria_id])
-REFERENCES [dbo].[event_criteria] ([criteria_id])
-GO
-ALTER TABLE [dbo].[calibration_scores]  WITH CHECK ADD FOREIGN KEY([judge_id])
-REFERENCES [dbo].[users] ([user_id])
-GO
-ALTER TABLE [dbo].[categories]  WITH CHECK ADD FOREIGN KEY([event_id])
-REFERENCES [dbo].[events] ([event_id])
-GO
-ALTER TABLE [dbo].[category_mentors]  WITH CHECK ADD FOREIGN KEY([category_id])
-REFERENCES [dbo].[categories] ([category_id])
-GO
-ALTER TABLE [dbo].[category_mentors]  WITH CHECK ADD FOREIGN KEY([mentor_id])
-REFERENCES [dbo].[users] ([user_id])
-GO
-ALTER TABLE [dbo].[criteria_template_items]  WITH CHECK ADD FOREIGN KEY([template_id])
-REFERENCES [dbo].[criteria_templates] ([template_id])
-GO
-ALTER TABLE [dbo].[eliminations]  WITH CHECK ADD FOREIGN KEY([eliminated_by])
-REFERENCES [dbo].[users] ([user_id])
-GO
-ALTER TABLE [dbo].[eliminations]  WITH CHECK ADD FOREIGN KEY([submission_id])
-REFERENCES [dbo].[submissions] ([submission_id])
-GO
-ALTER TABLE [dbo].[event_criteria]  WITH CHECK ADD FOREIGN KEY([event_id])
-REFERENCES [dbo].[events] ([event_id])
-GO
-ALTER TABLE [dbo].[judge_assignments]  WITH CHECK ADD FOREIGN KEY([category_id])
-REFERENCES [dbo].[categories] ([category_id])
-GO
-ALTER TABLE [dbo].[judge_assignments]  WITH CHECK ADD FOREIGN KEY([judge_id])
-REFERENCES [dbo].[users] ([user_id])
-GO
-ALTER TABLE [dbo].[judge_assignments]  WITH CHECK ADD FOREIGN KEY([round_id])
-REFERENCES [dbo].[rounds] ([round_id])
-GO
-ALTER TABLE [dbo].[rounds]  WITH CHECK ADD FOREIGN KEY([event_id])
-REFERENCES [dbo].[events] ([event_id])
-GO
-ALTER TABLE [dbo].[score_details]  WITH CHECK ADD FOREIGN KEY([criteria_id])
-REFERENCES [dbo].[event_criteria] ([criteria_id])
-GO
-ALTER TABLE [dbo].[score_details]  WITH CHECK ADD FOREIGN KEY([score_id])
-REFERENCES [dbo].[scores] ([score_id])
-GO
-ALTER TABLE [dbo].[scores]  WITH CHECK ADD FOREIGN KEY([judge_id])
-REFERENCES [dbo].[users] ([user_id])
-GO
-ALTER TABLE [dbo].[scores]  WITH CHECK ADD FOREIGN KEY([submission_id])
-REFERENCES [dbo].[submissions] ([submission_id])
-GO
-ALTER TABLE [dbo].[studentProfile]  WITH CHECK ADD FOREIGN KEY([user_id])
-REFERENCES [dbo].[users] ([user_id])
-GO
-ALTER TABLE [dbo].[submissions]  WITH CHECK ADD FOREIGN KEY([round_id])
-REFERENCES [dbo].[rounds] ([round_id])
-GO
-ALTER TABLE [dbo].[submissions]  WITH CHECK ADD FOREIGN KEY([team_id])
-REFERENCES [dbo].[teams] ([team_id])
-GO
-ALTER TABLE [dbo].[team_members]  WITH CHECK ADD FOREIGN KEY([team_id])
-REFERENCES [dbo].[teams] ([team_id])
-GO
-ALTER TABLE [dbo].[team_members]  WITH CHECK ADD FOREIGN KEY([user_id])
-REFERENCES [dbo].[users] ([user_id])
-GO
-ALTER TABLE [dbo].[team_registrations]  WITH CHECK ADD FOREIGN KEY([category_id])
-REFERENCES [dbo].[categories] ([category_id])
-GO
-ALTER TABLE [dbo].[team_registrations]  WITH CHECK ADD FOREIGN KEY([event_id])
-REFERENCES [dbo].[events] ([event_id])
-GO
-ALTER TABLE [dbo].[team_registrations]  WITH CHECK ADD FOREIGN KEY([team_id])
-REFERENCES [dbo].[teams] ([team_id])
-GO
-ALTER TABLE [dbo].[teams]  WITH CHECK ADD FOREIGN KEY([leader_id])
-REFERENCES [dbo].[users] ([user_id])
-GO
-ALTER TABLE [dbo].[events]  WITH CHECK ADD CHECK  (([status]='COMPLETED' OR [status]='ONGOING' OR [status]='UPCOMING'))
-GO
-ALTER TABLE [dbo].[submissions]  WITH CHECK ADD CHECK  (([status]='DISQUALIFIED' OR [status]='LATE' OR [status]='SUBMITTED'))
-GO
-ALTER TABLE [dbo].[team_registrations]  WITH CHECK ADD CHECK  (([status]='REJECTED' OR [status]='APPROVED' OR [status]='PENDING'))
-GO
-ALTER TABLE [dbo].[teams]  WITH CHECK ADD CHECK  (([status]='WITHDRAWN' OR [status]='DISQUALIFIED' OR [status]='ELIMINATED' OR [status]='ACTIVE'))
-GO
-ALTER TABLE [dbo].[users]  WITH CHECK ADD CHECK  (([status]='REJECTED' OR [status]='APPROVED' OR [status]='PENDING'))
-GO
-USE [master]
-GO
-ALTER DATABASE [Hackathon] SET  READ_WRITE 
-GO
+-- MySQL dump 10.13  Distrib 8.0.46, for Win64 (x86_64)
+--
+-- Host: localhost    Database: hackathon
+-- ------------------------------------------------------
+-- Server version	9.7.0
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;
+SET @@SESSION.SQL_LOG_BIN= 0;
+
+--
+-- Table structure for table `advancement_rules`
+--
+
+DROP TABLE IF EXISTS `advancement_rules`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `advancement_rules` (
+  `rule_id` bigint NOT NULL AUTO_INCREMENT,
+  `round_id` bigint NOT NULL,
+  `category_id` bigint NOT NULL,
+  `top_n` int NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`rule_id`),
+  KEY `fk_adv_rules_category` (`category_id`),
+  KEY `fk_adv_rules_round` (`round_id`),
+  CONSTRAINT `fk_adv_rules_category` FOREIGN KEY (`category_id`) REFERENCES `categories` (`category_id`),
+  CONSTRAINT `fk_adv_rules_round` FOREIGN KEY (`round_id`) REFERENCES `rounds` (`round_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `announcements`
+--
+
+DROP TABLE IF EXISTS `announcements`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `announcements` (
+  `announcement_id` bigint NOT NULL AUTO_INCREMENT,
+  `event_id` bigint NOT NULL,
+  `title` varchar(200) NOT NULL,
+  `content` longtext NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`announcement_id`),
+  KEY `fk_announcements_event` (`event_id`),
+  CONSTRAINT `fk_announcements_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `audit_logs`
+--
+
+DROP TABLE IF EXISTS `audit_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `audit_logs` (
+  `log_id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `action` varchar(100) NOT NULL,
+  `entity_type` varchar(100) DEFAULT NULL,
+  `entity_id` bigint DEFAULT NULL,
+  `description` longtext,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`log_id`),
+  KEY `fk_audit_logs_user` (`user_id`),
+  CONSTRAINT `fk_audit_logs_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `awards`
+--
+
+DROP TABLE IF EXISTS `awards`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `awards` (
+  `award_id` bigint NOT NULL AUTO_INCREMENT,
+  `event_id` bigint NOT NULL,
+  `team_id` bigint NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `rank` int DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`award_id`),
+  KEY `fk_awards_event` (`event_id`),
+  KEY `fk_awards_team` (`team_id`),
+  CONSTRAINT `fk_awards_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`),
+  CONSTRAINT `fk_awards_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`team_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `calibration_rounds`
+--
+
+DROP TABLE IF EXISTS `calibration_rounds`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `calibration_rounds` (
+  `calibration_id` bigint NOT NULL AUTO_INCREMENT,
+  `event_id` bigint NOT NULL,
+  `name` varchar(100) DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`calibration_id`),
+  KEY `fk_cal_rounds_event` (`event_id`),
+  CONSTRAINT `fk_cal_rounds_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `calibration_scores`
+--
+
+DROP TABLE IF EXISTS `calibration_scores`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `calibration_scores` (
+  `calibration_score_id` bigint NOT NULL AUTO_INCREMENT,
+  `calibration_id` bigint NOT NULL,
+  `judge_id` bigint NOT NULL,
+  `criteria_id` bigint NOT NULL,
+  `score` decimal(5,2) DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`calibration_score_id`),
+  KEY `fk_cal_scores_cal` (`calibration_id`),
+  KEY `fk_cal_scores_criteria` (`criteria_id`),
+  KEY `fk_cal_scores_judge` (`judge_id`),
+  CONSTRAINT `fk_cal_scores_cal` FOREIGN KEY (`calibration_id`) REFERENCES `calibration_rounds` (`calibration_id`),
+  CONSTRAINT `fk_cal_scores_criteria` FOREIGN KEY (`criteria_id`) REFERENCES `event_criteria` (`criteria_id`),
+  CONSTRAINT `fk_cal_scores_judge` FOREIGN KEY (`judge_id`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `categories`
+--
+
+DROP TABLE IF EXISTS `categories`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `categories` (
+  `category_id` bigint NOT NULL AUTO_INCREMENT,
+  `event_id` bigint NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `description` longtext,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`category_id`),
+  KEY `fk_categories_event` (`event_id`),
+  CONSTRAINT `fk_categories_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `category_mentors`
+--
+
+DROP TABLE IF EXISTS `category_mentors`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `category_mentors` (
+  `category_id` bigint NOT NULL,
+  `mentor_id` bigint NOT NULL,
+  `assigned_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`category_id`,`mentor_id`),
+  KEY `fk_cat_mentors_mentor` (`mentor_id`),
+  CONSTRAINT `fk_cat_mentors_category` FOREIGN KEY (`category_id`) REFERENCES `categories` (`category_id`),
+  CONSTRAINT `fk_cat_mentors_mentor` FOREIGN KEY (`mentor_id`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `criteria_template_items`
+--
+
+DROP TABLE IF EXISTS `criteria_template_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `criteria_template_items` (
+  `item_id` bigint NOT NULL AUTO_INCREMENT,
+  `template_id` bigint NOT NULL,
+  `criterion_name` varchar(100) NOT NULL,
+  `weight` decimal(5,2) NOT NULL,
+  `max_score` decimal(5,2) NOT NULL,
+  `description` longtext,
+  PRIMARY KEY (`item_id`),
+  KEY `fk_cti_template` (`template_id`),
+  CONSTRAINT `fk_cti_template` FOREIGN KEY (`template_id`) REFERENCES `criteria_templates` (`template_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `criteria_templates`
+--
+
+DROP TABLE IF EXISTS `criteria_templates`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `criteria_templates` (
+  `template_id` bigint NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
+  `description` longtext,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`template_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `eliminations`
+--
+
+DROP TABLE IF EXISTS `eliminations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `eliminations` (
+  `elimination_id` bigint NOT NULL AUTO_INCREMENT,
+  `submission_id` bigint NOT NULL,
+  `reason` longtext NOT NULL,
+  `eliminated_by` bigint NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`elimination_id`),
+  KEY `fk_eliminations_user` (`eliminated_by`),
+  KEY `fk_eliminations_submission` (`submission_id`),
+  CONSTRAINT `fk_eliminations_submission` FOREIGN KEY (`submission_id`) REFERENCES `submissions` (`submission_id`),
+  CONSTRAINT `fk_eliminations_user` FOREIGN KEY (`eliminated_by`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `event_criteria`
+--
+
+DROP TABLE IF EXISTS `event_criteria`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `event_criteria` (
+  `criteria_id` bigint NOT NULL AUTO_INCREMENT,
+  `event_id` bigint NOT NULL,
+  `criterion_name` varchar(100) NOT NULL,
+  `weight` decimal(5,2) NOT NULL,
+  `max_score` decimal(5,2) NOT NULL,
+  `description` longtext,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`criteria_id`),
+  KEY `fk_event_criteria_event` (`event_id`),
+  CONSTRAINT `fk_event_criteria_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `events`
+--
+
+DROP TABLE IF EXISTS `events`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `events` (
+  `event_id` bigint NOT NULL AUTO_INCREMENT,
+  `title` varchar(200) NOT NULL,
+  `description` longtext,
+  `start_date` datetime DEFAULT NULL,
+  `end_date` datetime DEFAULT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'UPCOMING',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`event_id`),
+  CONSTRAINT `chk_events_status` CHECK ((`status` in (_utf8mb4'UPCOMING',_utf8mb4'ONGOING',_utf8mb4'COMPLETED')))
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `judge_assignments`
+--
+
+DROP TABLE IF EXISTS `judge_assignments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `judge_assignments` (
+  `assignment_id` bigint NOT NULL AUTO_INCREMENT,
+  `judge_id` bigint NOT NULL,
+  `round_id` bigint NOT NULL,
+  `category_id` bigint NOT NULL,
+  `assigned_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`assignment_id`),
+  KEY `fk_judge_assign_category` (`category_id`),
+  KEY `fk_judge_assign_judge` (`judge_id`),
+  KEY `fk_judge_assign_round` (`round_id`),
+  CONSTRAINT `fk_judge_assign_category` FOREIGN KEY (`category_id`) REFERENCES `categories` (`category_id`),
+  CONSTRAINT `fk_judge_assign_judge` FOREIGN KEY (`judge_id`) REFERENCES `users` (`user_id`),
+  CONSTRAINT `fk_judge_assign_round` FOREIGN KEY (`round_id`) REFERENCES `rounds` (`round_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `rounds`
+--
+
+DROP TABLE IF EXISTS `rounds`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `rounds` (
+  `round_id` bigint NOT NULL AUTO_INCREMENT,
+  `event_id` bigint NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `round_order` int NOT NULL,
+  `submission_deadline` datetime DEFAULT NULL,
+  `start_date` datetime DEFAULT NULL,
+  `end_date` datetime DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`round_id`),
+  KEY `fk_rounds_event` (`event_id`),
+  CONSTRAINT `fk_rounds_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `score_details`
+--
+
+DROP TABLE IF EXISTS `score_details`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `score_details` (
+  `detail_id` bigint NOT NULL AUTO_INCREMENT,
+  `score_id` bigint NOT NULL,
+  `criteria_id` bigint NOT NULL,
+  `score` decimal(5,2) NOT NULL,
+  `feedback` longtext,
+  PRIMARY KEY (`detail_id`),
+  KEY `fk_score_details_criteria` (`criteria_id`),
+  KEY `fk_score_details_score` (`score_id`),
+  CONSTRAINT `fk_score_details_criteria` FOREIGN KEY (`criteria_id`) REFERENCES `event_criteria` (`criteria_id`),
+  CONSTRAINT `fk_score_details_score` FOREIGN KEY (`score_id`) REFERENCES `scores` (`score_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `scores`
+--
+
+DROP TABLE IF EXISTS `scores`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `scores` (
+  `score_id` bigint NOT NULL AUTO_INCREMENT,
+  `submission_id` bigint NOT NULL,
+  `judge_id` bigint NOT NULL,
+  `total_score` decimal(6,2) DEFAULT NULL,
+  `submitted_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`score_id`),
+  KEY `fk_scores_judge` (`judge_id`),
+  KEY `fk_scores_submission` (`submission_id`),
+  CONSTRAINT `fk_scores_judge` FOREIGN KEY (`judge_id`) REFERENCES `users` (`user_id`),
+  CONSTRAINT `fk_scores_submission` FOREIGN KEY (`submission_id`) REFERENCES `submissions` (`submission_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `studentprofile`
+--
+
+DROP TABLE IF EXISTS `studentprofile`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `studentprofile` (
+  `profile_id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `student_code` varchar(30) DEFAULT NULL,
+  `university_name` varchar(150) DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`profile_id`),
+  KEY `fk_student_profile_user` (`user_id`),
+  CONSTRAINT `fk_student_profile_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `submissions`
+--
+
+DROP TABLE IF EXISTS `submissions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `submissions` (
+  `submission_id` bigint NOT NULL AUTO_INCREMENT,
+  `team_id` bigint NOT NULL,
+  `round_id` bigint NOT NULL,
+  `github_url` longtext,
+  `demo_url` longtext,
+  `report_url` longtext,
+  `slide_url` longtext,
+  `repository_metadata` longtext,
+  `status` varchar(20) NOT NULL DEFAULT 'SUBMITTED',
+  `submitted_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`submission_id`),
+  KEY `fk_submissions_round` (`round_id`),
+  KEY `fk_submissions_team` (`team_id`),
+  CONSTRAINT `fk_submissions_round` FOREIGN KEY (`round_id`) REFERENCES `rounds` (`round_id`),
+  CONSTRAINT `fk_submissions_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`team_id`),
+  CONSTRAINT `chk_submissions_status` CHECK ((`status` in (_utf8mb4'SUBMITTED',_utf8mb4'LATE',_utf8mb4'DISQUALIFIED')))
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `team_members`
+--
+
+DROP TABLE IF EXISTS `team_members`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `team_members` (
+  `team_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `joined_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`team_id`,`user_id`),
+  KEY `fk_team_members_user` (`user_id`),
+  CONSTRAINT `fk_team_members_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`team_id`),
+  CONSTRAINT `fk_team_members_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `team_registrations`
+--
+
+DROP TABLE IF EXISTS `team_registrations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `team_registrations` (
+  `registration_id` bigint NOT NULL AUTO_INCREMENT,
+  `event_id` bigint NOT NULL,
+  `category_id` bigint NOT NULL,
+  `team_id` bigint NOT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'PENDING',
+  `registered_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`registration_id`),
+  KEY `fk_team_reg_category` (`category_id`),
+  KEY `fk_team_reg_event` (`event_id`),
+  KEY `fk_team_reg_team` (`team_id`),
+  CONSTRAINT `fk_team_reg_category` FOREIGN KEY (`category_id`) REFERENCES `categories` (`category_id`),
+  CONSTRAINT `fk_team_reg_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`),
+  CONSTRAINT `fk_team_reg_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`team_id`),
+  CONSTRAINT `chk_team_reg_status` CHECK ((`status` in (_utf8mb4'PENDING',_utf8mb4'APPROVED',_utf8mb4'REJECTED')))
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `teams`
+--
+
+DROP TABLE IF EXISTS `teams`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `teams` (
+  `team_id` bigint NOT NULL AUTO_INCREMENT,
+  `team_name` varchar(100) NOT NULL,
+  `leader_id` bigint NOT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'ACTIVE',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `enrollCode` varchar(50) NOT NULL DEFAULT 'TEMP_CODE',
+  PRIMARY KEY (`team_id`),
+  UNIQUE KEY `uq_teams_team_name` (`team_name`),
+  KEY `fk_teams_leader` (`leader_id`),
+  CONSTRAINT `fk_teams_leader` FOREIGN KEY (`leader_id`) REFERENCES `users` (`user_id`),
+  CONSTRAINT `chk_teams_status` CHECK ((`status` in (_utf8mb4'ACTIVE',_utf8mb4'ELIMINATED',_utf8mb4'DISQUALIFIED',_utf8mb4'WITHDRAWN')))
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `universities`
+--
+
+DROP TABLE IF EXISTS `universities`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `universities` (
+  `university_id` bigint NOT NULL AUTO_INCREMENT,
+  `university_name` varchar(255) NOT NULL,
+  PRIMARY KEY (`university_id`),
+  UNIQUE KEY `uq_universities_name` (`university_name`)
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `users`
+--
+
+DROP TABLE IF EXISTS `users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `users` (
+  `user_id` bigint NOT NULL AUTO_INCREMENT,
+  `full_name` varchar(100) DEFAULT NULL,
+  `email` varchar(150) DEFAULT NULL,
+  `password_hash` longtext,
+  `role` varchar(50) NOT NULL,
+  `status` varchar(20) NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`),
+  CONSTRAINT `chk_users_status` CHECK ((`status` in (_utf8mb4'PENDING',_utf8mb4'APPROVED',_utf8mb4'REJECTED')))
+) ENGINE=InnoDB AUTO_INCREMENT=10035 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2026-06-03 16:00:03

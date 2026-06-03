@@ -16,7 +16,7 @@ public class CategoryRepository {
     private DataSource dataSource;
 
     public boolean existsByEventAndCategory(String eventId, String categoryId) {
-        String sql = "SELECT * FROM [dbo].[categories] WHERE event_id = ? AND category_id = ?";
+        String sql = "SELECT * FROM categories WHERE event_id = ? AND category_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {

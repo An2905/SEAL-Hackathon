@@ -15,7 +15,7 @@ public class StaffAssignmentRepository {
     private DataSource dataSource;
 
     public boolean deleteCategoryMentor(String categoryId, String mentorId) {
-        String sql = "DELETE FROM [dbo].[category_mentors] WHERE category_id = ? AND mentor_id = ?";
+        String sql = "DELETE FROM category_mentors WHERE category_id = ? AND mentor_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -28,7 +28,7 @@ public class StaffAssignmentRepository {
     }
 
     public boolean deleteJudgeAssignment(String judgeId, String roundId, String categoryId) {
-        String sql = "DELETE FROM [dbo].[judge_assignments] "
+        String sql = "DELETE FROM judge_assignments "
                 + "WHERE judge_id = ? AND round_id = ? AND category_id = ?";
         try (
                 Connection conn = dataSource.getConnection();

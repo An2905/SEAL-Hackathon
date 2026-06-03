@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -56,22 +57,24 @@ public class UserRepository {
     /// Excep: RuntimeException
     /// Return: student user if inserted successfully, else null
     public String insertStudentUser(String fullName, String email, String passwordHash, String role) {
-        String sql = "INSERT INTO users (full_name, email, password_hash, role, status) OUTPUT inserted.user_id VALUES (?, ?, ?, ?, 'APPROVED')";
+        String sql = "INSERT INTO users (full_name, email, password_hash, role, status) VALUES (?, ?, ?, ?, 'APPROVED')";
         try (Connection conn = dataSource.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, fullName);
             ps.setString(2, email);
             ps.setString(3, passwordHash);
             ps.setString(4, role);
 
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("user_id");
+            if (ps.executeUpdate() > 0) {
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        return rs.getString(1);
+                    }
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException(sql);
+            throw new RuntimeException(sql, e);
         }
 
         return null;
@@ -221,9 +224,7 @@ public class UserRepository {
     /// Except: RuntimeException
     /// Return: User if updated successfully, else null
     public User updateProfile(String newFullName, String oldEmail, String newEmail) {
-        String sql = "UPDATE users SET full_name = ?, email = ?"
-                + " OUTPUT inserted.user_id, inserted.role"
-                + " WHERE email = ?";
+        String sql = "UPDATE users SET full_name = ?, email = ? WHERE email = ?";
 
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -232,18 +233,16 @@ public class UserRepository {
             ps.setString(2, newEmail);
             ps.setString(3, oldEmail);
 
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    User user = new User();
-                    user.setUserId(rs.getString("user_id"));
-                    user.setRole(rs.getString("role"));
-                    user.setFullName(newFullName);
-                    user.setEmail(newEmail);
-                    return user;
-                }
+            if (ps.executeUpdate() > 0) {
+                return findByEmail(newEmail)
+                        .map(user -> {
+                            user.setFullName(newFullName);
+                            return user;
+                        })
+                        .orElse(null);
             }
         } catch (SQLException e) {
-            throw new RuntimeException(sql);
+            throw new RuntimeException(sql, e);
         }
 
         return null;

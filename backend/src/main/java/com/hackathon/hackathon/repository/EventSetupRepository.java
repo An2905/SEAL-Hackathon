@@ -3,6 +3,7 @@ package com.hackathon.hackathon.repository;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.Optional;
 
@@ -22,7 +23,7 @@ public class EventSetupRepository {
     }
 
     public boolean categoryNameExistsForEvent(String eventId, String name, String excludeCategoryId) {
-        String sql = "SELECT 1 FROM [dbo].[categories] WHERE event_id = ? AND name = ?";
+        String sql = "SELECT 1 FROM categories WHERE event_id = ? AND name = ?";
         if (excludeCategoryId != null && !excludeCategoryId.isBlank()) {
             sql += " AND category_id <> ?";
         }
@@ -43,7 +44,7 @@ public class EventSetupRepository {
     }
 
     public boolean roundNameExistsForEvent(String eventId, String name, String excludeRoundId) {
-        String sql = "SELECT 1 FROM [dbo].[rounds] WHERE event_id = ? AND name = ?";
+        String sql = "SELECT 1 FROM rounds WHERE event_id = ? AND name = ?";
         if (excludeRoundId != null && !excludeRoundId.isBlank()) {
             sql += " AND round_id <> ?";
         }
@@ -64,7 +65,7 @@ public class EventSetupRepository {
     }
 
     public boolean roundOrderExistsForEvent(String eventId, int roundOrder, String excludeRoundId) {
-        String sql = "SELECT 1 FROM [dbo].[rounds] WHERE event_id = ? AND round_order = ?";
+        String sql = "SELECT 1 FROM rounds WHERE event_id = ? AND round_order = ?";
         if (excludeRoundId != null && !excludeRoundId.isBlank()) {
             sql += " AND round_id <> ?";
         }
@@ -86,7 +87,7 @@ public class EventSetupRepository {
 
     public Optional<EventRoundSetupRow> findRoundByEventAndId(String eventId, String roundId) {
         String sql = "SELECT round_id, event_id, name, round_order, start_date, end_date, submission_deadline "
-                + "FROM [dbo].[rounds] WHERE event_id = ? AND round_id = ?";
+                + "FROM rounds WHERE event_id = ? AND round_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -112,7 +113,7 @@ public class EventSetupRepository {
     }
 
     public Optional<Timestamp> findMaxSubmissionTimeByRound(String roundId) {
-        String sql = "SELECT MAX(submitted_at) AS max_submitted FROM [dbo].[submissions] WHERE round_id = ?";
+        String sql = "SELECT MAX(submitted_at) AS max_submitted FROM submissions WHERE round_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -129,7 +130,7 @@ public class EventSetupRepository {
     }
 
     public boolean eventTitleExistsExcluding(String title, String excludeEventId) {
-        String sql = "SELECT 1 FROM [dbo].[events] WHERE title = ?";
+        String sql = "SELECT 1 FROM events WHERE title = ?";
         if (excludeEventId != null && !excludeEventId.isBlank()) {
             sql += " AND event_id <> ?";
         }
@@ -149,7 +150,7 @@ public class EventSetupRepository {
     }
 
     public int countRoundsOutsideEventDates(String eventId, Timestamp eventStart, Timestamp eventEnd) {
-        String sql = "SELECT COUNT(*) AS cnt FROM [dbo].[rounds] WHERE event_id = ? AND ("
+        String sql = "SELECT COUNT(*) AS cnt FROM rounds WHERE event_id = ? AND ("
                 + "(start_date IS NOT NULL AND start_date < ?) OR "
                 + "(end_date IS NOT NULL AND end_date > ?) OR "
                 + "(submission_deadline IS NOT NULL AND submission_deadline > ?)"
@@ -173,7 +174,7 @@ public class EventSetupRepository {
     }
 
     public Optional<String> findEventStatus(String eventId) {
-        String sql = "SELECT status FROM [dbo].[events] WHERE event_id = ?";
+        String sql = "SELECT status FROM events WHERE event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -196,7 +197,7 @@ public class EventSetupRepository {
             Timestamp startDate,
             Timestamp endDate,
             String status) {
-        String sql = "UPDATE [dbo].[events] SET title = ?, description = ?, start_date = ?, end_date = ?, status = ? "
+        String sql = "UPDATE events SET title = ?, description = ?, start_date = ?, end_date = ?, status = ? "
                 + "WHERE event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
@@ -215,7 +216,7 @@ public class EventSetupRepository {
 
     public Optional<EventSetupRow> findEventById(String eventId) {
         String sql = "SELECT event_id, title, description, start_date, end_date, status, created_at "
-                + "FROM [dbo].[events] WHERE event_id = ?";
+                + "FROM events WHERE event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -240,7 +241,7 @@ public class EventSetupRepository {
     }
 
     public Optional<Timestamp[]> findEventDateBounds(String eventId) {
-        String sql = "SELECT start_date, end_date FROM [dbo].[events] WHERE event_id = ?";
+        String sql = "SELECT start_date, end_date FROM events WHERE event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -260,7 +261,7 @@ public class EventSetupRepository {
     }
 
     public boolean updateCategory(String eventId, String categoryId, String name, String description) {
-        String sql = "UPDATE [dbo].[categories] SET name = ?, description = ? "
+        String sql = "UPDATE categories SET name = ?, description = ? "
                 + "WHERE category_id = ? AND event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
@@ -283,7 +284,7 @@ public class EventSetupRepository {
             Timestamp startDate,
             Timestamp endDate,
             Timestamp submissionDeadline) {
-        String sql = "UPDATE [dbo].[rounds] SET name = ?, round_order = ?, start_date = ?, end_date = ?, submission_deadline = ? "
+        String sql = "UPDATE rounds SET name = ?, round_order = ?, start_date = ?, end_date = ?, submission_deadline = ? "
                 + "WHERE round_id = ? AND event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
@@ -322,7 +323,7 @@ public class EventSetupRepository {
     }
 
     public int findNextRoundOrder(String eventId) {
-        String sql = "SELECT ISNULL(MAX(round_order), 0) + 1 AS next_order FROM [dbo].[rounds] WHERE event_id = ?";
+        String sql = "SELECT IFNULL(MAX(round_order), 0) + 1 AS next_order FROM rounds WHERE event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -339,17 +340,18 @@ public class EventSetupRepository {
     }
 
     public String insertCategory(String eventId, String name, String description) {
-        String sql = "INSERT INTO [dbo].[categories] (event_id, name, description) "
-                + "OUTPUT inserted.category_id VALUES (?, ?, ?)";
+        String sql = "INSERT INTO categories (event_id, name, description) VALUES (?, ?, ?)";
         try (
                 Connection conn = dataSource.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, eventId);
             ps.setString(2, name);
             ps.setString(3, description);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("category_id");
+            if (ps.executeUpdate() > 0) {
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        return rs.getString(1);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -365,20 +367,22 @@ public class EventSetupRepository {
             Timestamp startDate,
             Timestamp endDate,
             Timestamp submissionDeadline) {
-        String sql = "INSERT INTO [dbo].[rounds] (event_id, name, round_order, start_date, end_date, submission_deadline) "
-                + "OUTPUT inserted.round_id VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO rounds (event_id, name, round_order, start_date, end_date, submission_deadline) "
+                + "VALUES (?, ?, ?, ?, ?, ?)";
         try (
                 Connection conn = dataSource.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, eventId);
             ps.setString(2, name);
             ps.setInt(3, roundOrder);
             ps.setTimestamp(4, startDate);
             ps.setTimestamp(5, endDate);
             ps.setTimestamp(6, submissionDeadline);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("round_id");
+            if (ps.executeUpdate() > 0) {
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        return rs.getString(1);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -388,42 +392,42 @@ public class EventSetupRepository {
     }
 
     public int countTeamRegistrationsByCategory(String categoryId) {
-        String sql = "SELECT COUNT(*) AS cnt FROM [dbo].[team_registrations] WHERE category_id = ?";
+        String sql = "SELECT COUNT(*) AS cnt FROM team_registrations WHERE category_id = ?";
         return countById(sql, categoryId);
     }
 
     public int countSubmissionsByRound(String roundId) {
-        String sql = "SELECT COUNT(*) AS cnt FROM [dbo].[submissions] WHERE round_id = ?";
+        String sql = "SELECT COUNT(*) AS cnt FROM submissions WHERE round_id = ?";
         return countById(sql, roundId);
     }
 
     public void deleteCategoryMentorsByCategory(String categoryId) {
-        String sql = "DELETE FROM [dbo].[category_mentors] WHERE category_id = ?";
+        String sql = "DELETE FROM category_mentors WHERE category_id = ?";
         executeUpdate(sql, categoryId);
     }
 
     public void deleteJudgeAssignmentsByCategory(String categoryId) {
-        String sql = "DELETE FROM [dbo].[judge_assignments] WHERE category_id = ?";
+        String sql = "DELETE FROM judge_assignments WHERE category_id = ?";
         executeUpdate(sql, categoryId);
     }
 
     public void deleteJudgeAssignmentsByRound(String roundId) {
-        String sql = "DELETE FROM [dbo].[judge_assignments] WHERE round_id = ?";
+        String sql = "DELETE FROM judge_assignments WHERE round_id = ?";
         executeUpdate(sql, roundId);
     }
 
     public void deleteAdvancementRulesByRound(String roundId) {
-        String sql = "DELETE FROM [dbo].[advancement_rules] WHERE round_id = ?";
+        String sql = "DELETE FROM advancement_rules WHERE round_id = ?";
         executeUpdate(sql, roundId);
     }
 
     public void deleteAdvancementRulesByCategory(String categoryId) {
-        String sql = "DELETE FROM [dbo].[advancement_rules] WHERE category_id = ?";
+        String sql = "DELETE FROM advancement_rules WHERE category_id = ?";
         executeUpdate(sql, categoryId);
     }
 
     public boolean deleteCategory(String eventId, String categoryId) {
-        String sql = "DELETE FROM [dbo].[categories] WHERE category_id = ? AND event_id = ?";
+        String sql = "DELETE FROM categories WHERE category_id = ? AND event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -436,7 +440,7 @@ public class EventSetupRepository {
     }
 
     public boolean deleteRound(String eventId, String roundId) {
-        String sql = "DELETE FROM [dbo].[rounds] WHERE round_id = ? AND event_id = ?";
+        String sql = "DELETE FROM rounds WHERE round_id = ? AND event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {

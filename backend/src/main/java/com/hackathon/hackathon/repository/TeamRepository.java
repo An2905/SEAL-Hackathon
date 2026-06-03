@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,7 +31,7 @@ public class TeamRepository {
     private TeamMapper teamMapper;
 
     public boolean existsByTeamName(String teamName) {
-        String sql = "SELECT * FROM [dbo].[teams] WHERE team_name = ?";
+        String sql = "SELECT * FROM teams WHERE team_name = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -44,7 +45,7 @@ public class TeamRepository {
     }
 
     public boolean isMember(String userId) {
-        String sql = "SELECT * FROM [dbo].[team_members] WHERE user_id = ?";
+        String sql = "SELECT * FROM team_members WHERE user_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -58,16 +59,18 @@ public class TeamRepository {
     }
 
     public String insert(String teamName, String leaderId, String enrollCode) {
-        String sql = "INSERT INTO teams (team_name, leader_id, status, enrollCode) OUTPUT inserted.team_id VALUES (?, ?, 'ACTIVE', ?)";
+        String sql = "INSERT INTO teams (team_name, leader_id, status, enrollCode) VALUES (?, ?, 'ACTIVE', ?)";
         try (
                 Connection conn = dataSource.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, teamName);
             ps.setString(2, leaderId);
             ps.setString(3, enrollCode);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("team_id");
+            if (ps.executeUpdate() > 0) {
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        return rs.getString(1);
+                    }
                 }
             }
         } catch (SQLException e) {
@@ -107,7 +110,7 @@ public class TeamRepository {
     }
 
     public Optional<String> findTeamStatusById(String teamId) {
-        String sql = "SELECT status FROM [dbo].[teams] WHERE team_id = ?";
+        String sql = "SELECT status FROM teams WHERE team_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -164,25 +167,25 @@ public class TeamRepository {
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT e.event_id, e.title AS event_title, ")
                 .append("c.category_id, c.name AS category_name, ")
-                .append("tr.registration_id, tr.status AS registration_status, tr.created_at AS registered_at, ")
+                .append("tr.registration_id, tr.status AS registration_status, tr.registered_at AS registered_at, ")
                 .append("t.team_id, t.team_name, t.status AS team_status, t.enrollCode, ")
                 .append("t.leader_id, lu.full_name AS leader_name, lu.email AS leader_email, ")
                 .append("um.user_id AS member_user_id, um.full_name AS member_full_name, um.email AS member_email, um.role AS member_role ")
-                .append("FROM [dbo].[category_mentors] cm ")
-                .append("JOIN [dbo].[categories] c ON cm.category_id = c.category_id ")
-                .append("JOIN [dbo].[events] e ON c.event_id = e.event_id ")
-                .append("JOIN [dbo].[team_registrations] tr ON tr.category_id = c.category_id AND tr.event_id = c.event_id ")
-                .append("JOIN [dbo].[teams] t ON tr.team_id = t.team_id ")
-                .append("JOIN [dbo].[users] lu ON t.leader_id = lu.user_id ")
-                .append("LEFT JOIN [dbo].[team_members] tm ON tm.team_id = t.team_id ")
-                .append("LEFT JOIN [dbo].[users] um ON tm.user_id = um.user_id ")
+                .append("FROM category_mentors cm ")
+                .append("JOIN categories c ON cm.category_id = c.category_id ")
+                .append("JOIN events e ON c.event_id = e.event_id ")
+                .append("JOIN team_registrations tr ON tr.category_id = c.category_id AND tr.event_id = c.event_id ")
+                .append("JOIN teams t ON tr.team_id = t.team_id ")
+                .append("JOIN users lu ON t.leader_id = lu.user_id ")
+                .append("LEFT JOIN team_members tm ON tm.team_id = t.team_id ")
+                .append("LEFT JOIN users um ON tm.user_id = um.user_id ")
                 .append("WHERE cm.mentor_id = ? AND c.category_id = ? AND c.event_id = ? ");
 
         boolean filterAll = "ALL".equalsIgnoreCase(registrationStatus);
         if (!filterAll) {
             sql.append("AND tr.status = ? ");
         }
-        sql.append("ORDER BY tr.created_at DESC, t.team_name ASC, um.full_name ASC");
+        sql.append("ORDER BY tr.registered_at DESC, t.team_name ASC, um.full_name ASC");
 
         try (
                 Connection conn = dataSource.getConnection();
@@ -244,9 +247,9 @@ public class TeamRepository {
     public Optional<TeamDetail> findTeamDetailByUserId(String userId) {
         String sql = "SELECT t.team_id, t.team_name, t.leader_id, t.status, t.enrollCode, "
                 + "u.full_name AS leader_name, u.email AS leader_email "
-                + "FROM [dbo].[team_members] tm "
-                + "JOIN [dbo].[teams] t ON tm.team_id = t.team_id "
-                + "JOIN [dbo].[users] u ON t.leader_id = u.user_id "
+                + "FROM team_members tm "
+                + "JOIN teams t ON tm.team_id = t.team_id "
+                + "JOIN users u ON t.leader_id = u.user_id "
                 + "WHERE tm.user_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
@@ -268,8 +271,8 @@ public class TeamRepository {
                 detail.setCurrentUserLeader(userId != null && userId.equals(detail.getLeaderId()));
 
                 String memberSql = "SELECT u.user_id, u.full_name, u.email "
-                        + "FROM [dbo].[team_members] tm "
-                        + "JOIN [dbo].[users] u ON tm.user_id = u.user_id "
+                        + "FROM team_members tm "
+                        + "JOIN users u ON tm.user_id = u.user_id "
                         + "WHERE tm.team_id = ?";
                 try (PreparedStatement memberPs = conn.prepareStatement(memberSql)) {
                     memberPs.setString(1, detail.getTeamId());

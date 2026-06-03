@@ -27,7 +27,7 @@ public class TeamRegistrationRepository {
     private TeamMapper teamMapper;
 
     public boolean existsByTeamAndEvent(String teamId, String eventId) {
-        String sql = "SELECT * FROM [dbo].[team_registrations] WHERE team_id = ? AND event_id = ?";
+        String sql = "SELECT * FROM team_registrations WHERE team_id = ? AND event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -84,7 +84,7 @@ public class TeamRegistrationRepository {
     }
 
     public Optional<String> findStatusByTeamAndEvent(String teamId, String eventId) {
-        String sql = "SELECT status FROM [dbo].[team_registrations] WHERE team_id = ? AND event_id = ?";
+        String sql = "SELECT status FROM team_registrations WHERE team_id = ? AND event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -104,9 +104,9 @@ public class TeamRegistrationRepository {
     public Optional<TeamTrackMentorsResponse> findTrackDetailsByTeamAndEvent(String teamId, String eventId) {
         String sql = """
             SELECT tr.registration_id, tr.status, tr.category_id, c.name AS category_name, e.title AS event_title
-            FROM [dbo].[team_registrations] tr
-            JOIN [dbo].[categories] c ON tr.category_id = c.category_id
-            JOIN [dbo].[events] e ON tr.event_id = e.event_id
+            FROM team_registrations tr
+            JOIN categories c ON tr.category_id = c.category_id
+            JOIN events e ON tr.event_id = e.event_id
             WHERE tr.team_id = ? AND tr.event_id = ?
             """;
         try (
@@ -138,9 +138,9 @@ public class TeamRegistrationRepository {
                    e.title AS event_title, e.description AS event_description,
                    e.start_date AS event_start_date, e.end_date AS event_end_date, e.status AS event_status,
                    c.name AS category_name
-            FROM [dbo].[team_registrations] tr
-            JOIN [dbo].[events] e ON tr.event_id = e.event_id
-            JOIN [dbo].[categories] c ON tr.category_id = c.category_id
+            FROM team_registrations tr
+            JOIN events e ON tr.event_id = e.event_id
+            JOIN categories c ON tr.category_id = c.category_id
             WHERE tr.team_id = ?
             ORDER BY tr.registered_at DESC
             """;

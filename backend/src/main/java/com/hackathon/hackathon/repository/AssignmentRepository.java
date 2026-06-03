@@ -18,7 +18,7 @@ public class AssignmentRepository {
     // region JUDGE ↔ ROUND (+ category)
 
     public boolean judgeAssignmentExists(String judgeId, String roundId, String categoryId) {
-        String sql = "SELECT assignment_id FROM [dbo].[judge_assignments] "
+        String sql = "SELECT assignment_id FROM judge_assignments "
                 + "WHERE judge_id = ? AND round_id = ? AND category_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
@@ -53,7 +53,7 @@ public class AssignmentRepository {
     // region MENTOR ↔ CATEGORY (track)
 
     public boolean mentorAssignmentExists(String categoryId, String mentorId) {
-        String sql = "SELECT mentor_id FROM [dbo].[category_mentors] "
+        String sql = "SELECT mentor_id FROM category_mentors "
                 + "WHERE category_id = ? AND mentor_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
