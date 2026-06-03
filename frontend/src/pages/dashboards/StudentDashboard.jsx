@@ -3,9 +3,56 @@ import DashboardShell from './DashboardShell'
 import FormField from '../../components/common/FormField'
 import FormMessage from '../../components/common/FormMessage'
 import LoadingButton from '../../components/common/LoadingButton'
-import { getMyTeam, createTeam, joinTeam, joinEvent, deleteMember } from '../../api/team'
+import {
+  getMyTeam,
+  createTeam,
+  joinTeam,
+  joinEvent,
+  deleteMember,
+  getTeamRegistrations,
+  getTeamTrackMentors
+} from '../../api/team'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
+
+function formatDateTime(value) {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value)
+  return d.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function registrationStatusPillClass(status) {
+  const key = (status || '').toUpperCase()
+  if (key === 'APPROVED') return 'status-active'
+  if (key === 'PENDING') return 'status-pending'
+  if (key === 'REJECTED') return 'status-default'
+  return 'status-default'
+}
+
+function eventStatusPillClass(status) {
+  const key = (status || '').toUpperCase()
+  if (key === 'ONGOING') return 'status-active status-ongoing-highlight'
+  if (key === 'UPCOMING') return 'status-pending'
+  if (key === 'COMPLETED') return 'status-default'
+  if (key === 'CANCELLED') return 'status-inactive'
+  return 'status-default'
+}
+
+function eventStatusLabel(status) {
+  const key = (status || '').toUpperCase()
+  if (key === 'ONGOING') return 'Đang diễn ra'
+  if (key === 'UPCOMING') return 'Sắp diễn ra'
+  if (key === 'COMPLETED') return 'Đã kết thúc'
+  if (key === 'CANCELLED') return 'Đã hủy'
+  return status || '—'
+}
 
 // ─── Team Info Card ───────────────────────────────────────────────────────────
 function TeamInfoCard({ data, onRefresh }) {
@@ -150,8 +197,206 @@ function JoinTeamForm({ onSuccess }) {
   )
 }
 
+function EventMentorsBlock({ registration, mentorState }) {
+  const status = (registration.registrationStatus || '').toUpperCase()
+  const state = mentorState || {}
+
+  if (status !== 'APPROVED') {
+    return (
+      <div className="empty-state" style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }}>
+        Mentor hiển thị sau khi đăng ký được duyệt (APPROVED).
+      </div>
+    )
+  }
+
+  if (state.loading) {
+    return (
+      <div className="empty-state" style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }}>
+        Đang tải mentor…
+      </div>
+    )
+  }
+
+  if (state.error) {
+    return (
+      <div className="empty-state" style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }}>
+        {state.error}
+      </div>
+    )
+  }
+
+  const mentors = state.data?.mentors || []
+  if (mentors.length === 0) {
+    return (
+      <div className="empty-state" style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }}>
+        Chưa có mentor cho track này.
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-dim)', marginBottom: 8 }}>
+        Mentor track
+      </div>
+      <div className="kv-list">
+        {mentors.map((m) => (
+          <div className="member-row" key={m.mentorId}>
+            <div className="avatar">{(m.mentorName?.[0] || 'M').toUpperCase()}</div>
+            <div className="member-info">
+              <div className="member-name">{m.mentorName || '—'}</div>
+              <div className="member-meta">{m.mentorEmail || ''}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Sự kiện + mentor (cùng một card) ───────────────────────────────────────
+function TeamEventsPanel({ refreshKey }) {
+  const { showToast } = useToast()
+  const [list, setList] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [mentorsByEvent, setMentorsByEvent] = useState({})
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      setError(null)
+      setMentorsByEvent({})
+      try {
+        const data = await getTeamRegistrations()
+        if (cancelled) return
+        setList(data)
+
+        const approved = data.filter(
+          (r) => (r.registrationStatus || '').toUpperCase() === 'APPROVED' && r.eventId
+        )
+        if (approved.length === 0) return
+
+        const loadingMap = Object.fromEntries(
+          approved.map((r) => [r.eventId, { loading: true }])
+        )
+        setMentorsByEvent(loadingMap)
+
+        const results = await Promise.allSettled(
+          approved.map((r) => getTeamTrackMentors(r.eventId))
+        )
+
+        if (cancelled) return
+
+        const next = {}
+        approved.forEach((r, i) => {
+          const result = results[i]
+          if (result.status === 'fulfilled') {
+            next[r.eventId] = { loading: false, data: result.value }
+          } else {
+            next[r.eventId] = {
+              loading: false,
+              error: localizeError(result.reason?.message)
+            }
+          }
+        })
+        setMentorsByEvent(next)
+      } catch (err) {
+        if (!cancelled) {
+          setError(localizeError(err.message))
+          showToast('Không tải được danh sách đăng ký sự kiện', 'error')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [refreshKey, showToast])
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <div className="card-title">Sự kiện & mentor</div>
+      </div>
+      <p className="card-sub">Các hackathon đội đã đăng ký — track và mentor được gán theo từng sự kiện.</p>
+      {loading && <div className="empty-state">Đang tải…</div>}
+      {!loading && error && <div className="empty-state">{error}</div>}
+      {!loading && !error && list.length === 0 && (
+        <div className="empty-state">Đội chưa đăng ký sự kiện nào.</div>
+      )}
+      {!loading && list.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {list.map((reg, index) => {
+            const isOngoing = (reg.eventStatus || '').toUpperCase() === 'ONGOING'
+            return (
+            <div
+              key={reg.registrationId || reg.eventId}
+              className={isOngoing ? 'team-event-item team-event-item--ongoing' : 'team-event-item'}
+              style={{
+                paddingBottom: index < list.length - 1 ? (isOngoing ? 24 : 20) : (isOngoing ? 4 : 0),
+                borderBottom:
+                  index < list.length - 1
+                    ? '1px solid var(--border, rgba(255,255,255,0.08))'
+                    : 'none'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 16 }}>
+                    {reg.eventTitle || '—'}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--text-dim)',
+                      marginTop: 6,
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                      gap: 8
+                    }}
+                  >
+                    <span>
+                      Track: <strong style={isOngoing ? { color: 'var(--text)' } : undefined}>{reg.categoryName || '—'}</strong>
+                    </span>
+                    <span
+                      className={`status-pill ${eventStatusPillClass(reg.eventStatus)}`}
+                      style={{ cursor: 'default' }}
+                      title={`Trạng thái sự kiện: ${reg.eventStatus || '—'}`}
+                    >
+                      {isOngoing ? '● ' : ''}{eventStatusLabel(reg.eventStatus)}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>
+                    {formatDateTime(reg.eventStartDate)} → {formatDateTime(reg.eventEndDate)}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2 }}>
+                    Đăng ký: {formatDateTime(reg.registeredAt)}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end', flexShrink: 0 }}>
+                  <span
+                    className={`status-pill ${registrationStatusPillClass(reg.registrationStatus)}`}
+                    style={{ cursor: 'default' }}
+                    title="Trạng thái duyệt đăng ký"
+                  >
+                    {reg.registrationStatus || '—'}
+                  </span>
+                </div>
+              </div>
+              <EventMentorsBlock registration={reg} mentorState={mentorsByEvent[reg.eventId]} />
+            </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Join Event Form ──────────────────────────────────────────────────────────
-function JoinEventForm() {
+function JoinEventForm({ onSuccess }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
@@ -167,6 +412,7 @@ function JoinEventForm() {
       setMessage({ text: 'Đăng ký event thành công!', type: 'success' })
       showToast('Đăng ký event thành công', 'success')
       setForm({ eventId: '', categoryId: '' })
+      onSuccess?.()
     } catch (err) {
       setMessage({ text: localizeError(err.message), type: 'error' })
     } finally {
@@ -259,6 +505,7 @@ export default function StudentDashboard() {
   const [teamState, setTeamState] = useState('loading') // 'loading' | 'no-team' | 'has-team'
   const [teamData, setTeamData] = useState(null)
   const [activities, setActivities] = useState([])
+  const [registrationsRefreshKey, setRegistrationsRefreshKey] = useState(0)
 
   const logActivity = (text) => setActivities(prev => [{ text, at: new Date() }, ...prev])
 
@@ -284,6 +531,7 @@ export default function StudentDashboard() {
   const handleTeamJoined = () => { logActivity('Tham gia đội thành công'); loadMyTeam() }
   const handleMemberDeleted = () => { logActivity('Xóa thành viên'); loadMyTeam() }
   const handleRefresh = () => { showToast('Đang làm mới...', 'success'); loadMyTeam() }
+  const refreshRegistrations = () => setRegistrationsRefreshKey((k) => k + 1)
 
   return (
     <DashboardShell
@@ -306,6 +554,16 @@ export default function StudentDashboard() {
         <TeamInfoCard data={teamData} onRefresh={handleRefresh} />
       )}
 
+      {teamState === 'has-team' && (
+        <>
+          <div className="section-title" style={{ marginTop: 24 }}>
+            <h2>Đăng ký sự kiện</h2>
+            <span className="hint">Event, track và mentor của đội</span>
+          </div>
+          <TeamEventsPanel refreshKey={registrationsRefreshKey} />
+        </>
+      )}
+
       {teamState === 'no-team' && (
         <div className="cards">
           <CreateTeamForm onSuccess={handleTeamCreated} />
@@ -320,7 +578,7 @@ export default function StudentDashboard() {
             <span className="hint">Chỉ leader mới thực hiện được các thao tác bên dưới</span>
           </div>
           <div className="cards">
-            <JoinEventForm />
+            <JoinEventForm onSuccess={() => { refreshRegistrations(); logActivity('Đăng ký sự kiện') }} />
             <DeleteMemberForm onSuccess={handleMemberDeleted} />
           </div>
         </>
