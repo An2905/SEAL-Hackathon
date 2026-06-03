@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import javax.sql.DataSource;
 
@@ -85,7 +86,7 @@ public class UserRepository {
     /// Param: String email
     /// Excep: RuntimeException
     /// Return: User if found, else null
-    public User findByEmail(String email) {
+    public Optional<User> findByEmail(String email) {
         String sql = "SELECT * FROM users WHERE email = ?";
 
         try (Connection conn = dataSource.getConnection();
@@ -95,14 +96,14 @@ public class UserRepository {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return userMapper.fromResultSet(rs);
+                    return Optional.of(userMapper.fromResultSet(rs));
                 }
             }
         } catch (SQLException e) {
             throw new RuntimeException(sql);
         }
 
-        return null;
+        return Optional.empty();
     }
 
     /// Check exist email
@@ -110,7 +111,7 @@ public class UserRepository {
     /// Param: String email
     /// Return: True if found, else False
     public boolean existsByEmail(String email) {
-        return findByEmail(email) != null;
+        return findByEmail(email).isPresent();
     }
 
     /// Find users by role or all available users
@@ -150,7 +151,7 @@ public class UserRepository {
     /// Param: String userId
     /// Excep: RuntimeException
     /// Return: User's role if found, else null
-    public String findRoleByUserId(String userId) {
+    public Optional<String> findRoleByUserId(String userId) {
         String sql = "SELECT role FROM users WHERE user_id = ?";
 
         try (Connection conn = dataSource.getConnection();
@@ -160,14 +161,14 @@ public class UserRepository {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getString("role");
+                    return Optional.of(rs.getString("role"));
                 }
             }
         } catch (SQLException e) {
             throw new RuntimeException(sql);
         }
 
-        return null;
+        return Optional.empty();
     }
 
     // #endregion

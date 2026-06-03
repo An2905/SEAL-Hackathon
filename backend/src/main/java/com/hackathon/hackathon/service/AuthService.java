@@ -113,10 +113,11 @@ public class AuthService {
         requireNonBlank(request.getPassword(), "Password");
         requireValidCaptcha(request.getCaptchaToken());
 
-        User user = userRepository.findByEmail(request.getEmail());
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new UnauthorizedException("Invalid email or password."));
 
         // Merged check for timing/enumeration safety
-        if (user == null || !encoder.matches(request.getPassword(), user.getPasswordHash())) {
+        if (!encoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new UnauthorizedException("Invalid email or password.");
         }
 
@@ -179,10 +180,8 @@ public class AuthService {
 
         requireValidEmail(newEmail);
 
-        String studentId = studentProfileRepository.findStudentCodeByUserEmail(email);
-        if (studentId == null) {
-            studentId = "";
-        }
+        String studentId = studentProfileRepository.findStudentCodeByUserEmail(email)
+                .orElse("");
 
         if (!newEmail.equalsIgnoreCase(email) && checkEmail(newEmail)) {
             throw new ConflictException("Email already exists.");
@@ -229,11 +228,9 @@ public class AuthService {
     // #region CHECK PASSWORD
 
     public boolean checkOldPassword(String email, String oldPassword) {
-        User user = userRepository.findByEmail(email);
-        if (user == null) {
-            return false;
-        }
-        return encoder.matches(oldPassword, user.getPasswordHash());
+        return userRepository.findByEmail(email)
+                .map(user -> encoder.matches(oldPassword, user.getPasswordHash()))
+                .orElse(false);
     }
 
     // #endregion

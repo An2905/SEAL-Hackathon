@@ -111,11 +111,9 @@ public class TeamService {
                     "You have already joined a team. You cannot join another team.");
         }
 
-        String teamId = teamRepository.findTeamIdByEnrollCode(enrollCode);
-        if (teamId == null || teamId.isEmpty()) {
-            throw new BadRequestException(
-                    "Invalid enroll code. Please check the enroll code and try again.");
-        }
+        String teamId = teamRepository.findTeamIdByEnrollCode(enrollCode)
+                .orElseThrow(() -> new BadRequestException(
+                        "Invalid enroll code. Please check the enroll code and try again."));
 
         if (!teamRepository.addMember(teamId, userId)) {
             throw new BadRequestException("Join team failed.");
@@ -130,10 +128,8 @@ public class TeamService {
         Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
         String userId = claims.get("userId", String.class);
 
-        String teamId = teamRepository.findTeamIdByLeaderId(userId);
-        if (teamId == null) {
-            throw new BadRequestException("Only team leaders can delete team members.");
-        }
+        String teamId = teamRepository.findTeamIdByLeaderId(userId)
+                .orElseThrow(() -> new BadRequestException("Only team leaders can delete team members."));
 
         if (request.getMemberId().equals(userId)) {
             throw new BadRequestException("Leader cannot remove themselves.");
@@ -161,11 +157,9 @@ public class TeamService {
         Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
         String userId = claims.get("userId", String.class);
 
-        String teamId = teamRepository.findTeamIdByLeaderId(userId);
-        if (teamId == null) {
-            throw new BadRequestException(
-                    "You are not in a team / Only team leaders can join events.");
-        }
+        String teamId = teamRepository.findTeamIdByLeaderId(userId)
+                .orElseThrow(() -> new BadRequestException(
+                        "You are not in a team / Only team leaders can join events."));
 
         if (!eventRepository.isUpcoming(eventId)) {
             throw new BadRequestException("Event is not valid or not ready.");
@@ -190,10 +184,8 @@ public class TeamService {
         Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
         String userId = claims.get("userId", String.class);
 
-        TeamDetail detail = teamRepository.findTeamDetailByUserId(userId);
-        if (detail == null) {
-            throw new BadRequestException("No team found for this user.");
-        }
+        TeamDetail detail = teamRepository.findTeamDetailByUserId(userId)
+                .orElseThrow(() -> new BadRequestException("No team found for this user."));
 
         return teamMapper.toMyTeamResponse(detail);
     }
@@ -225,12 +217,12 @@ public class TeamService {
         Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
         String userId = claims.get("userId", String.class);
 
-        String teamId = teamRepository.findTeamIdByLeaderId(userId);
-        if (teamId == null) {
-            throw new BadRequestException("Only team leaders can submit projects.");
-        }
+        String teamId = teamRepository.findTeamIdByLeaderId(userId)
+                .orElseThrow(() -> new BadRequestException("Only team leaders can submit projects."));
 
-        if (!"ACTIVE".equalsIgnoreCase(teamRepository.findTeamStatusById(teamId))) {
+        String status = teamRepository.findTeamStatusById(teamId)
+                .orElseThrow(() -> new BadRequestException("Team status not found."));
+        if (!"ACTIVE".equalsIgnoreCase(status)) {
             throw new BadRequestException("Team is suspended and cannot submit projects.");
         }
 
@@ -238,16 +230,15 @@ public class TeamService {
             throw new BadRequestException("Your team has not joined this event.");
         }
 
-        String registrationStatus = teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId);
-        if (registrationStatus == null || !"APPROVED".equalsIgnoreCase(registrationStatus)) {
+        String registrationStatus = teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId)
+                .orElse("");
+        if (!"APPROVED".equalsIgnoreCase(registrationStatus)) {
             throw new BadRequestException(
                     "Team registration is suspended or not approved. Cannot submit project.");
         }
 
-        String eventStatus = eventRepository.findStatusById(eventId);
-        if (eventStatus == null) {
-            throw new BadRequestException("Event is not valid.");
-        }
+        String eventStatus = eventRepository.findStatusById(eventId)
+                .orElseThrow(() -> new BadRequestException("Event is not valid."));
         if ("COMPLETED".equalsIgnoreCase(eventStatus)) {
             throw new BadRequestException("Event already completed.");
         }
@@ -291,10 +282,8 @@ public class TeamService {
         Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
         String userId = claims.get("userId", String.class);
 
-        TeamDetail detail = teamRepository.findTeamDetailByUserId(userId);
-        if (detail == null) {
-            throw new BadRequestException("No team found for this user.");
-        }
+        TeamDetail detail = teamRepository.findTeamDetailByUserId(userId)
+                .orElseThrow(() -> new BadRequestException("No team found for this user."));
         String teamId = detail.getTeamId();
 
         TeamTrackMentorsResponse response = teamRegistrationRepository.findTrackDetailsByTeamAndEvent(teamId, cleanEventId)
@@ -316,10 +305,8 @@ public class TeamService {
         Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
         String userId = claims.get("userId", String.class);
 
-        TeamDetail detail = teamRepository.findTeamDetailByUserId(userId);
-        if (detail == null) {
-            throw new BadRequestException("No team found for this user.");
-        }
+        TeamDetail detail = teamRepository.findTeamDetailByUserId(userId)
+                .orElseThrow(() -> new BadRequestException("No team found for this user."));
         String teamId = detail.getTeamId();
 
         return teamRegistrationRepository.findAllByTeamId(teamId);
@@ -345,10 +332,8 @@ public class TeamService {
         String userId = claims.get("userId", String.class);
 
         // 3. Any team member (not just leader) may view submissions
-        TeamDetail detail = teamRepository.findTeamDetailByUserId(userId);
-        if (detail == null) {
-            throw new BadRequestException("No team found for this user.");
-        }
+        TeamDetail detail = teamRepository.findTeamDetailByUserId(userId)
+                .orElseThrow(() -> new BadRequestException("No team found for this user."));
         String teamId = detail.getTeamId();
 
         // 4. Team must have a registration for this event (PENDING | APPROVED | REJECTED allowed — read-only)
@@ -389,10 +374,8 @@ public class TeamService {
         Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
         String userId = claims.get("userId", String.class);
 
-        TeamDetail detail = teamRepository.findTeamDetailByUserId(userId);
-        if (detail == null) {
-            throw new BadRequestException("No team found for this user.");
-        }
+        TeamDetail detail = teamRepository.findTeamDetailByUserId(userId)
+                .orElseThrow(() -> new BadRequestException("No team found for this user."));
         String teamId = detail.getTeamId();
 
         if (!teamRegistrationRepository.existsByTeamAndEvent(teamId, cleanEventId)) {

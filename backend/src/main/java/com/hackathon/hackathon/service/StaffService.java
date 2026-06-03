@@ -190,7 +190,7 @@ public class StaffService {
             throw new BadRequestException("Invalid user ID format.");
         }
 
-        String checkRoleUser = userRepository.findRoleByUserId(userId);
+        String checkRoleUser = userRepository.findRoleByUserId(userId).orElse(null);
 
         if (checkRoleUser == null || checkRoleUser.isEmpty()) {
             throw new BadRequestException("Cannot find user role.");
@@ -239,14 +239,10 @@ public class StaffService {
         }
         eventId = eventId.trim();
 
-        Event event = eventRepository.findDetailHeader(eventId);
-        if (event == null) {
-            throw new BadRequestException("Event not found.");
-        }
+        Event event = eventRepository.findDetailHeader(eventId)
+                .orElseThrow(() -> new BadRequestException("Event not found."));
 
-        return eventMapper.toDetailResponse(
-                event,
-                eventRepository.findCategoriesByEventId(eventId),
+        return eventMapper.toDetailResponse(event, eventRepository.findCategoriesByEventId(eventId),
                 eventRepository.findRoundsByEventId(eventId),
                 eventRepository.findTeamRegistrationsByEventId(eventId),
                 eventRepository.findAwardsByEventId(eventId),
@@ -384,7 +380,7 @@ public class StaffService {
         response.setStatus("SENT");
         return response;
     }
-  
+
     // region ASSIGN JUDGE / MENTOR
 
     public String assignJudge(String authHeader, AssignJudgeRequest request) {
@@ -433,12 +429,9 @@ public class StaffService {
     // endregion
 
     // region EXPORT EVENTS
-    public ResponseEntity<byte[]> exportEventsExcel(
-            String authHeader) {
+    public ResponseEntity<byte[]> exportEventsExcel(String authHeader) {
 
-        authService.validateRole(
-                authHeader,
-                "COORDINATOR");
+        authService.validateRole(authHeader, "COORDINATOR");
 
         List<EventSummaryResponse> events = getAllEvents(authHeader, null);
 
@@ -450,26 +443,19 @@ public class StaffService {
 
             Row header = sheet.createRow(0);
 
-            header.createCell(0)
-                    .setCellValue("Event ID");
+            header.createCell(0).setCellValue("Event ID");
 
-            header.createCell(1)
-                    .setCellValue("Title");
+            header.createCell(1).setCellValue("Title");
 
-            header.createCell(2)
-                    .setCellValue("Description");
+            header.createCell(2).setCellValue("Description");
 
-            header.createCell(3)
-                    .setCellValue("Start Date");
+            header.createCell(3).setCellValue("Start Date");
 
-            header.createCell(4)
-                    .setCellValue("End Date");
+            header.createCell(4).setCellValue("End Date");
 
-            header.createCell(5)
-                    .setCellValue("Status");
+            header.createCell(5).setCellValue("Status");
 
-            header.createCell(6)
-                    .setCellValue("Created At");
+            header.createCell(6).setCellValue("Created At");
 
             int rowNum = 1;
 
@@ -477,26 +463,19 @@ public class StaffService {
 
                 Row row = sheet.createRow(rowNum++);
 
-                row.createCell(0)
-                        .setCellValue(event.getEventId());
+                row.createCell(0).setCellValue(event.getEventId());
 
-                row.createCell(1)
-                        .setCellValue(event.getTitle());
+                row.createCell(1).setCellValue(event.getTitle());
 
-                row.createCell(2)
-                        .setCellValue(event.getDescription());
+                row.createCell(2).setCellValue(event.getDescription());
 
-                row.createCell(3)
-                        .setCellValue(event.getStartDate());
+                row.createCell(3).setCellValue(event.getStartDate());
 
-                row.createCell(4)
-                        .setCellValue(event.getEndDate());
+                row.createCell(4).setCellValue(event.getEndDate());
 
-                row.createCell(5)
-                        .setCellValue(event.getStatus());
+                row.createCell(5).setCellValue(event.getStatus());
 
-                row.createCell(6)
-                        .setCellValue(event.getCreatedAt());
+                row.createCell(6).setCellValue(event.getCreatedAt());
             }
 
             for (int i = 0; i < 7; i++) {
@@ -511,16 +490,13 @@ public class StaffService {
 
             return ResponseEntity.ok()
 
-                    .header(
-                            HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=events.xlsx")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=events.xlsx")
 
                     .body(output.toByteArray());
 
         } catch (Exception e) {
 
-            return ResponseEntity.internalServerError()
-                    .build();
+            return ResponseEntity.internalServerError().build();
         }
     }
 

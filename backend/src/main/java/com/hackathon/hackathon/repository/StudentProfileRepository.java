@@ -3,6 +3,7 @@ package com.hackathon.hackathon.repository;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.Optional;
 
 import javax.sql.DataSource;
 
@@ -15,7 +16,7 @@ public class StudentProfileRepository {
     @Autowired
     private DataSource dataSource;
 
-    public String findStudentCodeByUserEmail(String email) {
+    public Optional<String> findStudentCodeByUserEmail(String email) {
         String sql = "SELECT sp.student_code FROM [dbo].[users] u "
                 + "LEFT JOIN [dbo].[studentProfile] sp ON u.user_id = sp.user_id WHERE u.email = ?";
         try (
@@ -24,13 +25,13 @@ public class StudentProfileRepository {
             ps.setString(1, email);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getString("student_code");
+                    return Optional.ofNullable(rs.getString("student_code"));
                 }
             }
         } catch (Exception e) {
-            return null;
+            throw new RuntimeException(sql, e);
         }
-        return null;
+        return Optional.empty();
     }
 
     public boolean existsByStudentCodeAndUniversity(String studentCode, String university) {
