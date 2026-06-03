@@ -1,8 +1,7 @@
 package com.hackathon.hackathon.service;
+
 import java.util.ArrayList;
 import java.util.List;
-
-import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -22,14 +21,10 @@ public class JudgeService {
     private AuthService authService;
 
     @Autowired
-    private DataSource dataSource;
-
-    @Autowired
     private EventRepository eventRepository;
 
     @Autowired
     private EventMapper eventMapper;
-    
 
     public List<EventSummaryResponse> getAssignedEvents(String authHeader) {
         Claims claims = authService.validateRole(authHeader, "JUDGE_INTERNAL");

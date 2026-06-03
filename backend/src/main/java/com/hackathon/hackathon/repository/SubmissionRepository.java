@@ -3,6 +3,7 @@ package com.hackathon.hackathon.repository;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,12 +14,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import com.hackathon.hackathon.model.dto.response.JudgeSubmissionResponse;
+import com.hackathon.hackathon.model.dto.response.TeamSubmissionItemResponse;
+import com.hackathon.hackathon.model.mapper.TeamMapper;
 
 @Repository
 public class SubmissionRepository {
 
     @Autowired
     private DataSource dataSource;
+
+    @Autowired
+    private TeamMapper teamMapper;
 
     public List<JudgeSubmissionResponse> findForJudgeReview(
             String judgeId,
@@ -141,5 +147,55 @@ public class SubmissionRepository {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public List<TeamSubmissionItemResponse> findByTeamAndEvent(
+            String teamId,
+            String eventId,
+            String roundId) {   // null → return all rounds in the event
+
+        List<TeamSubmissionItemResponse> submissions = new ArrayList<>();
+
+        // Two fully-parameterised SQL strings — NO string concatenation of user input
+        String sqlAll = """
+                SELECT s.submission_id, s.round_id, r.name AS round_name, r.round_order,
+                       s.github_url, s.demo_url, s.report_url, s.slide_url,
+                       s.repository_metadata, s.status, s.submitted_at
+                FROM [dbo].[submissions] s
+                JOIN [dbo].[rounds] r ON s.round_id = r.round_id AND r.event_id = ?
+                WHERE s.team_id = ?
+                ORDER BY r.round_order ASC, s.submitted_at DESC
+                """;
+
+        String sqlFiltered = """
+                SELECT s.submission_id, s.round_id, r.name AS round_name, r.round_order,
+                       s.github_url, s.demo_url, s.report_url, s.slide_url,
+                       s.repository_metadata, s.status, s.submitted_at
+                FROM [dbo].[submissions] s
+                JOIN [dbo].[rounds] r ON s.round_id = r.round_id AND r.event_id = ?
+                WHERE s.team_id = ? AND s.round_id = ?
+                ORDER BY r.round_order ASC, s.submitted_at DESC
+                """;
+
+        boolean filterByRound = (roundId != null && !roundId.isBlank());
+        String sql = filterByRound ? sqlFiltered : sqlAll;
+
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, eventId);
+            ps.setString(2, teamId);
+            if (filterByRound) {
+                ps.setString(3, roundId);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    submissions.add(teamMapper.toTeamSubmissionItemResponse(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(sql, e);
+        }
+        return submissions;
     }
 }
