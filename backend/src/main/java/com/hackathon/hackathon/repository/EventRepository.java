@@ -237,6 +237,7 @@ public class EventRepository {
         return events;
     }
 
+
     public List<MentorAssignedCurrentRoundResponse> findAssignedCurrentRoundsByMentorId(String mentorId) {
         List<MentorAssignedCurrentRoundResponse> rounds = new ArrayList<>();
         String sql = "SELECT DISTINCT e.event_id, e.title, r.round_id, r.name, r.start_date, r.end_date, "
@@ -261,5 +262,26 @@ public class EventRepository {
             return rounds;
         }
         return rounds;
+    }
+
+    public List<Event> findEventsByJudgeId(String judgeId) {
+        List<Event> events = new ArrayList<>();
+        String sql = "SELECT DISTINCT e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at \r\n" + //
+                        "FROM events e \r\n" + //
+                        "JOIN categories c ON e.event_id = c.event_id \r\n" + //
+                        "JOIN judge_assignments cm ON c.category_id = cm.category_id WHERE cm.judge_id = ? ORDER BY e.start_date DESC;";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, judgeId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    events.add(eventMapper.fromSummaryRow(rs));
+                }
+            }
+        } catch (Exception e) {
+            return events;
+        }
+        return events;
     }
 }
