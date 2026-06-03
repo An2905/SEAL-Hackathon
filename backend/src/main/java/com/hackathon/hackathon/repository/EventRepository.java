@@ -264,6 +264,37 @@ public class EventRepository {
         return rounds;
     }
 
+    public boolean roundBelongsToEvent(String roundId, String eventId) {
+        String sql = "SELECT 1 FROM [dbo].[rounds] WHERE round_id = ? AND event_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, roundId);
+            ps.setString(2, eventId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean isRoundOngoing(String roundId, String eventId) {
+        String sql = "SELECT 1 FROM [dbo].[rounds] WHERE round_id = ? AND event_id = ? "
+                + "AND GETDATE() BETWEEN start_date AND end_date";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, roundId);
+            ps.setString(2, eventId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public List<Event> findEventsByJudgeId(String judgeId) {
         List<Event> events = new ArrayList<>();
         String sql = "SELECT DISTINCT e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at \r\n" + //
