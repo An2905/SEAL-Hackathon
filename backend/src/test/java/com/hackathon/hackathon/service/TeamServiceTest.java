@@ -16,6 +16,7 @@ import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.model.dto.response.TeamSubmissionItemResponse;
 import com.hackathon.hackathon.model.dto.response.TeamSubmissionsResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
+import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
 import com.hackathon.hackathon.model.entity.TeamDetail;
 import com.hackathon.hackathon.model.mapper.TeamMapper;
 import com.hackathon.hackathon.repository.CategoryRepository;
@@ -400,5 +401,58 @@ public class TeamServiceTest {
         assertNotNull(response);
         assertEquals(1, response.getSubmissions().size());
         System.out.println("✓ Test Service: getTeamSubmissions — non-leader member can view submissions");
+    }
+
+    @Test
+    public void testGetTeamEventRegistrations_Success() {
+        Claims mockClaims = createMockClaims(userId);
+        TeamDetail detail = buildTeamDetail();
+        TeamEventRegistrationResponse item = new TeamEventRegistrationResponse();
+        item.setRegistrationId("5");
+        item.setEventTitle("SEAL Hackathon 2026");
+        List<TeamEventRegistrationResponse> expectedList = Arrays.asList(item);
+
+        new Expectations() {
+            {
+                authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
+                result = mockClaims;
+
+                teamRepository.findTeamDetailByUserId(userId);
+                result = detail;
+
+                teamRegistrationRepository.findAllByTeamId(teamId);
+                result = expectedList;
+            }
+        };
+
+        List<TeamEventRegistrationResponse> response = teamService.getTeamEventRegistrations(authHeader);
+
+        assertNotNull(response);
+        assertEquals(1, response.size());
+        assertEquals("5", response.get(0).getRegistrationId());
+        assertEquals("SEAL Hackathon 2026", response.get(0).getEventTitle());
+        System.out.println("✓ Test Service: getTeamEventRegistrations success");
+    }
+
+    @Test
+    public void testGetTeamEventRegistrations_NoTeam_ThrowsBadRequest() {
+        Claims mockClaims = createMockClaims(userId);
+
+        new Expectations() {
+            {
+                authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
+                result = mockClaims;
+
+                teamRepository.findTeamDetailByUserId(userId);
+                result = null; // No team found
+            }
+        };
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () -> {
+            teamService.getTeamEventRegistrations(authHeader);
+        });
+
+        assertEquals("No team found for this user.", ex.getMessage());
+        System.out.println("✓ Test Service: getTeamEventRegistrations fails when user is not in a team");
     }
 }

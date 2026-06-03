@@ -11,7 +11,9 @@ import org.springframework.http.ResponseEntity;
 
 import com.hackathon.hackathon.model.dto.response.TeamSubmissionItemResponse;
 import com.hackathon.hackathon.model.dto.response.TeamSubmissionsResponse;
+import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
 import com.hackathon.hackathon.service.TeamService;
+import java.util.List;
 
 import mockit.Expectations;
 import mockit.Injectable;
@@ -167,5 +169,32 @@ public class TeamControllerTest {
         assertEquals("2", body.getCategoryId());
         assertEquals("AI Track", body.getCategoryName());
         System.out.println("✓ Test Controller: response context fields (eventId, teamId, categoryId) are correct");
+    }
+
+    @Test
+    public void testGetTeamEventRegistrations_Success() {
+        TeamEventRegistrationResponse item = new TeamEventRegistrationResponse();
+        item.setRegistrationId("5");
+        item.setEventId("1");
+        item.setEventTitle("SEAL Hackathon 2026");
+        item.setRegistrationStatus("APPROVED");
+        List<TeamEventRegistrationResponse> expectedResponse = Arrays.asList(item);
+
+        new Expectations() {
+            {
+                teamService.getTeamEventRegistrations(authHeader);
+                result = expectedResponse;
+            }
+        };
+
+        ResponseEntity<List<TeamEventRegistrationResponse>> response =
+                teamController.getTeamEventRegistrations(authHeader);
+
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+        assertEquals("5", response.getBody().get(0).getRegistrationId());
+        assertEquals("SEAL Hackathon 2026", response.getBody().get(0).getEventTitle());
+        System.out.println("✓ Test Controller: GET /api/team/registrations → 200 with list of registrations");
     }
 }
