@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import com.hackathon.hackathon.model.dto.response.TeamSubmissionItemResponse;
 import com.hackathon.hackathon.model.dto.response.TeamSubmissionsResponse;
 import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
+import com.hackathon.hackathon.model.dto.response.EventRoundResponse;
 import com.hackathon.hackathon.service.TeamService;
 import java.util.List;
 
@@ -196,5 +197,28 @@ public class TeamControllerTest {
         assertEquals("5", response.getBody().get(0).getRegistrationId());
         assertEquals("SEAL Hackathon 2026", response.getBody().get(0).getEventTitle());
         System.out.println("✓ Test Controller: GET /api/team/registrations → 200 with list of registrations");
+    }
+
+    @Test
+    public void testGetTeamRounds_Success() {
+        EventRoundResponse round = new EventRoundResponse();
+        round.setRoundId("1");
+        round.setName("Idea Round");
+        List<EventRoundResponse> expectedResponse = Arrays.asList(round);
+
+        new Expectations() {
+            {
+                teamService.getTeamRounds(authHeader, eventId);
+                result = expectedResponse;
+            }
+        };
+
+        ResponseEntity<List<EventRoundResponse>> response = teamController.getTeamRounds(authHeader, eventId);
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+        assertEquals("1", response.getBody().get(0).getRoundId());
+        assertEquals("Idea Round", response.getBody().get(0).getName());
+        System.out.println("✓ Test Controller: GET /api/team/rounds → 200 with list of rounds");
     }
 }

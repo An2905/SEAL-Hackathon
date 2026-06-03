@@ -17,6 +17,9 @@ import com.hackathon.hackathon.model.dto.response.TeamSubmissionItemResponse;
 import com.hackathon.hackathon.model.dto.response.TeamSubmissionsResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
 import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
+import com.hackathon.hackathon.model.dto.response.EventRoundResponse;
+import com.hackathon.hackathon.model.entity.Round;
+import com.hackathon.hackathon.model.mapper.EventMapper;
 import com.hackathon.hackathon.model.entity.TeamDetail;
 import com.hackathon.hackathon.model.mapper.TeamMapper;
 import com.hackathon.hackathon.repository.CategoryRepository;
@@ -66,6 +69,9 @@ public class TeamServiceTest {
 
     @Injectable
     private AuthService authService;
+
+    @Injectable
+    private EventMapper eventMapper;
 
     private final String authHeader = "Bearer mock_student_token";
     private final String userId     = "42";
@@ -454,5 +460,79 @@ public class TeamServiceTest {
 
         assertEquals("No team found for this user.", ex.getMessage());
         System.out.println("✓ Test Service: getTeamEventRegistrations fails when user is not in a team");
+    }
+
+    @Test
+    public void testGetTeamRounds_Success() {
+        Claims mockClaims = createMockClaims(userId);
+        TeamDetail detail = buildTeamDetail();
+        Round round = new Round();
+        round.setRoundId("1");
+        round.setName("Idea Round");
+        List<Round> mockRounds = Arrays.asList(round);
+
+        EventRoundResponse roundResponse = new EventRoundResponse();
+        roundResponse.setRoundId("1");
+        roundResponse.setName("Idea Round");
+
+        new Expectations() {
+            {
+                authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
+                result = mockClaims;
+
+                teamRepository.findTeamDetailByUserId(userId);
+                result = detail;
+
+                teamRegistrationRepository.existsByTeamAndEvent(teamId, eventId);
+                result = true;
+
+                eventRepository.findRoundsByEventId(eventId);
+                result = mockRounds;
+
+                eventMapper.toRoundResponse(round);
+                result = roundResponse;
+            }
+        };
+
+        List<EventRoundResponse> response = teamService.getTeamRounds(authHeader, eventId);
+        assertNotNull(response);
+        assertEquals(1, response.size());
+        assertEquals("1", response.get(0).getRoundId());
+        assertEquals("Idea Round", response.get(0).getName());
+        System.out.println("✓ Test Service: getTeamRounds success");
+    }
+
+    @Test
+    public void testGetTeamRounds_MissingEventId_ThrowsBadRequest() {
+        BadRequestException ex = assertThrows(BadRequestException.class, () -> {
+            teamService.getTeamRounds(authHeader, "");
+        });
+        assertEquals("Event ID is required.", ex.getMessage());
+        System.out.println("✓ Test Service: getTeamRounds fails with missing event ID");
+    }
+
+    @Test
+    public void testGetTeamRounds_NotJoined_ThrowsBadRequest() {
+        Claims mockClaims = createMockClaims(userId);
+        TeamDetail detail = buildTeamDetail();
+
+        new Expectations() {
+            {
+                authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
+                result = mockClaims;
+
+                teamRepository.findTeamDetailByUserId(userId);
+                result = detail;
+
+                teamRegistrationRepository.existsByTeamAndEvent(teamId, eventId);
+                result = false;
+            }
+        };
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () -> {
+            teamService.getTeamRounds(authHeader, eventId);
+        });
+        assertEquals("Your team has not joined this event.", ex.getMessage());
+        System.out.println("✓ Test Service: getTeamRounds fails when team has not joined the event");
     }
 }
