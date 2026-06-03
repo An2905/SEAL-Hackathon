@@ -35,11 +35,19 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
-    define: envDefine,
+    define: {
+      ...envDefine,
+      global: 'globalThis',
+    },
     server: {
       proxy: {
         '/api': {
           target: 'http://localhost:8080',
+          changeOrigin: true,
+        },
+        '/ws': {
+          target: 'http://localhost:8080',
+          ws: true,
           changeOrigin: true,
         },
       },

@@ -14,6 +14,7 @@ import {
 } from '../../api/team'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
+import ChatPopup, { ChatOpenButton } from '../../components/chat/ChatPopup'
 
 function formatDateTime(value) {
   if (!value) return '—'
@@ -197,7 +198,7 @@ function JoinTeamForm({ onSuccess }) {
   )
 }
 
-function EventMentorsBlock({ registration, mentorState }) {
+function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
   const status = (registration.registrationStatus || '').toUpperCase()
   const state = mentorState || {}
 
@@ -244,7 +245,20 @@ function EventMentorsBlock({ registration, mentorState }) {
           <div className="member-row" key={m.mentorId}>
             <div className="avatar">{(m.mentorName?.[0] || 'M').toUpperCase()}</div>
             <div className="member-info">
-              <div className="member-name">{m.mentorName || '—'}</div>
+              <div className="member-name" style={{ display: 'flex', alignItems: 'center' }}>
+                <span>{m.mentorName || '—'}</span>
+                {onOpenChat && (
+                  <ChatOpenButton
+                    title={`Nhắn tin với ${m.mentorName || 'mentor'}`}
+                    onClick={() => onOpenChat({
+                      eventId: registration.eventId,
+                      eventTitle: registration.eventTitle,
+                      mentorId: m.mentorId,
+                      mentorName: m.mentorName
+                    })}
+                  />
+                )}
+              </div>
               <div className="member-meta">{m.mentorEmail || ''}</div>
             </div>
           </div>
@@ -255,7 +269,7 @@ function EventMentorsBlock({ registration, mentorState }) {
 }
 
 // ─── Sự kiện + mentor (cùng một card) ───────────────────────────────────────
-function TeamEventsPanel({ refreshKey }) {
+function TeamEventsPanel({ refreshKey, onOpenChat }) {
   const { showToast } = useToast()
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(true)
@@ -385,7 +399,11 @@ function TeamEventsPanel({ refreshKey }) {
                   </span>
                 </div>
               </div>
-              <EventMentorsBlock registration={reg} mentorState={mentorsByEvent[reg.eventId]} />
+              <EventMentorsBlock
+                registration={reg}
+                mentorState={mentorsByEvent[reg.eventId]}
+                onOpenChat={onOpenChat}
+              />
             </div>
             )
           })}
@@ -506,6 +524,7 @@ export default function StudentDashboard() {
   const [teamData, setTeamData] = useState(null)
   const [activities, setActivities] = useState([])
   const [registrationsRefreshKey, setRegistrationsRefreshKey] = useState(0)
+  const [chatTarget, setChatTarget] = useState(null)
 
   const logActivity = (text) => setActivities(prev => [{ text, at: new Date() }, ...prev])
 
@@ -560,7 +579,10 @@ export default function StudentDashboard() {
             <h2>Đăng ký sự kiện</h2>
             <span className="hint">Event, track và mentor của đội</span>
           </div>
-          <TeamEventsPanel refreshKey={registrationsRefreshKey} />
+          <TeamEventsPanel
+            refreshKey={registrationsRefreshKey}
+            onOpenChat={(target) => setChatTarget({ ...target, teamName: teamData?.teamName })}
+          />
         </>
       )}
 
@@ -582,6 +604,18 @@ export default function StudentDashboard() {
             <DeleteMemberForm onSuccess={handleMemberDeleted} />
           </div>
         </>
+      )}
+
+      {chatTarget && (
+        <ChatPopup
+          open
+          onClose={() => setChatTarget(null)}
+          eventId={chatTarget.eventId}
+          eventTitle={chatTarget.eventTitle}
+          mentorId={chatTarget.mentorId}
+          mentorName={chatTarget.mentorName}
+          teamName={chatTarget.teamName}
+        />
       )}
 
       <div className="section-title"><h2>Hoạt động gần đây</h2></div>

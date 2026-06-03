@@ -348,6 +348,40 @@ public class EventRepository {
         return Optional.empty();
     }
 
+    public Optional<String> findPreferredRoundIdForEvent(String eventId) {
+        String ongoingSql = "SELECT round_id FROM rounds "
+                + "WHERE event_id = ? AND start_date <= NOW() "
+                + "AND (end_date IS NULL OR end_date >= NOW()) "
+                + "ORDER BY round_order ASC LIMIT 1";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(ongoingSql)) {
+            ps.setString(1, eventId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(rs.getString("round_id"));
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(ongoingSql, e);
+        }
+
+        String fallbackSql = "SELECT round_id FROM rounds WHERE event_id = ? ORDER BY round_order ASC LIMIT 1";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(fallbackSql)) {
+            ps.setString(1, eventId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(rs.getString("round_id"));
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(fallbackSql, e);
+        }
+        return Optional.empty();
+    }
+
     public boolean roundBelongsToEvent(String roundId, String eventId) {
         String sql = "SELECT 1 FROM rounds WHERE round_id = ? AND event_id = ?";
         try (

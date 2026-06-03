@@ -18,6 +18,12 @@ SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;
 SET @@SESSION.SQL_LOG_BIN= 0;
 
 --
+-- GTID state at the beginning of the backup 
+--
+
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'b424a162-5f1e-11f1-82ff-dc4628233c63:1-113';
+
+--
 -- Table structure for table `advancement_rules`
 --
 
@@ -176,6 +182,71 @@ CREATE TABLE `category_mentors` (
   KEY `fk_cat_mentors_mentor` (`mentor_id`),
   CONSTRAINT `fk_cat_mentors_category` FOREIGN KEY (`category_id`) REFERENCES `categories` (`category_id`),
   CONSTRAINT `fk_cat_mentors_mentor` FOREIGN KEY (`mentor_id`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `chat_messages`
+--
+
+DROP TABLE IF EXISTS `chat_messages`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `chat_messages` (
+  `message_id` bigint NOT NULL AUTO_INCREMENT,
+  `room_id` bigint NOT NULL,
+  `sender_id` varchar(50) NOT NULL,
+  `content` text NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`message_id`),
+  KEY `idx_room` (`room_id`),
+  KEY `idx_created` (`created_at`),
+  CONSTRAINT `fk_message_room` FOREIGN KEY (`room_id`) REFERENCES `chat_rooms` (`room_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `chat_room_members`
+--
+
+DROP TABLE IF EXISTS `chat_room_members`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `chat_room_members` (
+  `room_member_id` bigint NOT NULL AUTO_INCREMENT,
+  `room_id` bigint NOT NULL,
+  `user_id` varchar(50) NOT NULL,
+  `joined_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`room_member_id`),
+  UNIQUE KEY `uk_room_user` (`room_id`,`user_id`),
+  KEY `idx_room` (`room_id`),
+  KEY `idx_user` (`user_id`),
+  CONSTRAINT `fk_room_member_room` FOREIGN KEY (`room_id`) REFERENCES `chat_rooms` (`room_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `chat_rooms`
+--
+
+DROP TABLE IF EXISTS `chat_rooms`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `chat_rooms` (
+  `room_id` bigint NOT NULL AUTO_INCREMENT,
+  `event_id` bigint NOT NULL,
+  `round_id` bigint NOT NULL,
+  `team_id` bigint NOT NULL,
+  `mentor_id` varchar(50) NOT NULL,
+  `created_by` varchar(50) NOT NULL,
+  `status` enum('ACTIVE','CLOSED') NOT NULL DEFAULT 'ACTIVE',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `closed_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`room_id`),
+  UNIQUE KEY `uk_room` (`team_id`,`mentor_id`,`round_id`),
+  KEY `idx_team` (`team_id`),
+  KEY `idx_mentor` (`mentor_id`),
+  KEY `idx_round` (`round_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -520,4 +591,4 @@ SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-03 16:00:03
+-- Dump completed on 2026-06-03 18:11:18

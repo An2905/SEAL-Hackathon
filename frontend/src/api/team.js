@@ -167,3 +167,30 @@ export async function getTeamTrackMentors(eventId) {
     throw new Error(text?.trim() || 'Không thể tải mentor của track')
   }
 }
+
+function mapRoundRow(row) {
+  const r = row && typeof row === 'object' ? row : {}
+  return {
+    roundId: String(r.roundId ?? r.round_id ?? ''),
+    name: r.name ?? '',
+    startDate: r.startDate ?? r.start_date ?? '',
+    endDate: r.endDate ?? r.end_date ?? '',
+    submissionDeadline: r.submissionDeadline ?? r.submission_deadline ?? ''
+  }
+}
+
+// GET /api/team/rounds?eventId=...
+export async function getTeamRounds(eventId) {
+  const id = normalizeEventId(eventId)
+  if (!id) throw new Error('Event ID không hợp lệ')
+
+  const params = new URLSearchParams({ eventId: id })
+  const text = await apiFetch(`/api/team/rounds?${params}`, { method: 'GET' })
+  try {
+    const data = parseJson(text)
+    if (!Array.isArray(data)) return []
+    return data.map(mapRoundRow)
+  } catch {
+    throw new Error(text?.trim() || 'Không thể tải danh sách round')
+  }
+}

@@ -4,6 +4,7 @@ import { getAssignedEvents, getAssignedCurrentRounds } from '../../api/mentor'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
+import ChatPopup from '../../components/chat/ChatPopup'
 
 function formatDateTime(value) {
   if (!value) return '—'
@@ -18,12 +19,26 @@ function formatDateTime(value) {
   })
 }
 
-function roundStatusPillClass(status) {
+function eventStatusPillClass(status) {
   const key = (status || '').toUpperCase()
-  if (key === 'ONGOING') return 'status-active'
   if (key === 'UPCOMING') return 'status-pending'
+  if (key === 'ONGOING') return 'status-active'
   if (key === 'COMPLETED') return 'status-default'
+  if (key === 'CANCELLED') return 'status-rejected'
   return 'status-default'
+}
+
+function StatusBadge({ status }) {
+  return (
+    <span className="status-picker" style={{ flexShrink: 0 }}>
+      <span
+        className={`status-pill ${eventStatusPillClass(status)}`}
+        style={{ cursor: 'default' }}
+      >
+        {status || '—'}
+      </span>
+    </span>
+  )
 }
 
 export default function MentorDashboard() {
@@ -37,6 +52,7 @@ export default function MentorDashboard() {
   const [rounds, setRounds] = useState([])
   const [loadingRounds, setLoadingRounds] = useState(true)
   const [errorRounds, setErrorRounds] = useState(null)
+  const [chatOpen, setChatOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -93,7 +109,7 @@ export default function MentorDashboard() {
                   <div style={{ fontWeight: 600, color: 'var(--text)' }}>{ev.title || '—'}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>ID: {ev.eventId}</div>
                 </span>
-                <span className='card-badge'>{ev.status}</span>
+                <StatusBadge status={ev.status} />
               </div>
             ))}
           </div>
@@ -123,12 +139,7 @@ export default function MentorDashboard() {
                     {formatDateTime(rd.startDate)} → {formatDateTime(rd.endDate)}
                   </div>
                 </span>
-                <span
-                  className={`status-pill ${roundStatusPillClass(rd.roundStatus)}`}
-                  style={{ cursor: 'default', flexShrink: 0 }}
-                >
-                  {rd.roundStatus || '—'}
-                </span>
+                <StatusBadge status={rd.roundStatus} />
               </div>
             ))}
           </div>
@@ -159,6 +170,15 @@ export default function MentorDashboard() {
           </div>
         </div>
       </div>
+
+      {!chatOpen && (
+        <button type="button" className="chat-fab" onClick={() => setChatOpen(true)}>
+          Chat đội
+        </button>
+      )}
+      {chatOpen && (
+        <ChatPopup open mode="mentor" onClose={() => setChatOpen(false)} />
+      )}
     </DashboardShell>
   )
 }
