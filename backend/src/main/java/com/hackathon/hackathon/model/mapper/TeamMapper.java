@@ -11,6 +11,7 @@ import java.util.List;
 import com.hackathon.hackathon.model.dto.response.MyTeamMemberResponse;
 import com.hackathon.hackathon.model.dto.response.MyTeamResponse;
 import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
+import com.hackathon.hackathon.model.dto.response.TeamSubmissionItemResponse;
 import com.hackathon.hackathon.model.entity.Team;
 import com.hackathon.hackathon.model.entity.TeamDetail;
 import com.hackathon.hackathon.model.entity.TeamMemberInfo;
@@ -78,5 +79,21 @@ public class TeamMapper {
         response.setEventStatus(rs.getString("event_status"));
         response.setCategoryName(rs.getString("category_name"));
         return response;
+    }
+
+    public TeamSubmissionItemResponse toTeamSubmissionItemResponse(ResultSet rs) throws SQLException {
+        TeamSubmissionItemResponse item = new TeamSubmissionItemResponse();
+        item.setSubmissionId(rs.getString("submission_id"));
+        item.setRoundId(rs.getString("round_id"));
+        item.setRoundName(rs.getString("round_name"));
+        item.setRoundOrder(rs.getString("round_order"));
+        item.setGithubUrl(rs.getString("github_url"));
+        item.setDemoUrl(rs.getString("demo_url"));
+        item.setReportUrl(rs.getString("report_url"));
+        item.setSlideUrl(rs.getString("slide_url"));
+        item.setRepositoryMetadata(rs.getString("repository_metadata"));
+        item.setStatus(rs.getString("status"));
+        item.setSubmittedAt(rs.getString("submitted_at"));
+        return item;
     }
 }

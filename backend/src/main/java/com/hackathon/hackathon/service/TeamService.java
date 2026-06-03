@@ -12,6 +12,8 @@ import com.hackathon.hackathon.model.dto.response.MyTeamResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorItemResponse;
 import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
+import com.hackathon.hackathon.model.dto.response.TeamSubmissionItemResponse;
+import com.hackathon.hackathon.model.dto.response.TeamSubmissionsResponse;
 
 import com.hackathon.hackathon.model.entity.TeamDetail;
 import com.hackathon.hackathon.model.mapper.TeamMapper;
@@ -315,6 +317,59 @@ public class TeamService {
         String teamId = detail.getTeamId();
 
         return teamRegistrationRepository.findAllByTeamId(teamId);
+    }
+    // endregion
+
+    // region GET TEAM SUBMISSIONS
+    public TeamSubmissionsResponse getTeamSubmissions(
+            String authHeader,
+            String eventId,
+            String roundId) {
+
+        // 1. eventId is mandatory
+        if (eventId == null || eventId.trim().isEmpty()) {
+            throw new BadRequestException("Event ID is required.");
+        }
+        String cleanEventId = eventId.trim();
+        // roundId is optional — treat blank as absent
+        String cleanRoundId = (roundId != null && !roundId.isBlank()) ? roundId.trim() : null;
+
+        // 2. JWT auth — students only
+        Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
+        String userId = claims.get("userId", String.class);
+
+        // 3. Any team member (not just leader) may view submissions
+        TeamDetail detail = teamRepository.findTeamDetailByUserId(userId);
+        if (detail == null) {
+            throw new BadRequestException("No team found for this user.");
+        }
+        String teamId = detail.getTeamId();
+
+        // 4. Team must have a registration for this event (PENDING | APPROVED | REJECTED allowed — read-only)
+        TeamTrackMentorsResponse trackDetails = teamRegistrationRepository
+                .findTrackDetailsByTeamAndEvent(teamId, cleanEventId)
+                .orElseThrow(() -> new BadRequestException("Your team has not joined this event."));
+
+        // 5. If roundId provided, it must belong to this event
+        if (cleanRoundId != null && !eventRepository.roundBelongsToEvent(cleanRoundId, cleanEventId)) {
+            throw new BadRequestException("Round does not belong to this event.");
+        }
+
+        // 6. Query submissions (empty list is a valid 200 response)
+        List<TeamSubmissionItemResponse> submissions =
+                submissionRepository.findByTeamAndEvent(teamId, cleanEventId, cleanRoundId);
+
+        // 7. Assemble wrapper response
+        TeamSubmissionsResponse response = new TeamSubmissionsResponse();
+        response.setEventId(cleanEventId);
+        response.setEventTitle(trackDetails.getEventTitle());
+        response.setTeamId(teamId);
+        response.setTeamName(detail.getTeamName());
+        response.setCategoryId(trackDetails.getCategoryId());
+        response.setCategoryName(trackDetails.getCategoryName());
+        response.setSubmissions(submissions);
+
+        return response;
     }
     // endregion
 }
