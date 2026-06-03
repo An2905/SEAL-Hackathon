@@ -13,6 +13,7 @@ import com.hackathon.hackathon.model.dto.response.MyTeamResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
 import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
 import com.hackathon.hackathon.model.dto.response.TeamSubmissionsResponse;
+import com.hackathon.hackathon.model.dto.response.EventRoundResponse;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -88,5 +89,12 @@ public class TeamController {
             @RequestParam("eventId") String eventId,
             @RequestParam(value = "roundId", required = false) String roundId) {
         return ResponseEntity.ok(teamService.getTeamSubmissions(authHeader, eventId, roundId));
+    }
+
+    @GetMapping("/rounds")
+    public ResponseEntity<List<EventRoundResponse>> getTeamRounds(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam("eventId") String eventId) {
+        return ResponseEntity.ok(teamService.getTeamRounds(authHeader, eventId));
     }
 }

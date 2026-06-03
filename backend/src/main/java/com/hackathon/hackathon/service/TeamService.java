@@ -14,6 +14,9 @@ import com.hackathon.hackathon.model.dto.response.TeamTrackMentorItemResponse;
 import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
 import com.hackathon.hackathon.model.dto.response.TeamSubmissionItemResponse;
 import com.hackathon.hackathon.model.dto.response.TeamSubmissionsResponse;
+import com.hackathon.hackathon.model.dto.response.EventRoundResponse;
+import com.hackathon.hackathon.model.entity.Round;
+import com.hackathon.hackathon.model.mapper.EventMapper;
 
 import com.hackathon.hackathon.model.entity.TeamDetail;
 import com.hackathon.hackathon.model.mapper.TeamMapper;
@@ -54,6 +57,9 @@ public class TeamService {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private EventMapper eventMapper;
 
     // #region CREATE TEAM
     public CreateTeamResponse createTeam(String authHeader, CreateTeamRequest request) {
@@ -370,6 +376,31 @@ public class TeamService {
         response.setSubmissions(submissions);
 
         return response;
+    }
+    // endregion
+
+    // region GET TEAM ROUNDS
+    public List<EventRoundResponse> getTeamRounds(String authHeader, String eventId) {
+        if (eventId == null || eventId.trim().isEmpty()) {
+            throw new BadRequestException("Event ID is required.");
+        }
+        String cleanEventId = eventId.trim();
+
+        Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
+        String userId = claims.get("userId", String.class);
+
+        TeamDetail detail = teamRepository.findTeamDetailByUserId(userId);
+        if (detail == null) {
+            throw new BadRequestException("No team found for this user.");
+        }
+        String teamId = detail.getTeamId();
+
+        if (!teamRegistrationRepository.existsByTeamAndEvent(teamId, cleanEventId)) {
+            throw new BadRequestException("Your team has not joined this event.");
+        }
+
+        List<Round> rounds = eventRepository.findRoundsByEventId(cleanEventId);
+        return rounds.stream().map(eventMapper::toRoundResponse).toList();
     }
     // endregion
 }
