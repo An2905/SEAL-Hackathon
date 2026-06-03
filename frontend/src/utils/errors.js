@@ -3,7 +3,8 @@ const ERROR_MAP = {
   HTTP_401: 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.',
   HTTP_403: 'Bạn không có quyền thực hiện thao tác này.',
   HTTP_404: 'Không tìm thấy tài nguyên yêu cầu.',
-  HTTP_500: 'Lỗi máy chủ. Vui lòng thử lại sau.'
+  HTTP_500: 'Lỗi máy chủ. Vui lòng thử lại sau.',
+  'Invalid captcha.': 'Captcha không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.'
 }
 
 // Các pattern kỹ thuật không được hiển thị trực tiếp ra UI

@@ -1,9 +1,9 @@
 import { apiFetch, parseLoginResponse } from './client'
 
-export async function login({ email, password }) {
+export async function login({ email, password, captchaToken }) {
   const text = await apiFetch('/api/auth/login', {
     method: 'POST',
-    body: { email, password },
+    body: { email, password, captchaToken },
     auth: false
   })
   return parseLoginResponse(text)
@@ -13,10 +13,10 @@ export async function login({ email, password }) {
 // the pending data in HttpSession until verifyAndRegister is called.
 // Note: Requires JSESSIONID cookie to be preserved between step 1 and step 2.
 // If user's browser blocks cookies, step 2 will fail with a session error.
-export async function sendRegisterOtp({ fullName, email, university, studentId, password }) {
+export async function sendRegisterOtp({ fullName, email, university, studentId, password, captchaToken }) {
   const text = await apiFetch('/api/auth/register/otp', {
     method: 'POST',
-    body: { fullName, email, university, studentId, password },
+    body: { fullName, email, university, studentId, password, captchaToken },
     auth: false
   })
   if (!/otp sent/i.test(text)) throw new Error(text)

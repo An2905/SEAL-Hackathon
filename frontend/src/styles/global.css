@@ -705,6 +705,13 @@ main {
   border: 1px solid #bbf7d0;
   padding: 8px 10px;
 }
+.recaptcha-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 0.25rem 0 0.75rem;
+  min-height: 78px;
+}
+
 .form-footer {
   text-align: center;
   font-size: 13px;

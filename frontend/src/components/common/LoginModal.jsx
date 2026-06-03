@@ -8,11 +8,13 @@ import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useNavigate } from 'react-router-dom'
 import { localizeError } from '../../utils/errors'
+import { useRecaptcha } from '../../hooks/useRecaptcha'
 
 export default function LoginModal({ isOpen, onClose, onSwitchToRegister, onSwitchToReset }) {
   const { saveAuth, pathForRole } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()
+  const { getCaptchaToken, resetCaptcha, RecaptchaField } = useRecaptcha()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
   const [form, setForm] = useState({ email: '', password: '' })
@@ -28,14 +30,14 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister, onSwit
     }
     setLoading(true)
     try {
-      const result = await login(form)
+      const captchaToken = await getCaptchaToken()
+      const result = await login({ ...form, captchaToken })
       if (!result.ok) {
         setMessage({ text: localizeError(result.message), type: 'error' })
         return
       }
       saveAuth({ token: result.token, email: form.email, role: result.role })
       setMessage({ text: 'Đăng nhập thành công, đang chuyển hướng...', type: 'success' })
-      // saveAuth auto-decodes fullName from token; read from localStorage as the freshest source
       const displayName = localStorage.getItem('hh_full_name') || form.email
       showToast(`Chào mừng ${displayName}!`, 'success')
       setTimeout(() => {
@@ -45,6 +47,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister, onSwit
     } catch (err) {
       setMessage({ text: localizeError(err.message), type: 'error' })
     } finally {
+      resetCaptcha()
       setLoading(false)
     }
   }
@@ -60,6 +63,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister, onSwit
           <input type="password" name="password" value={form.password} onChange={handleChange}
             required placeholder="••••••••" autoComplete="current-password" />
         </FormField>
+        <RecaptchaField />
         <LoadingButton loading={loading} type="submit">Đăng nhập</LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
         <p className="form-footer">
