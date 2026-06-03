@@ -3,6 +3,7 @@ package com.hackathon.hackathon.repository;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,8 +37,8 @@ public class TeamRepository {
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
             }
-        } catch (Exception e) {
-            return false;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql, e);
         }
     }
 
@@ -50,8 +51,8 @@ public class TeamRepository {
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
             }
-        } catch (Exception e) {
-            return false;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql, e);
         }
     }
 
@@ -68,8 +69,8 @@ public class TeamRepository {
                     return rs.getString("team_id");
                 }
             }
-        } catch (Exception e) {
-            return null;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql, e);
         }
         return null;
     }
@@ -82,8 +83,8 @@ public class TeamRepository {
             ps.setString(1, teamId);
             ps.setString(2, userId);
             return ps.executeUpdate() > 0;
-        } catch (Exception e) {
-            return false;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql, e);
         }
     }
 
@@ -98,8 +99,25 @@ public class TeamRepository {
                     return rs.getString("team_id");
                 }
             }
-        } catch (Exception e) {
-            return null;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql, e);
+        }
+        return null;
+    }
+
+    public String findTeamStatusById(String teamId) {
+        String sql = "SELECT status FROM [dbo].[teams] WHERE team_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, teamId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("status");
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(sql, e);
         }
         return null;
     }
@@ -115,8 +133,8 @@ public class TeamRepository {
                     return rs.getString("team_id");
                 }
             }
-        } catch (Exception e) {
-            return null;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql, e);
         }
         return null;
     }
@@ -129,8 +147,8 @@ public class TeamRepository {
             ps.setString(1, memberId);
             ps.setString(2, teamId);
             return ps.executeUpdate() > 0;
-        } catch (Exception e) {
-            return false;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql, e);
         }
     }
 
@@ -210,8 +228,8 @@ public class TeamRepository {
                     }
                 }
             }
-        } catch (Exception e) {
-            return teams;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql.toString(), e);
         }
 
         for (MentorAssignedTeamResponse team : teamMap.values()) {
@@ -262,8 +280,8 @@ public class TeamRepository {
                 }
                 return detail;
             }
-        } catch (Exception e) {
-            return null;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql, e);
         }
     }
 }

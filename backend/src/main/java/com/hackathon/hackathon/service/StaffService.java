@@ -244,10 +244,14 @@ public class StaffService {
             throw new BadRequestException("Event not found.");
         }
 
-        return eventMapper.toDetailResponse(event, eventRepository.findCategoriesByEventId(eventId),
+        return eventMapper.toDetailResponse(
+                event,
+                eventRepository.findCategoriesByEventId(eventId),
                 eventRepository.findRoundsByEventId(eventId),
                 eventRepository.findTeamRegistrationsByEventId(eventId),
-                eventRepository.findAwardsByEventId(eventId));
+                eventRepository.findAwardsByEventId(eventId),
+                eventRepository.findAssignedMentorsByEventId(eventId),
+                eventRepository.findAssignedJudgesByEventId(eventId));
     }
     // endregion
 
@@ -380,6 +384,7 @@ public class StaffService {
         response.setStatus("SENT");
         return response;
     }
+  
     // region ASSIGN JUDGE / MENTOR
 
     public String assignJudge(String authHeader, AssignJudgeRequest request) {

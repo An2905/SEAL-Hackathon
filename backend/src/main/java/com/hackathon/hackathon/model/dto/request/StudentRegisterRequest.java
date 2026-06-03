@@ -12,5 +12,7 @@ public class StudentRegisterRequest {
 
     private String university;
 
-    private String studentId;    
+    private String studentId;
+
+    private String captchaToken;
 }

@@ -27,5 +27,7 @@ public class JudgeController {
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         return judgeService.getAssignedEvents(authHeader);
     }
+
+
 }
 

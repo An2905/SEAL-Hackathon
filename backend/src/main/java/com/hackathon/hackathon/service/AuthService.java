@@ -30,6 +30,9 @@ import com.hackathon.hackathon.repository.UserRepository;
 
 @Service
 public class AuthService {
+    @Autowired
+    private CaptchaService captchaService;
+
     private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     private final SecureRandom secureRandom = new SecureRandom();
@@ -88,6 +91,12 @@ public class AuthService {
         }
     }
 
+    private void requireValidCaptcha(String captchaToken) {
+        if (!captchaService.verify(captchaToken)) {
+            throw new BadRequestException("Invalid captcha.");
+        }
+    }
+
     @Autowired
     private EmailService emailService;
 
@@ -102,6 +111,7 @@ public class AuthService {
     public LoginResponse login(LoginRequest request) {
         requireValidEmail(request.getEmail());
         requireNonBlank(request.getPassword(), "Password");
+        requireValidCaptcha(request.getCaptchaToken());
 
         User user = userRepository.findByEmail(request.getEmail());
 
@@ -295,6 +305,7 @@ public class AuthService {
     // #region REGISTER STEPS WITH OTP
 
     public MessageResponse sendRegisterOtp(StudentRegisterRequest request, HttpSession session) {
+        requireValidCaptcha(request.getCaptchaToken());
         String email = request.getEmail();
 
         requireValidEmail(email);

@@ -6,13 +6,11 @@ import LoadingButton from "../common/LoadingButton";
 import {
 	sendRegisterOtp,
 	verifyAndRegister,
-	login,
 } from "../../api/auth";
 import { getAllUniversities } from "../../api/university";
-import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
-import { useNavigate } from "react-router-dom";
 import { localizeError } from "../../utils/errors";
+import { useRecaptcha } from "../../hooks/useRecaptcha";
 
 const EMPTY_FORM = {
 	fullName: "",
@@ -23,9 +21,17 @@ const EMPTY_FORM = {
 };
 
 export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
-	const { saveAuth, pathForRole } = useAuth();
 	const { showToast } = useToast();
-	const navigate = useNavigate();
+	const {
+		getCaptchaToken: getInfoCaptcha,
+		resetCaptcha: resetInfoCaptcha,
+		RecaptchaField: InfoRecaptchaField,
+	} = useRecaptcha();
+	const {
+		getCaptchaToken: getResendCaptcha,
+		resetCaptcha: resetResendCaptcha,
+		RecaptchaField: ResendRecaptchaField,
+	} = useRecaptcha();
 	const [step, setStep] = useState("info");
 	const [loading, setLoading] = useState(false);
 	const [message, setMessage] = useState(null);
@@ -79,7 +85,8 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
 		}
 		setLoading(true);
 		try {
-			await sendRegisterOtp(form);
+			const captchaToken = await getInfoCaptcha();
+			await sendRegisterOtp({ ...form, captchaToken });
 			setStep("otp");
 			setMessage({
 				text: "Đã gửi mã OTP tới email. Vui lòng kiểm tra hộp thư.",
@@ -88,6 +95,7 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
 		} catch (err) {
 			setMessage({ text: localizeError(err.message), type: "error" });
 		} finally {
+			resetInfoCaptcha();
 			setLoading(false);
 		}
 	};
@@ -104,32 +112,10 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
 		try {
 			await verifyAndRegister({ email: form.email, otp: code });
 			setMessage({
-				text: "Tạo tài khoản thành công! Đang đăng nhập...",
+				text: "Tạo tài khoản thành công! Vui lòng đăng nhập.",
 				type: "success",
 			});
 			showToast("Tạo tài khoản thành công!", "success");
-
-			try {
-				const result = await login({
-					email: form.email,
-					password: form.password,
-				});
-				if (result.ok) {
-					saveAuth({
-						token: result.token,
-						email: form.email,
-						role: result.role,
-					});
-					setTimeout(() => {
-						onClose();
-						navigate(pathForRole(result.role));
-					}, 500);
-					return;
-				}
-			} catch (_) {
-				/* fall through to login modal */
-			}
-
 			setTimeout(() => {
 				onClose();
 				onSwitchToLogin();
@@ -145,11 +131,13 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
 		setMessage(null);
 		setLoading(true);
 		try {
-			await sendRegisterOtp(form);
+			const captchaToken = await getResendCaptcha();
+			await sendRegisterOtp({ ...form, captchaToken });
 			setMessage({ text: "Đã gửi lại mã OTP.", type: "success" });
 		} catch (err) {
 			setMessage({ text: localizeError(err.message), type: "error" });
 		} finally {
+			resetResendCaptcha();
 			setLoading(false);
 		}
 	};
@@ -234,6 +222,7 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
 							autoComplete="new-password"
 						/>
 					</FormField>
+					<InfoRecaptchaField />
 					<LoadingButton loading={loading} type="submit">
 						Gửi mã OTP
 					</LoadingButton>
@@ -272,6 +261,7 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
 						Xác thực &amp; tạo tài khoản
 					</LoadingButton>
 					<FormMessage message={message?.text} type={message?.type} />
+					<ResendRecaptchaField />
 					<p className="form-footer">
 						Không nhận được mã?{" "}
 						<a

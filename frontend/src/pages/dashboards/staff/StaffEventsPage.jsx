@@ -41,7 +41,7 @@ export default function StaffEventsPage() {
 
       {/* Nút Xuất Excel */}
       <div style={{ marginBottom: 16 }}>
-        <LoadingButton loading={exporting} className='btn btn-outline' onClick={handleExport} type='button'>
+        <LoadingButton loading={exporting} className='btn btn-success' onClick={handleExport} type='button'>
           Xuất Excel
         </LoadingButton>
       </div>

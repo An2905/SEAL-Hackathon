@@ -11,6 +11,9 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
+import com.hackathon.hackathon.model.dto.response.EventAssignedJudgeResponse;
+import com.hackathon.hackathon.model.dto.response.EventAssignedMentorResponse;
+import com.hackathon.hackathon.model.dto.response.TeamTrackMentorItemResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.model.entity.Award;
 import com.hackathon.hackathon.model.entity.Category;
@@ -214,6 +217,70 @@ public class EventRepository {
         return awards;
     }
 
+    public List<EventAssignedMentorResponse> findAssignedMentorsByEventId(String eventId) {
+        List<EventAssignedMentorResponse> rows = new ArrayList<>();
+        String sql = "SELECT c.category_id, c.name AS category_name, "
+                + "u.user_id AS mentor_id, u.full_name AS mentor_name, u.email AS mentor_email "
+                + "FROM [dbo].[categories] c "
+                + "INNER JOIN [dbo].[category_mentors] cm ON c.category_id = cm.category_id "
+                + "INNER JOIN [dbo].[users] u ON cm.mentor_id = u.user_id "
+                + "WHERE c.event_id = ? "
+                + "ORDER BY c.name ASC, u.full_name ASC";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, eventId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    EventAssignedMentorResponse row = new EventAssignedMentorResponse();
+                    row.setCategoryId(rs.getString("category_id"));
+                    row.setCategoryName(rs.getString("category_name"));
+                    row.setMentorId(rs.getString("mentor_id"));
+                    row.setMentorName(rs.getString("mentor_name"));
+                    row.setMentorEmail(rs.getString("mentor_email"));
+                    rows.add(row);
+                }
+            }
+        } catch (Exception e) {
+            return rows;
+        }
+        return rows;
+    }
+
+    public List<EventAssignedJudgeResponse> findAssignedJudgesByEventId(String eventId) {
+        List<EventAssignedJudgeResponse> rows = new ArrayList<>();
+        String sql = "SELECT r.round_id, r.name AS round_name, r.round_order, "
+                + "c.category_id, c.name AS category_name, "
+                + "u.user_id AS judge_id, u.full_name AS judge_name, u.email AS judge_email "
+                + "FROM [dbo].[judge_assignments] ja "
+                + "INNER JOIN [dbo].[rounds] r ON ja.round_id = r.round_id "
+                + "INNER JOIN [dbo].[categories] c ON ja.category_id = c.category_id "
+                + "INNER JOIN [dbo].[users] u ON ja.judge_id = u.user_id "
+                + "WHERE r.event_id = ? "
+                + "ORDER BY r.round_order ASC, c.name ASC, u.full_name ASC";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, eventId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    EventAssignedJudgeResponse row = new EventAssignedJudgeResponse();
+                    row.setRoundId(rs.getString("round_id"));
+                    row.setRoundName(rs.getString("round_name"));
+                    row.setCategoryId(rs.getString("category_id"));
+                    row.setCategoryName(rs.getString("category_name"));
+                    row.setJudgeId(rs.getString("judge_id"));
+                    row.setJudgeName(rs.getString("judge_name"));
+                    row.setJudgeEmail(rs.getString("judge_email"));
+                    rows.add(row);
+                }
+            }
+        } catch (Exception e) {
+            return rows;
+        }
+        return rows;
+    }
+
     public List<Event> findEventsByMentorId(String mentorId) {
         List<Event> events = new ArrayList<>();
         String sql = "SELECT DISTINCT e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at "
@@ -264,6 +331,23 @@ public class EventRepository {
         return rounds;
     }
 
+    public String findStatusById(String eventId) {
+        String sql = "SELECT status FROM [dbo].[events] WHERE event_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, eventId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("status");
+                }
+            }
+        } catch (Exception e) {
+            return null;
+        }
+        return null;
+    }
+
     public boolean roundBelongsToEvent(String roundId, String eventId) {
         String sql = "SELECT 1 FROM [dbo].[rounds] WHERE round_id = ? AND event_id = ?";
         try (
@@ -279,16 +363,79 @@ public class EventRepository {
         }
     }
 
-    public boolean isRoundOngoing(String roundId, String eventId) {
-        String sql = "SELECT 1 FROM [dbo].[rounds] WHERE round_id = ? AND event_id = ? "
-                + "AND GETDATE() BETWEEN start_date AND end_date";
+    public boolean isSubmissionDeadlinePassed(String roundId) {
+        String sql = "SELECT submission_deadline, end_date FROM [dbo].[rounds] WHERE round_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, roundId);
-            ps.setString(2, eventId);
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
+                if (!rs.next()) {
+                    return false;
+                }
+                java.sql.Timestamp now = new java.sql.Timestamp(System.currentTimeMillis());
+                java.sql.Timestamp deadline = rs.getTimestamp("submission_deadline");
+                if (deadline != null) {
+                    return now.after(deadline);
+                }
+                java.sql.Timestamp endDate = rs.getTimestamp("end_date");
+                if (endDate != null) {
+                    return now.after(endDate);
+                }
+                return false;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public String findSubmissionDeadlineByRoundId(String roundId) {
+        String sql = "SELECT submission_deadline FROM [dbo].[rounds] WHERE round_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, roundId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    java.sql.Timestamp deadline = rs.getTimestamp("submission_deadline");
+                    return deadline == null ? null : deadline.toString();
+                }
+            }
+        } catch (Exception e) {
+            return null;
+        }
+        return null;
+    }
+
+    /**
+     * Submission allowed only while round is active: started, not ended, and before deadline (if set).
+     * Locks automatically when {@code GETDATE() > end_date} or past {@code submission_deadline}.
+     */
+    public boolean isRoundOpenForSubmission(String roundId) {
+        String sql = "SELECT start_date, end_date, submission_deadline FROM [dbo].[rounds] WHERE round_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, roundId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return false;
+                }
+                java.sql.Timestamp now = new java.sql.Timestamp(System.currentTimeMillis());
+                java.sql.Timestamp startDate = rs.getTimestamp("start_date");
+                java.sql.Timestamp endDate = rs.getTimestamp("end_date");
+                java.sql.Timestamp deadline = rs.getTimestamp("submission_deadline");
+
+                if (startDate != null && now.before(startDate)) {
+                    return false;
+                }
+                if (endDate != null && now.after(endDate)) {
+                    return false;
+                }
+                if (deadline != null && now.after(deadline)) {
+                    return false;
+                }
+                return true;
             }
         } catch (Exception e) {
             return false;
@@ -297,10 +444,12 @@ public class EventRepository {
 
     public List<Event> findEventsByJudgeId(String judgeId) {
         List<Event> events = new ArrayList<>();
-        String sql = "SELECT DISTINCT e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at \r\n" + //
-                        "FROM events e \r\n" + //
-                        "JOIN categories c ON e.event_id = c.event_id \r\n" + //
-                        "JOIN judge_assignments cm ON c.category_id = cm.category_id WHERE cm.judge_id = ? ORDER BY e.start_date DESC;";
+        String sql = "SELECT DISTINCT e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at "
+                + "FROM events e "
+                + "JOIN categories c ON e.event_id = c.event_id "
+                + "JOIN judge_assignments cm ON c.category_id = cm.category_id "
+                + "WHERE cm.judge_id = ? "
+                + "ORDER BY e.start_date DESC";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -314,5 +463,33 @@ public class EventRepository {
             return events;
         }
         return events;
+    }
+
+    public List<TeamTrackMentorItemResponse> findMentorsByCategoryId(String categoryId) {
+        List<TeamTrackMentorItemResponse> mentors = new ArrayList<>();
+        String sql = """
+            SELECT u.user_id AS mentor_id, u.full_name AS mentor_name, u.email AS mentor_email
+            FROM [dbo].[category_mentors] cm
+            JOIN [dbo].[users] u ON cm.mentor_id = u.user_id
+            WHERE cm.category_id = ?
+            ORDER BY u.full_name ASC
+            """;
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, categoryId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    TeamTrackMentorItemResponse mentor = new TeamTrackMentorItemResponse();
+                    mentor.setMentorId(rs.getString("mentor_id"));
+                    mentor.setMentorName(rs.getString("mentor_name"));
+                    mentor.setMentorEmail(rs.getString("mentor_email"));
+                    mentors.add(mentor);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(sql, e);
+        }
+        return mentors;
     }
 }

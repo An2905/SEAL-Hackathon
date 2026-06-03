@@ -6,6 +6,8 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
+import com.hackathon.hackathon.model.dto.response.EventAssignedJudgeResponse;
+import com.hackathon.hackathon.model.dto.response.EventAssignedMentorResponse;
 import com.hackathon.hackathon.model.dto.response.EventAwardResponse;
 import com.hackathon.hackathon.model.dto.response.EventCategoryResponse;
 import com.hackathon.hackathon.model.dto.response.EventDetailResponse;
@@ -109,7 +111,9 @@ public class EventMapper {
             List<Category> categories,
             List<Round> rounds,
             List<TeamRegistration> teams,
-            List<Award> awards) {
+            List<Award> awards,
+            List<EventAssignedMentorResponse> assignedMentors,
+            List<EventAssignedJudgeResponse> assignedJudges) {
         EventDetailResponse response = new EventDetailResponse();
         response.setEventId(event.getEventId());
         response.setTitle(event.getTitle());
@@ -127,6 +131,8 @@ public class EventMapper {
         response.setRounds(rounds.stream().map(this::toRoundResponse).toList());
         response.setTeams(teams.stream().map(this::toTeamResponse).toList());
         response.setAwards(awards.stream().map(this::toAwardResponse).toList());
+        response.setAssignedMentors(assignedMentors);
+        response.setAssignedJudges(assignedJudges);
         return response;
     }
 

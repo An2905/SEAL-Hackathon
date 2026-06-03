@@ -125,5 +125,4 @@ public class StaffController {
             @RequestHeader("Authorization") String authHeader) {
         return staffService.exportEventsExcel(authHeader);
     }
-
 }
