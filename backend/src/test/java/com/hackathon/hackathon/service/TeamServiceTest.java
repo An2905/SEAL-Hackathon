@@ -298,7 +298,7 @@ public class TeamServiceTest {
                 result = mockClaims;
 
                 teamRepository.findTeamDetailByUserId(userId);
-                result = null; // no team found
+                result = Optional.empty(); // no team found
             }
         };
 
@@ -324,7 +324,7 @@ public class TeamServiceTest {
                 result = mockClaims;
 
                 teamRepository.findTeamDetailByUserId(userId);
-                result = detail;
+                result = Optional.of(detail);
 
                 teamRegistrationRepository.findTrackDetailsByTeamAndEvent(teamId, eventId);
                 result = Optional.empty(); // no registration row
@@ -355,7 +355,7 @@ public class TeamServiceTest {
                 result = mockClaims;
 
                 teamRepository.findTeamDetailByUserId(userId);
-                result = detail;
+                result = Optional.of(detail);
 
                 teamRegistrationRepository.findTrackDetailsByTeamAndEvent(teamId, eventId);
                 result = Optional.of(track);
@@ -391,7 +391,7 @@ public class TeamServiceTest {
                 result = mockClaims;
 
                 teamRepository.findTeamDetailByUserId(userId);
-                result = detail;
+                result = Optional.of(detail);
 
                 teamRegistrationRepository.findTrackDetailsByTeamAndEvent(teamId, eventId);
                 result = Optional.of(track);
@@ -424,7 +424,7 @@ public class TeamServiceTest {
                 result = mockClaims;
 
                 teamRepository.findTeamDetailByUserId(userId);
-                result = detail;
+                result = Optional.of(detail);
 
                 teamRegistrationRepository.findAllByTeamId(teamId);
                 result = expectedList;
@@ -450,7 +450,7 @@ public class TeamServiceTest {
                 result = mockClaims;
 
                 teamRepository.findTeamDetailByUserId(userId);
-                result = null; // No team found
+                result = Optional.empty(); // No team found
             }
         };
 

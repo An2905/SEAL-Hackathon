@@ -73,7 +73,7 @@ public class StaffEventSetupService {
             throw new BadRequestException("Event not found.");
         }
         if (eventSetupRepository.eventTitleExistsExcluding(title, eventId)) {
-            throw new ConflictException("Tên sự kiện đã tồn tại.");
+            throw new ConflictException("Event title already exists.");
         }
 
         Timestamp startDate = parseDateTime(request.getStartDate(), "start date");
@@ -83,26 +83,21 @@ public class StaffEventSetupService {
         }
 
         if (eventSetupRepository.countRoundsOutsideEventDates(eventId, startDate, endDate) > 0) {
-            throw new ConflictException(
-                    "Không thể thu hẹp thời gian sự kiện: có vòng thi nằm ngoài khoảng ngày mới.");
+            throw new ConflictException("Cannot shrink event dates: rounds exist outside the new date range.");
         }
 
-        String currentStatus = eventSetupRepository.findEventStatus(eventId);
-        if (currentStatus != null
-                && "COMPLETED".equalsIgnoreCase(currentStatus)
-                && !"COMPLETED".equals(status)) {
-            throw new ConflictException(
-                    "Sự kiện đã COMPLETED — chỉ được giữ trạng thái COMPLETED.");
-        }
+        eventSetupRepository.findEventStatus(eventId).ifPresent(currentStatus -> {
+            if ("COMPLETED".equalsIgnoreCase(currentStatus) && !"COMPLETED".equals(status)) {
+                throw new ConflictException("Event is already COMPLETED — cannot change state.");
+            }
+        });
 
         if (!eventSetupRepository.updateEvent(eventId, title, description, startDate, endDate, status)) {
-            throw new BadRequestException("Cập nhật sự kiện thất bại.");
+            throw new BadRequestException("Failed to update event.");
         }
 
-        EventSetupRow row = eventSetupRepository.findEventById(eventId);
-        if (row == null) {
-            throw new BadRequestException("Event not found after update.");
-        }
+        EventSetupRow row = eventSetupRepository.findEventById(eventId)
+                .orElseThrow(() -> new BadRequestException("Event not found after update."));
 
         EventUpdateResponse response = new EventUpdateResponse();
         response.setEventId(row.eventId);
@@ -138,12 +133,12 @@ public class StaffEventSetupService {
             throw new BadRequestException("Event not found.");
         }
         if (eventSetupRepository.categoryNameExistsForEvent(eventId, name)) {
-            throw new ConflictException("Track đã tồn tại trong sự kiện này.");
+            throw new ConflictException("Category already exists in this event.");
         }
 
         String categoryId = eventSetupRepository.insertCategory(eventId, name, description);
         if (categoryId == null || categoryId.isBlank()) {
-            throw new BadRequestException("Tạo category thất bại.");
+            throw new BadRequestException("Failed to create category.");
         }
 
         CreateEventCategoryResponse response = new CreateEventCategoryResponse();
@@ -188,7 +183,7 @@ public class StaffEventSetupService {
         String roundId = eventSetupRepository.insertRound(
                 eventId, name, roundOrder, startDate, endDate, submissionDeadline);
         if (roundId == null || roundId.isBlank()) {
-            throw new BadRequestException("Tạo vòng thi thất bại.");
+            throw new BadRequestException("Failed to create round.");
         }
 
         CreateEventRoundResponse response = new CreateEventRoundResponse();
@@ -217,15 +212,14 @@ public class StaffEventSetupService {
             throw new BadRequestException("Category does not belong to this event.");
         }
         if (eventSetupRepository.countTeamRegistrationsByCategory(cid) > 0) {
-            throw new ConflictException(
-                    "Không thể xóa track đã có đội đăng ký. Hãy xử lý đăng ký trước.");
+            throw new ConflictException("Cannot delete category with registered teams. Handle registrations first.");
         }
 
         eventSetupRepository.deleteCategoryMentorsByCategory(cid);
         eventSetupRepository.deleteJudgeAssignmentsByCategory(cid);
         eventSetupRepository.deleteAdvancementRulesByCategory(cid);
         if (!eventSetupRepository.deleteCategory(eid, cid)) {
-            throw new BadRequestException("Xóa category thất bại.");
+            throw new BadRequestException("Failed to delete category.");
         }
         return new MessageResponse("Category deleted successfully");
     }
@@ -245,14 +239,13 @@ public class StaffEventSetupService {
             throw new BadRequestException("Round does not belong to this event.");
         }
         if (eventSetupRepository.countSubmissionsByRound(rid) > 0) {
-            throw new ConflictException(
-                    "Không thể xóa vòng đã có bài nộp. Hãy xử lý submission trước.");
+            throw new ConflictException("Cannot delete round with submissions. Handle submissions first.");
         }
 
         eventSetupRepository.deleteJudgeAssignmentsByRound(rid);
         eventSetupRepository.deleteAdvancementRulesByRound(rid);
         if (!eventSetupRepository.deleteRound(eid, rid)) {
-            throw new BadRequestException("Xóa vòng thi thất bại.");
+            throw new BadRequestException("Failed to delete round.");
         }
         return new MessageResponse("Round deleted successfully");
     }
@@ -284,11 +277,11 @@ public class StaffEventSetupService {
             throw new BadRequestException("Category does not belong to this event.");
         }
         if (eventSetupRepository.categoryNameExistsForEvent(eventId, name, categoryId)) {
-            throw new ConflictException("Track đã tồn tại trong sự kiện này.");
+            throw new ConflictException("Category already exists in this event.");
         }
 
         if (!eventSetupRepository.updateCategory(eventId, categoryId, name, description)) {
-            throw new BadRequestException("Cập nhật category thất bại.");
+            throw new BadRequestException("Failed to update category.");
         }
 
         CreateEventCategoryResponse response = new CreateEventCategoryResponse();
@@ -325,17 +318,15 @@ public class StaffEventSetupService {
             throw new BadRequestException("Round does not belong to this event.");
         }
 
-        EventRoundSetupRow existing = eventSetupRepository.findRoundByEventAndId(eventId, roundId);
-        if (existing == null) {
-            throw new BadRequestException("Round not found.");
-        }
+        eventSetupRepository.findRoundByEventAndId(eventId, roundId)
+                .orElseThrow(() -> new BadRequestException("Round not found."));
 
         int roundOrder = request.getRoundOrder();
         if (eventSetupRepository.roundNameExistsForEvent(eventId, name, roundId)) {
-            throw new ConflictException("Tên vòng đã tồn tại trong sự kiện này.");
+            throw new ConflictException("Round name already exists in this event.");
         }
         if (eventSetupRepository.roundOrderExistsForEvent(eventId, roundOrder, roundId)) {
-            throw new ConflictException("Thứ tự vòng đã được dùng bởi vòng khác.");
+            throw new ConflictException("Round order is already in use by another round.");
         }
 
         Timestamp startDate = parseDateTime(request.getStartDate(), "start date");
@@ -352,22 +343,19 @@ public class StaffEventSetupService {
         validateRoundWithinEvent(eventId, startDate, endDate, submissionDeadline);
 
         if (eventSetupRepository.countSubmissionsByRound(roundId) > 0) {
-            Timestamp maxSubmitted = eventSetupRepository.findMaxSubmissionTimeByRound(roundId);
-            if (maxSubmitted != null) {
+            eventSetupRepository.findMaxSubmissionTimeByRound(roundId).ifPresent(maxSubmitted -> {
                 if (submissionDeadline.before(maxSubmitted)) {
-                    throw new ConflictException(
-                            "Deadline nộp bài không thể trước thời điểm đội đã nộp bài.");
+                    throw new ConflictException("Submission deadline cannot be before existing submission times.");
                 }
                 if (endDate.before(maxSubmitted)) {
-                    throw new ConflictException(
-                            "Ngày kết thúc vòng không thể trước thời điểm đội đã nộp bài.");
+                    throw new ConflictException("Round end date cannot be before existing submission times.");
                 }
-            }
+            });
         }
 
         if (!eventSetupRepository.updateRound(
                 eventId, roundId, name, roundOrder, startDate, endDate, submissionDeadline)) {
-            throw new BadRequestException("Cập nhật vòng thi thất bại.");
+            throw new BadRequestException("Failed to update round.");
         }
 
         CreateEventRoundResponse response = new CreateEventRoundResponse();
@@ -393,10 +381,8 @@ public class StaffEventSetupService {
             throw new BadRequestException("Round does not belong to this event.");
         }
 
-        EventRoundSetupRow row = eventSetupRepository.findRoundByEventAndId(eid, rid);
-        if (row == null) {
-            throw new BadRequestException("Round not found.");
-        }
+        EventRoundSetupRow row = eventSetupRepository.findRoundByEventAndId(eid, rid)
+                .orElseThrow(() -> new BadRequestException("Round not found."));
 
         EventRoundSetupResponse response = new EventRoundSetupResponse();
         response.setRoundId(row.roundId);
@@ -414,21 +400,19 @@ public class StaffEventSetupService {
             Timestamp startDate,
             Timestamp endDate,
             Timestamp submissionDeadline) {
-        Timestamp[] bounds = eventSetupRepository.findEventDateBounds(eventId);
-        if (bounds == null) {
-            return;
-        }
-        Timestamp eventStart = bounds[0];
-        Timestamp eventEnd = bounds[1];
-        if (eventStart != null && startDate.before(eventStart)) {
-            throw new ConflictException("Vòng thi không thể bắt đầu trước ngày bắt đầu sự kiện.");
-        }
-        if (eventEnd != null && endDate.after(eventEnd)) {
-            throw new ConflictException("Vòng thi không thể kết thúc sau ngày kết thúc sự kiện.");
-        }
-        if (eventEnd != null && submissionDeadline.after(eventEnd)) {
-            throw new ConflictException("Deadline nộp bài không thể sau ngày kết thúc sự kiện.");
-        }
+        eventSetupRepository.findEventDateBounds(eventId).ifPresent(bounds -> {
+            Timestamp eventStart = bounds[0];
+            Timestamp eventEnd = bounds[1];
+            if (eventStart != null && startDate.before(eventStart)) {
+                throw new ConflictException("Round cannot start before event start date.");
+            }
+            if (eventEnd != null && endDate.after(eventEnd)) {
+                throw new ConflictException("Round cannot end after event end date.");
+            }
+            if (eventEnd != null && submissionDeadline.after(eventEnd)) {
+                throw new ConflictException("Submission deadline cannot be after event end date.");
+            }
+        });
     }
 
     private static String timestampToIso(Timestamp ts) {

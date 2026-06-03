@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import javax.sql.DataSource;
 
@@ -88,7 +89,7 @@ public class TeamRepository {
         }
     }
 
-    public String findTeamIdByEnrollCode(String enrollCode) {
+    public Optional<String> findTeamIdByEnrollCode(String enrollCode) {
         String sql = "SELECT team_id FROM teams WHERE enrollCode = ? AND status = 'ACTIVE'";
         try (
                 Connection conn = dataSource.getConnection();
@@ -96,16 +97,16 @@ public class TeamRepository {
             ps.setString(1, enrollCode);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getString("team_id");
+                    return Optional.of(rs.getString("team_id"));
                 }
             }
         } catch (SQLException e) {
             throw new RuntimeException(sql, e);
         }
-        return null;
+        return Optional.empty();
     }
 
-    public String findTeamStatusById(String teamId) {
+    public Optional<String> findTeamStatusById(String teamId) {
         String sql = "SELECT status FROM [dbo].[teams] WHERE team_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
@@ -113,16 +114,16 @@ public class TeamRepository {
             ps.setString(1, teamId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getString("status");
+                    return Optional.of(rs.getString("status"));
                 }
             }
         } catch (SQLException e) {
             throw new RuntimeException(sql, e);
         }
-        return null;
+        return Optional.empty();
     }
 
-    public String findTeamIdByLeaderId(String leaderId) {
+    public Optional<String> findTeamIdByLeaderId(String leaderId) {
         String sql = "SELECT team_id FROM teams WHERE leader_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
@@ -130,13 +131,13 @@ public class TeamRepository {
             ps.setString(1, leaderId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getString("team_id");
+                    return Optional.of(rs.getString("team_id"));
                 }
             }
         } catch (SQLException e) {
             throw new RuntimeException(sql, e);
         }
-        return null;
+        return Optional.empty();
     }
 
     public boolean removeMember(String teamId, String memberId) {
@@ -240,7 +241,7 @@ public class TeamRepository {
         return teams;
     }
 
-    public TeamDetail findTeamDetailByUserId(String userId) {
+    public Optional<TeamDetail> findTeamDetailByUserId(String userId) {
         String sql = "SELECT t.team_id, t.team_name, t.leader_id, t.status, t.enrollCode, "
                 + "u.full_name AS leader_name, u.email AS leader_email "
                 + "FROM [dbo].[team_members] tm "
@@ -253,7 +254,7 @@ public class TeamRepository {
             ps.setString(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
-                    return null;
+                    return Optional.empty();
                 }
 
                 TeamDetail detail = new TeamDetail();
@@ -278,7 +279,7 @@ public class TeamRepository {
                         }
                     }
                 }
-                return detail;
+                return Optional.of(detail);
             }
         } catch (SQLException e) {
             throw new RuntimeException(sql, e);

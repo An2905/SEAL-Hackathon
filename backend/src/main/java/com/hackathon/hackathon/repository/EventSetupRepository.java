@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
+import java.util.Optional;
 
 import javax.sql.DataSource;
 
@@ -83,7 +84,7 @@ public class EventSetupRepository {
         }
     }
 
-    public EventRoundSetupRow findRoundByEventAndId(String eventId, String roundId) {
+    public Optional<EventRoundSetupRow> findRoundByEventAndId(String eventId, String roundId) {
         String sql = "SELECT round_id, event_id, name, round_order, start_date, end_date, submission_deadline "
                 + "FROM [dbo].[rounds] WHERE event_id = ? AND round_id = ?";
         try (
@@ -101,16 +102,16 @@ public class EventSetupRepository {
                     row.startDate = rs.getTimestamp("start_date");
                     row.endDate = rs.getTimestamp("end_date");
                     row.submissionDeadline = rs.getTimestamp("submission_deadline");
-                    return row;
+                    return Optional.of(row);
                 }
             }
         } catch (Exception e) {
-            return null;
+            throw new RuntimeException(sql, e);
         }
-        return null;
+        return Optional.empty();
     }
 
-    public Timestamp findMaxSubmissionTimeByRound(String roundId) {
+    public Optional<Timestamp> findMaxSubmissionTimeByRound(String roundId) {
         String sql = "SELECT MAX(submitted_at) AS max_submitted FROM [dbo].[submissions] WHERE round_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
@@ -118,13 +119,13 @@ public class EventSetupRepository {
             ps.setString(1, roundId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getTimestamp("max_submitted");
+                    return Optional.ofNullable(rs.getTimestamp("max_submitted"));
                 }
             }
         } catch (Exception e) {
-            return null;
+            throw new RuntimeException(sql, e);
         }
-        return null;
+        return Optional.empty();
     }
 
     public boolean eventTitleExistsExcluding(String title, String excludeEventId) {
@@ -171,7 +172,7 @@ public class EventSetupRepository {
         return 0;
     }
 
-    public String findEventStatus(String eventId) {
+    public Optional<String> findEventStatus(String eventId) {
         String sql = "SELECT status FROM [dbo].[events] WHERE event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
@@ -179,13 +180,13 @@ public class EventSetupRepository {
             ps.setString(1, eventId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getString("status");
+                    return Optional.ofNullable(rs.getString("status"));
                 }
             }
         } catch (Exception e) {
-            return null;
+            throw new RuntimeException(sql, e);
         }
-        return null;
+        return Optional.empty();
     }
 
     public boolean updateEvent(
@@ -212,7 +213,7 @@ public class EventSetupRepository {
         }
     }
 
-    public EventSetupRow findEventById(String eventId) {
+    public Optional<EventSetupRow> findEventById(String eventId) {
         String sql = "SELECT event_id, title, description, start_date, end_date, status, created_at "
                 + "FROM [dbo].[events] WHERE event_id = ?";
         try (
@@ -229,16 +230,16 @@ public class EventSetupRepository {
                     row.endDate = rs.getTimestamp("end_date");
                     row.status = rs.getString("status");
                     row.createdAt = rs.getTimestamp("created_at");
-                    return row;
+                    return Optional.of(row);
                 }
             }
         } catch (Exception e) {
-            return null;
+            throw new RuntimeException(sql, e);
         }
-        return null;
+        return Optional.empty();
     }
 
-    public Timestamp[] findEventDateBounds(String eventId) {
+    public Optional<Timestamp[]> findEventDateBounds(String eventId) {
         String sql = "SELECT start_date, end_date FROM [dbo].[events] WHERE event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
@@ -246,16 +247,16 @@ public class EventSetupRepository {
             ps.setString(1, eventId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return new Timestamp[] {
+                    return Optional.of(new Timestamp[] {
                             rs.getTimestamp("start_date"),
                             rs.getTimestamp("end_date")
-                    };
+                    });
                 }
             }
         } catch (Exception e) {
-            return null;
+            throw new RuntimeException(sql, e);
         }
-        return null;
+        return Optional.empty();
     }
 
     public boolean updateCategory(String eventId, String categoryId, String name, String description) {

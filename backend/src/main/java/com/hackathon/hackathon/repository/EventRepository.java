@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import javax.sql.DataSource;
 
@@ -113,7 +114,7 @@ public class EventRepository {
         return events;
     }
 
-    public Event findDetailHeader(String eventId) {
+    public Optional<Event> findDetailHeader(String eventId) {
         String sql = "SELECT "
                 + "e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at, "
                 + "COUNT(DISTINCT tr.team_id) AS total_teams, "
@@ -134,13 +135,13 @@ public class EventRepository {
             ps.setString(1, eventId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return eventMapper.fromDetailHeaderRow(rs);
+                    return Optional.ofNullable(eventMapper.fromDetailHeaderRow(rs));
                 }
             }
         } catch (Exception e) {
-            return null;
+            throw new RuntimeException(sql, e);
         }
-        return null;
+        return Optional.empty();
     }
 
     public List<Category> findCategoriesByEventId(String eventId) {
@@ -330,7 +331,7 @@ public class EventRepository {
         return rounds;
     }
 
-    public String findStatusById(String eventId) {
+    public Optional<String> findStatusById(String eventId) {
         String sql = "SELECT status FROM [dbo].[events] WHERE event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
@@ -338,13 +339,13 @@ public class EventRepository {
             ps.setString(1, eventId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getString("status");
+                    return Optional.ofNullable(rs.getString("status"));
                 }
             }
         } catch (Exception e) {
-            return null;
+            throw new RuntimeException(sql, e);
         }
-        return null;
+        return Optional.empty();
     }
 
     public boolean roundBelongsToEvent(String roundId, String eventId) {
@@ -388,7 +389,7 @@ public class EventRepository {
         }
     }
 
-    public String findSubmissionDeadlineByRoundId(String roundId) {
+    public Optional<String> findSubmissionDeadlineByRoundId(String roundId) {
         String sql = "SELECT submission_deadline FROM [dbo].[rounds] WHERE round_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
@@ -397,13 +398,13 @@ public class EventRepository {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     java.sql.Timestamp deadline = rs.getTimestamp("submission_deadline");
-                    return deadline == null ? null : deadline.toString();
+                    return Optional.ofNullable(deadline == null ? null : deadline.toString());
                 }
             }
         } catch (Exception e) {
-            return null;
+            throw new RuntimeException(sql, e);
         }
-        return null;
+        return Optional.empty();
     }
 
     /**
