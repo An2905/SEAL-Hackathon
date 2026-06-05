@@ -92,6 +92,7 @@ We follow a specific architectural pattern to maintain high performance and low 
 3. **Security**: Always use `PreparedStatement` to prevent SQL injection.
 4. **Manual JSON**: Build JSON responses manually using `StringBuilder`. Do not use Jackson/Gson for response serialization.
 5. **Resource Management**: Use try-with-resources for all JDBC resources.
+6. **WebSocket Integration**: Live chat modules must utilize Spring WebSocket message broker configured on the `/ws` endpoint with SockJS. Authentication must be validated on `CONNECT` using a `ChannelInterceptor` checking the `Authorization` header (`Bearer <token>`).
 
 _Reference `TeamService.java` for the standard implementation pattern._
 
