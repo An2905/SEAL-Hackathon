@@ -281,9 +281,10 @@ public class ChatRepository {
 
     public boolean mentorAssignedToTeamEvent(String teamId, String eventId, String mentorId) {
         String sql = "SELECT 1 FROM team_registrations tr "
-                + "JOIN categories c ON tr.category_id = c.category_id "
-                + "JOIN category_mentors cm ON cm.category_id = c.category_id "
-                + "WHERE tr.team_id = ? AND tr.event_id = ? AND tr.status = 'APPROVED' AND cm.mentor_id = ?";
+                + "JOIN group_teams gt ON gt.team_id = tr.team_id "
+                + "JOIN rounds r ON gt.round_id = r.round_id AND r.event_id = tr.event_id "
+                + "JOIN mentor_assignments ma ON ma.group_id = gt.group_id AND ma.round_id = gt.round_id "
+                + "WHERE tr.team_id = ? AND tr.event_id = ? AND tr.status = 'APPROVED' AND ma.mentor_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {

@@ -4,7 +4,11 @@ const ERROR_MAP = {
   HTTP_403: 'Bạn không có quyền thực hiện thao tác này.',
   HTTP_404: 'Không tìm thấy tài nguyên yêu cầu.',
   HTTP_500: 'Lỗi máy chủ. Vui lòng thử lại sau.',
-  'Invalid captcha.': 'Captcha không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.'
+  'Invalid captcha.': 'Captcha không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.',
+  'Team name already exists. Please choose a different name.':
+    'Tên đội đã tồn tại. Vui lòng chọn tên khác.',
+  'Team name cannot be empty.': 'Tên đội không được để trống.',
+  'Team name must be at most 100 characters.': 'Tên đội tối đa 100 ký tự.'
 }
 
 // Các pattern kỹ thuật không được hiển thị trực tiếp ra UI

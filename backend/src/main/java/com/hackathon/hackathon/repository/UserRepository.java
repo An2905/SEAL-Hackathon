@@ -4,10 +4,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import javax.sql.DataSource;
 
@@ -32,23 +32,29 @@ public class UserRepository {
     ///
     /// Params: String fullName, String email, String passwordHash, String role
     /// Excep: RuntimeException
-    /// Return: True if updated successfully, else False
-    public boolean insertStaffUser(String fullName, String email, String passwordHash, String role) {
-        String sql = "INSERT INTO users(full_name, email, password_hash, role, status)"
-                + " VALUES (?, ?, ?, ?, 'APPROVED')";
+    /// Return: user_id if inserted successfully, else null
+    public String insertStaffUser(String fullName, String email, String passwordHash, String role) {
+        String userId = UUID.randomUUID().toString();
+        String sql = "INSERT INTO users (user_id, full_name, email, password_hash, role, status)"
+                + " VALUES (?, ?, ?, ?, ?, 'APPROVED')";
 
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setString(1, fullName);
-            ps.setString(2, email);
-            ps.setString(3, passwordHash);
-            ps.setString(4, role);
+            ps.setString(1, userId);
+            ps.setString(2, fullName);
+            ps.setString(3, email);
+            ps.setString(4, passwordHash);
+            ps.setString(5, role);
 
-            return ps.executeUpdate() > 0;
+            if (ps.executeUpdate() > 0) {
+                return userId;
+            }
         } catch (SQLException e) {
-            throw new RuntimeException(sql);
+            throw new RuntimeException(sql, e);
         }
+
+        return null;
     }
 
     /// Insert new student user
@@ -57,21 +63,20 @@ public class UserRepository {
     /// Excep: RuntimeException
     /// Return: student user if inserted successfully, else null
     public String insertStudentUser(String fullName, String email, String passwordHash, String role) {
-        String sql = "INSERT INTO users (full_name, email, password_hash, role, status) VALUES (?, ?, ?, ?, 'APPROVED')";
+        String userId = UUID.randomUUID().toString();
+        String sql = "INSERT INTO users (user_id, full_name, email, password_hash, role, status)"
+                + " VALUES (?, ?, ?, ?, ?, 'APPROVED')";
         try (Connection conn = dataSource.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setString(1, fullName);
-            ps.setString(2, email);
-            ps.setString(3, passwordHash);
-            ps.setString(4, role);
+            ps.setString(1, userId);
+            ps.setString(2, fullName);
+            ps.setString(3, email);
+            ps.setString(4, passwordHash);
+            ps.setString(5, role);
 
             if (ps.executeUpdate() > 0) {
-                try (ResultSet rs = ps.getGeneratedKeys()) {
-                    if (rs.next()) {
-                        return rs.getString(1);
-                    }
-                }
+                return userId;
             }
         } catch (SQLException e) {
             throw new RuntimeException(sql, e);
@@ -124,16 +129,20 @@ public class UserRepository {
     /// Return: List of users found by role or all available users
     public List<User> findByRoleOrAllUsers(String roleFilter) {
         List<User> users = new ArrayList<>();
-        boolean filterByRole = !"ALL".equals(roleFilter);
+        boolean filterAll = "ALL".equals(roleFilter);
+        boolean filterExpert = "EXPERT".equals(roleFilter);
 
-        // Xây dựng SQL TRƯỚC, rồi mới prepareStatement
-        String sql = "SELECT user_id, email, full_name, role, status FROM users"
-                + (filterByRole ? " WHERE role = ?" : "");
+        String sql = "SELECT user_id, email, full_name, role, status FROM users";
+        if (filterExpert) {
+            sql += " WHERE role IN ('EXPERT_INTERNAL', 'EXPERT_EXTERNAL')";
+        } else if (!filterAll) {
+            sql += " WHERE role = ?";
+        }
 
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            if (filterByRole) {
+            if (!filterAll && !filterExpert) {
                 ps.setString(1, roleFilter);
             }
 
@@ -210,7 +219,7 @@ public class UserRepository {
                 PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, status);
-            ps.setLong(2, Long.parseLong(userId));
+            ps.setString(2, userId);
 
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {

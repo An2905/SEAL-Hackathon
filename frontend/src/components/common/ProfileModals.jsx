@@ -8,7 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { localizeError } from "../../utils/errors";
 
-export function ProfileModal({ isOpen, onClose, showStudentFields = false }) {
+export function ProfileModal({ isOpen, onClose, showStudentFields = false, showStaffFields = false }) {
 	const { auth, saveAuth } = useAuth();
 	const { showToast } = useToast();
 	const [loading, setLoading] = useState(false);
@@ -18,6 +18,8 @@ export function ProfileModal({ isOpen, onClose, showStudentFields = false }) {
 		email: auth.email,
 		university: "",
 		studentId: "",
+		phone: "",
+		avatarUrl: "",
 	});
 
 	const handleChange = (e) =>
@@ -32,7 +34,6 @@ export function ProfileModal({ isOpen, onClose, showStudentFields = false }) {
 			// saveAuth auto-decodes fullName/email from new token; pass email/fullName as fallbacks
 			saveAuth({
 				...(newToken ? { token: newToken } : {}),
-				email: form.email,
 				fullName: form.fullName,
 			});
 			setMessage({ text: "Cập nhật hồ sơ thành công!", type: "success" });
@@ -62,13 +63,13 @@ export function ProfileModal({ isOpen, onClose, showStudentFields = false }) {
 						placeholder="Nguyễn Văn A"
 					/>
 				</FormField>
-				<FormField label="Email">
+				<FormField label="Email — để trống nếu giữ nguyên">
 					<input
 						name="email"
 						type="email"
 						value={form.email}
 						onChange={handleChange}
-						required
+						placeholder={auth.email || "email@example.com"}
 					/>
 				</FormField>
 				{showStudentFields && (
@@ -88,6 +89,30 @@ export function ProfileModal({ isOpen, onClose, showStudentFields = false }) {
 							/>
 						</FormField>
 					</div>
+				)}
+				{showStaffFields && (
+					<>
+						<FormField label="Số điện thoại">
+							<input
+								name="phone"
+								type="tel"
+								value={form.phone}
+								onChange={handleChange}
+								required
+								placeholder="09xxxxxxxx"
+								autoComplete="tel"
+							/>
+						</FormField>
+						<FormField label="Ảnh đại diện (URL) — tùy chọn">
+							<input
+								name="avatarUrl"
+								type="text"
+								value={form.avatarUrl}
+								onChange={handleChange}
+								placeholder="Để trống nếu không dùng"
+							/>
+						</FormField>
+					</>
 				)}
 				<LoadingButton loading={loading} type="submit">
 					Cập nhật

@@ -1,6 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import DashboardShell from './DashboardShell'
-import { getAssignedEvents, getAssignedCurrentRounds } from '../../api/mentor'
+import {
+  getAssignedEvents,
+  getAssignedCurrentRounds,
+  getAssignedTeams,
+  getMentorAssignments
+} from '../../api/mentor'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
@@ -21,6 +27,7 @@ function formatDateTime(value) {
 
 function eventStatusPillClass(status) {
   const key = (status || '').toUpperCase()
+  if (key === 'BUILDING') return 'status-pending'
   if (key === 'UPCOMING') return 'status-pending'
   if (key === 'ONGOING') return 'status-active'
   if (key === 'COMPLETED') return 'status-default'
@@ -41,8 +48,31 @@ function StatusBadge({ status }) {
   )
 }
 
+function registrationStatusPillClass(status) {
+  const key = (status || '').toUpperCase()
+  if (key === 'APPROVED') return 'status-active'
+  if (key === 'PENDING') return 'status-pending'
+  if (key === 'REJECTED') return 'status-rejected'
+  return 'status-default'
+}
+
+function assignmentKey(a) {
+  return `${a.eventId}-${a.roundId}-${a.groupId}`
+}
+
+function assignmentLabel(a) {
+  return [a.eventTitle, a.roundName, a.groupName].filter(Boolean).join(' · ')
+}
+
+const TEAM_STATUS_FILTERS = [
+  { value: 'APPROVED', label: 'Đã duyệt' },
+  { value: 'PENDING', label: 'Chờ duyệt' },
+  { value: 'ALL', label: 'Tất cả' }
+]
+
 export default function MentorDashboard() {
-  const { auth } = useAuth()
+  const { auth, pillLabelForRole } = useAuth()
+  const guestLabel = pillLabelForRole(auth.role) || 'Khách'
   const { showToast } = useToast()
 
   const [events, setEvents] = useState([])
@@ -52,13 +82,31 @@ export default function MentorDashboard() {
   const [rounds, setRounds] = useState([])
   const [loadingRounds, setLoadingRounds] = useState(true)
   const [errorRounds, setErrorRounds] = useState(null)
+
+  const [assignments, setAssignments] = useState([])
+  const [loadingAssignments, setLoadingAssignments] = useState(true)
+  const [errorAssignments, setErrorAssignments] = useState(null)
+  const [selectedAssignmentKey, setSelectedAssignmentKey] = useState('')
+  const [teamStatusFilter, setTeamStatusFilter] = useState('APPROVED')
+  const [teams, setTeams] = useState([])
+  const [loadingTeams, setLoadingTeams] = useState(false)
+  const [errorTeams, setErrorTeams] = useState(null)
   const [chatOpen, setChatOpen] = useState(false)
+
+  const selectedAssignment = useMemo(
+    () => assignments.find((a) => assignmentKey(a) === selectedAssignmentKey) ?? null,
+    [assignments, selectedAssignmentKey]
+  )
 
   useEffect(() => {
     let cancelled = false
 
     ;(async () => {
-      const [evResult, rdResult] = await Promise.allSettled([getAssignedEvents(), getAssignedCurrentRounds()])
+      const [evResult, rdResult, asResult] = await Promise.allSettled([
+        getAssignedEvents(),
+        getAssignedCurrentRounds(),
+        getMentorAssignments()
+      ])
       if (cancelled) return
 
       if (evResult.status === 'fulfilled') {
@@ -75,6 +123,16 @@ export default function MentorDashboard() {
         setErrorRounds(localizeError(rdResult.reason?.message))
       }
       setLoadingRounds(false)
+
+      if (asResult.status === 'fulfilled') {
+        setAssignments(asResult.value)
+        if (asResult.value.length > 0) {
+          setSelectedAssignmentKey(assignmentKey(asResult.value[0]))
+        }
+      } else {
+        setErrorAssignments(localizeError(asResult.reason?.message))
+      }
+      setLoadingAssignments(false)
     })()
 
     return () => {
@@ -82,17 +140,56 @@ export default function MentorDashboard() {
     }
   }, [showToast])
 
+  useEffect(() => {
+    if (!selectedAssignment) {
+      setTeams([])
+      setErrorTeams(null)
+      return
+    }
+
+    let cancelled = false
+    setLoadingTeams(true)
+    setErrorTeams(null)
+
+    ;(async () => {
+      try {
+        const rows = await getAssignedTeams({
+          eventId: selectedAssignment.eventId,
+          roundId: selectedAssignment.roundId,
+          groupId: selectedAssignment.groupId,
+          registrationStatus: teamStatusFilter
+        })
+        if (!cancelled) setTeams(rows)
+      } catch (err) {
+        if (!cancelled) {
+          setTeams([])
+          setErrorTeams(localizeError(err?.message))
+        }
+      } finally {
+        if (!cancelled) setLoadingTeams(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedAssignment, teamStatusFilter])
+
   return (
     <DashboardShell
-      roleLabel='Mentor'
-      title='Tài khoản Mentor'
-      subtitle='Bảng điều khiển dành cho Mentor — đồng hành cùng các đội thí sinh trong hackathon.'
-      role='MENTOR'
+      roleLabel={guestLabel}
+      title='Khu vực Mentor'
+      subtitle='Khách được phân công mentor — đồng hành cùng các đội thí sinh. Cùng tài khoản có thể vào khu Judge nếu được gán chấm thi.'
+      role={guestLabel}
+      showStaffFields
     >
+      <div className='action-row' style={{ marginBottom: '1rem' }}>
+        <Link className='btn btn-outline' to='/judge'>Chuyển sang khu Judge</Link>
+      </div>
       {/* ── Sự kiện được phân công ── */}
       <div className='section-title'>
         <h2>Sự kiện được phân công</h2>
-        <span className='hint'>Các track / sự kiện bạn được Coordinator gán</span>
+        <span className='hint'>Các bảng / sự kiện bạn được Coordinator gán</span>
       </div>
 
       <div className='card'>
@@ -107,7 +204,6 @@ export default function MentorDashboard() {
               <div className='kv' key={ev.eventId}>
                 <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
                   <div style={{ fontWeight: 600, color: 'var(--text)' }}>{ev.title || '—'}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>ID: {ev.eventId}</div>
                 </span>
                 <StatusBadge status={ev.status} />
               </div>
@@ -143,6 +239,100 @@ export default function MentorDashboard() {
               </div>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* ── Đội được phân công ── */}
+      <div className='section-title' style={{ marginTop: 24 }}>
+        <h2>Đội được phân công</h2>
+        <span className='hint'>Các đội trong bảng bạn được gán mentor</span>
+      </div>
+
+      <div className='card'>
+        {loadingAssignments && <div className='empty-state'>Đang tải phân công bảng…</div>}
+        {!loadingAssignments && errorAssignments && (
+          <div className='empty-state'>{errorAssignments}</div>
+        )}
+        {!loadingAssignments && !errorAssignments && assignments.length === 0 && (
+          <div className='empty-state'>Bạn chưa được phân công bảng nào.</div>
+        )}
+        {!loadingAssignments && assignments.length > 0 && (
+          <>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+              {assignments.map((a) => {
+                const key = assignmentKey(a)
+                const active = key === selectedAssignmentKey
+                return (
+                  <button
+                    key={key}
+                    type='button'
+                    className={`btn ${active ? 'btn-primary' : 'btn-outline'}`}
+                    style={{ fontSize: 12, padding: '6px 12px' }}
+                    onClick={() => setSelectedAssignmentKey(key)}
+                  >
+                    {assignmentLabel(a)}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+              {TEAM_STATUS_FILTERS.map((f) => (
+                <button
+                  key={f.value}
+                  type='button'
+                  className={`btn ${teamStatusFilter === f.value ? 'btn-primary' : 'btn-outline'}`}
+                  style={{ fontSize: 12, padding: '4px 10px' }}
+                  onClick={() => setTeamStatusFilter(f.value)}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {loadingTeams && <div className='empty-state'>Đang tải danh sách đội…</div>}
+            {!loadingTeams && errorTeams && <div className='empty-state'>{errorTeams}</div>}
+            {!loadingTeams && !errorTeams && teams.length === 0 && (
+              <div className='empty-state'>Không có đội nào trong bảng này.</div>
+            )}
+            {!loadingTeams && teams.length > 0 && (
+              <div className='kv-list'>
+                {teams.map((team) => (
+                  <div className='kv' key={team.teamId || team.registrationId} style={{ alignItems: 'flex-start' }}>
+                    <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--text)' }}>{team.teamName || '—'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
+                        Trưởng nhóm: {team.leaderName || '—'}
+                        {team.leaderEmail ? ` · ${team.leaderEmail}` : ''}
+                      </div>
+                      {team.members?.length > 0 && (
+                        <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>
+                          Thành viên:{' '}
+                          {team.members
+                            .map((m) => m.fullName || m.email || '—')
+                            .filter(Boolean)
+                            .join(', ')}
+                        </div>
+                      )}
+                      {team.enrollCode && (
+                        <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2 }}>
+                          Mã đội: {team.enrollCode}
+                        </div>
+                      )}
+                    </span>
+                    <span className='status-picker' style={{ flexShrink: 0 }}>
+                      <span
+                        className={`status-pill ${registrationStatusPillClass(team.registrationStatus)}`}
+                        style={{ cursor: 'default' }}
+                      >
+                        {team.registrationStatus || '—'}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 

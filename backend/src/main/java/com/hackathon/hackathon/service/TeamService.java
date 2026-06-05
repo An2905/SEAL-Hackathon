@@ -20,11 +20,12 @@ import com.hackathon.hackathon.model.mapper.EventMapper;
 
 import com.hackathon.hackathon.model.entity.TeamDetail;
 import com.hackathon.hackathon.model.mapper.TeamMapper;
-import com.hackathon.hackathon.repository.CategoryRepository;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.SubmissionRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.repository.TeamRepository;
+import com.hackathon.hackathon.repository.UserRepository;
+import com.hackathon.hackathon.model.entity.User;
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.exception.ForbiddenException;
@@ -47,9 +48,6 @@ public class TeamService {
     private EventRepository eventRepository;
 
     @Autowired
-    private CategoryRepository categoryRepository;
-
-    @Autowired
     private TeamRegistrationRepository teamRegistrationRepository;
 
     @Autowired
@@ -59,15 +57,31 @@ public class TeamService {
     private AuthService authService;
 
     @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
     private EventMapper eventMapper;
+
+    private static final int TEAM_NAME_MAX_LENGTH = 100;
+
+    private String normalizeTeamName(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return raw.trim().replaceAll("\\s+", " ");
+    }
 
     // #region CREATE TEAM
     public CreateTeamResponse createTeam(String authHeader, CreateTeamRequest request) {
-        String teamName = request.getTeamName();
-        if (teamName == null || teamName.trim().isEmpty()) {
+        String teamName = normalizeTeamName(request.getTeamName());
+        if (teamName.isEmpty()) {
             throw new BadRequestException("Team name cannot be empty.");
         }
-        teamName = teamName.trim();
+        if (teamName.length() > TEAM_NAME_MAX_LENGTH) {
+            throw new BadRequestException(
+                    "Team name must be at most " + TEAM_NAME_MAX_LENGTH + " characters.");
+        }
+
         String enrollCode = String.valueOf(System.currentTimeMillis());
         enrollCode = enrollCode.substring(enrollCode.length() - 8);
 
@@ -84,7 +98,14 @@ public class TeamService {
         }
 
         String teamId = teamRepository.insert(teamName, userId, enrollCode);
-        if (teamId == null || !teamRepository.addMember(teamId, userId)) {
+        if (teamId == null) {
+            if (teamRepository.existsByTeamName(teamName)) {
+                throw new ConflictException(
+                        "Team name already exists. Please choose a different name.");
+            }
+            throw new BadRequestException("Create team failed.");
+        }
+        if (!teamRepository.addMember(teamId, userId)) {
             throw new BadRequestException("Create team failed.");
         }
 
@@ -115,6 +136,12 @@ public class TeamService {
                 .orElseThrow(() -> new BadRequestException(
                         "Invalid enroll code. Please check the enroll code and try again."));
 
+        int memberCount = teamRepository.countMembers(teamId);
+        int maxMembers = teamRepository.findMaxMembers(teamId);
+        if (memberCount >= maxMembers) {
+            throw new BadRequestException("Team is full.");
+        }
+
         if (!teamRepository.addMember(teamId, userId)) {
             throw new BadRequestException("Join team failed.");
         }
@@ -131,11 +158,23 @@ public class TeamService {
         String teamId = teamRepository.findTeamIdByLeaderId(userId)
                 .orElseThrow(() -> new BadRequestException("Only team leaders can delete team members."));
 
-        if (request.getMemberId().equals(userId)) {
+        String memberId = request.getMemberId();
+        if (memberId == null || memberId.trim().isEmpty()) {
+            throw new BadRequestException("Member identifier cannot be empty.");
+        }
+        memberId = memberId.trim();
+
+        if (memberId.contains("@")) {
+            memberId = userRepository.findByEmail(memberId)
+                    .map(User::getUserId)
+                    .orElseThrow(() -> new BadRequestException("Member not found."));
+        }
+
+        if (memberId.equals(userId)) {
             throw new BadRequestException("Leader cannot remove themselves.");
         }
 
-        if (!teamRepository.removeMember(teamId, request.getMemberId())) {
+        if (!teamRepository.removeMember(teamId, memberId)) {
             throw new BadRequestException("Delete failed.");
         }
 
@@ -145,14 +184,11 @@ public class TeamService {
     // #endregion
     // #region TEAM JOIN EVENT
     public MessageResponse joinEvent(String authHeader, JoinEventRequest request) {
-            if (request.getEventId() == null || request.getCategoryId() == null
-                    || request.getEventId().trim().isEmpty()
-                    || request.getCategoryId().trim().isEmpty()) {
-                throw new BadRequestException("Event ID and Category ID are required.");
-            }
+        if (request.getEventId() == null || request.getEventId().trim().isEmpty()) {
+            throw new BadRequestException("Event ID is required.");
+        }
 
         String eventId = request.getEventId().trim();
-        String categoryId = request.getCategoryId().trim();
 
         Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
         String userId = claims.get("userId", String.class);
@@ -167,11 +203,8 @@ public class TeamService {
         if (teamRegistrationRepository.existsByTeamAndEvent(teamId, eventId)) {
             throw new BadRequestException("Your team has already joined this event.");
         }
-        if (!categoryRepository.existsByEventAndCategory(eventId, categoryId)) {
-            throw new BadRequestException("Category is not valid.");
-        }
 
-        if (!teamRegistrationRepository.insert(eventId, teamId, categoryId, "PENDING")) {
+        if (!teamRegistrationRepository.insert(eventId, teamId, "PENDING")) {
             throw new BadRequestException("Join event failed.");
         }
 
@@ -293,7 +326,11 @@ public class TeamService {
             throw new ForbiddenException("Team registration is not approved yet.");
         }
 
-        List<TeamTrackMentorItemResponse> mentors = eventRepository.findMentorsByCategoryId(response.getCategoryId());
+        List<TeamTrackMentorItemResponse> mentors = List.of();
+        if (response.getGroupId() != null && !response.getGroupId().isBlank()
+                && response.getRoundId() != null && !response.getRoundId().isBlank()) {
+            mentors = eventRepository.findMentorsByGroupAndRound(response.getGroupId(), response.getRoundId());
+        }
         response.setMentors(mentors);
 
         return response;
@@ -356,8 +393,8 @@ public class TeamService {
         response.setEventTitle(trackDetails.getEventTitle());
         response.setTeamId(teamId);
         response.setTeamName(detail.getTeamName());
-        response.setCategoryId(trackDetails.getCategoryId());
-        response.setCategoryName(trackDetails.getCategoryName());
+        response.setGroupId(trackDetails.getGroupId());
+        response.setGroupName(trackDetails.getGroupName());
         response.setSubmissions(submissions);
 
         return response;

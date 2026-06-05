@@ -11,7 +11,7 @@ import {
 export { normalizeAccountUserId, normalizeRegistrationId }
 
 // POST /api/staff/register
-// Body: { email, fullName, role } — role ∈ { JUDGE, MENTOR }.
+// Body: { email, fullName, role } — role ∈ { EXPERT_INTERNAL, EXPERT_EXTERNAL }.
 // Requires a Bearer token of a COORDINATOR. BE returns a plain-text result line.
 export async function createStaffAccount({ email, fullName, role }) {
   const text = await apiFetch('/api/staff/register', {
@@ -22,13 +22,53 @@ export async function createStaffAccount({ email, fullName, role }) {
   return true
 }
 
+function parseStaffJson(text) {
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw new Error(text || 'Phản hồi không hợp lệ từ server')
+  }
+}
+
+// POST /api/staff/events — status mặc định BUILDING (server set)
+export async function createEvent({ title, description, startDate, endDate, maxTeams, numRounds }) {
+  const t = String(title ?? '').trim()
+  if (!t) throw new Error('Tên sự kiện không được để trống')
+
+  const body = { title: t }
+  const desc = String(description ?? '').trim()
+  if (desc) body.description = desc
+  if (startDate) body.startDate = startDate
+  if (endDate) body.endDate = endDate
+  if (maxTeams != null && maxTeams !== '') body.maxTeams = Number(maxTeams)
+  if (numRounds != null && numRounds !== '') body.numRounds = Number(numRounds)
+
+  const data = parseStaffJson(
+    await apiFetch('/api/staff/events', {
+      method: 'POST',
+      body
+    })
+  )
+  return {
+    eventId: String(data.eventId ?? data.event_id ?? ''),
+    title: data.title ?? '',
+    description: data.description ?? '',
+    startDate: data.startDate ?? data.start_date ?? '',
+    endDate: data.endDate ?? data.end_date ?? '',
+    status: data.status ?? 'BUILDING',
+    maxTeams: data.maxTeams ?? data.max_teams ?? null,
+    numRounds: data.numRounds ?? data.num_rounds ?? 1,
+    createdAt: data.createdAt ?? data.created_at ?? ''
+  }
+}
+
 // PUT /api/staff/events/status
-// Body: { eventId, newStatus } — newStatus ∈ { UPCOMING, ONGOING, COMPLETED }.
+// Body: { eventId, newStatus } — newStatus ∈ { BUILDING, UPCOMING, ONGOING, COMPLETED }.
 // Requires a Bearer token of a COORDINATOR.
 export async function changeEventStatus({ eventId, newStatus }) {
   const id = normalizeEventId(eventId)
   if (!id) {
-    throw new Error('Event ID không hợp lệ — vui lòng tải lại danh sách sự kiện')
+    throw new Error('Sự kiện không hợp lệ — vui lòng tải lại danh sách sự kiện')
   }
   const nextStatus = String(newStatus ?? '')
     .trim()
@@ -42,7 +82,7 @@ export async function changeEventStatus({ eventId, newStatus }) {
 }
 
 // GET /api/staff/accounts?role=...&input=...
-// role ∈ { ALL, JUDGE_INTERNAL, MENTOR, STUDENT_FPT, STUDENT_EXTERNAL } — defaults to ALL.
+// role ∈ { ALL, EXPERT, EXPERT_INTERNAL, EXPERT_EXTERNAL, STUDENT_FPT, STUDENT_EXTERNAL } — defaults to ALL.
 // input searches by the backend-supported account fields.
 // Requires a Bearer token of a COORDINATOR.
 // Returns: [{ userId, email, fullName, role, status }, ...]
@@ -68,8 +108,8 @@ export async function getAllAccounts(role = 'ALL', input = '') {
 // Requires a Bearer token of a COORDINATOR.
 export async function changeAccountStatus({ userId, status }) {
   const id = normalizeAccountUserId(userId)
-  if (!id || !/^\d+$/.test(id)) {
-    throw new Error('User ID không hợp lệ — vui lòng tải lại danh sách tài khoản')
+  if (!id) {
+    throw new Error('Không xác định được tài khoản — vui lòng tải lại danh sách')
   }
   const nextStatus = String(status ?? '')
     .trim()
@@ -87,8 +127,8 @@ export async function changeAccountStatus({ userId, status }) {
 // Requires a Bearer token of a COORDINATOR.
 export async function changeTeamRegistrationStatus({ registrationId, status }) {
   const id = normalizeRegistrationId(registrationId)
-  if (!id || !/^\d+$/.test(id)) {
-    throw new Error('Registration ID không hợp lệ — vui lòng tải lại danh sách đội')
+  if (!id) {
+    throw new Error('Không xác định được đăng ký — vui lòng tải lại danh sách đội')
   }
   const nextStatus = String(status ?? '')
     .trim()
@@ -102,50 +142,38 @@ export async function changeTeamRegistrationStatus({ registrationId, status }) {
 }
 
 // POST /api/staff/assign/judge
-// Body: { judgeId, roundId, categoryId }. Assigns a judge to a round + track.
-// Requires a Bearer token of a COORDINATOR.
-export async function assignJudge({ judgeId, roundId, categoryId }) {
+// Body: { judgeId, roundId, groupId }
+export async function assignJudge({ judgeId, roundId, groupId }) {
   const jId = normalizeAccountUserId(judgeId)
   const rId = normalizeId(roundId)
-  const cId = normalizeId(categoryId)
+  const gId = normalizeId(groupId)
 
-  if (!jId || !/^\d+$/.test(jId)) {
-    throw new Error('Judge ID không hợp lệ')
-  }
-  if (!rId || !/^\d+$/.test(rId)) {
-    throw new Error('Round ID không hợp lệ')
-  }
-  if (!cId || !/^\d+$/.test(cId)) {
-    throw new Error('Category ID không hợp lệ')
-  }
+  if (!jId) throw new Error('Vui lòng chọn giám khảo')
+  if (!rId) throw new Error('Vui lòng chọn vòng')
+  if (!gId) throw new Error('Vui lòng chọn bảng')
 
   const text = await apiFetch('/api/staff/assign/judge', {
     method: 'POST',
-    body: { judgeId: jId, roundId: rId, categoryId: cId }
+    body: { judgeId: jId, roundId: rId, groupId: gId }
   })
   if (!/judge assigned successfully/i.test(text)) throw new Error(text)
   return true
 }
 
 // POST /api/staff/assign/mentor
-// Body: { userId, categoryId } — userId is the mentor's account id. Mentors are
-// assigned per track (category). Requires a Bearer token of a COORDINATOR.
-// FIX: Đổi param từ { mentorId } sang { userId } để khớp với field BE gửi lên,
-// tránh trường hợp caller truyền nhầm tên và gửi undefined.
-export async function assignMentor({ userId, categoryId }) {
+// Body: { userId, roundId, groupId }
+export async function assignMentor({ userId, roundId, groupId }) {
   const uId = normalizeAccountUserId(userId)
-  const cId = normalizeId(categoryId)
+  const rId = normalizeId(roundId)
+  const gId = normalizeId(groupId)
 
-  if (!uId || !/^\d+$/.test(uId)) {
-    throw new Error('Mentor ID không hợp lệ')
-  }
-  if (!cId || !/^\d+$/.test(cId)) {
-    throw new Error('Category ID không hợp lệ')
-  }
+  if (!uId) throw new Error('Vui lòng chọn mentor')
+  if (!rId) throw new Error('Vui lòng chọn vòng')
+  if (!gId) throw new Error('Vui lòng chọn bảng')
 
   const text = await apiFetch('/api/staff/assign/mentor', {
     method: 'POST',
-    body: { userId: uId, categoryId: cId }
+    body: { userId: uId, roundId: rId, groupId: gId }
   })
   if (!/mentor assigned successfully/i.test(text)) throw new Error(text)
   return true

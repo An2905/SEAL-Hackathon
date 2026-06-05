@@ -8,5 +8,5 @@ public class CreateStaffAccountRequest {
 
     private String fullName;
 
-    private String role; // JUDGE, MENTOR
+    private String role; // EXPERT_INTERNAL, EXPERT_EXTERNAL
 }

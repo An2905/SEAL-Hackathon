@@ -3,12 +3,13 @@ import { useAuth } from '../context/AuthContext'
 
 // FIX: Map từ role alias dùng trong route props sang role thực tế BE trả về trong JWT.
 // App.jsx dùng role="Staff" / "Student" / "Mentor" / "Judge" cho dễ đọc,
-// còn BE trả về COORDINATOR / STUDENT_FPT / STUDENT_EXTERNAL / MENTOR / JUDGE_INTERNAL.
+// còn BE trả về COORDINATOR / STUDENT_* / EXPERT_INTERNAL / EXPERT_EXTERNAL.
 const ROLE_ALIASES = {
   Staff: ['COORDINATOR'],
   Student: ['STUDENT_FPT', 'STUDENT_EXTERNAL'],
-  Mentor: ['MENTOR'],
-  Judge: ['JUDGE_INTERNAL']
+  Mentor: ['EXPERT_INTERNAL', 'EXPERT_EXTERNAL'],
+  Judge: ['EXPERT_INTERNAL', 'EXPERT_EXTERNAL'],
+  Expert: ['EXPERT_INTERNAL', 'EXPERT_EXTERNAL']
 }
 
 export default function RequireRole({ role, children }) {

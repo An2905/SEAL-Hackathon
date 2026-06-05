@@ -5,6 +5,7 @@ const STAFF_TABS = [
   { to: '/staff', label: 'Tổng quan', end: true },
   { to: '/staff/accounts', label: 'Tài khoản' },
   { to: '/staff/events', label: 'Sự kiện' },
+  { to: '/staff/setup', label: 'Cấu hình bảng & vòng' },
   { to: '/staff/assign', label: 'Phân công Judge / Mentor' },
   { to: '/staff/announcements', label: 'Thông báo' }
 ]
@@ -15,7 +16,7 @@ export default function StaffLayout() {
       roleLabel='Staff'
       title='Bảng điều khiển Coordinator'
       subtitle='Quản lý tài khoản, sự kiện và phân công giám khảo / mentor.'
-      role='COORDINATOR'
+      role='Staff'
     >
       <nav className='staff-subnav' style={subnavStyle}>
         {STAFF_TABS.map((t) => (

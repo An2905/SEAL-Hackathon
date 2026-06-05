@@ -224,7 +224,8 @@ public class ChatService {
                 authHeader,
                 "STUDENT_FPT",
                 "STUDENT_EXTERNAL",
-                "MENTOR");
+                "EXPERT_INTERNAL",
+                "EXPERT_EXTERNAL");
         String userId = claims.get("userId", String.class);
         if (userId == null || userId.isBlank()) {
             throw new ForbiddenException("Invalid token.");

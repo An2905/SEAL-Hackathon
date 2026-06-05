@@ -3,10 +3,8 @@ package com.hackathon.hackathon.model.dto.request;
 import lombok.Data;
 
 @Data
-public class AssignMentorCategoryRequest {
+public class AssignMentorGroupRequest {
     private String userId;
-
-    private String categoryId;
-
-    private String eventId;
+    private String roundId;
+    private String groupId;
 }

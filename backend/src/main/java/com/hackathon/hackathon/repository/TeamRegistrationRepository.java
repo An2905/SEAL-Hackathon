@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
 
 import javax.sql.DataSource;
@@ -20,6 +21,14 @@ import com.hackathon.hackathon.model.mapper.TeamMapper;
 @Repository
 public class TeamRegistrationRepository {
 
+    private static final String GROUP_ASSIGNMENT_SUBQUERY = """
+            SELECT gt.team_id, r.event_id, gt.group_id, rg.name AS group_name, gt.round_id,
+                   ROW_NUMBER() OVER (PARTITION BY gt.team_id, r.event_id ORDER BY r.round_order) AS rn
+            FROM group_teams gt
+            JOIN rounds r ON gt.round_id = r.round_id
+            JOIN round_groups rg ON gt.group_id = rg.group_id
+            """;
+
     @Autowired
     private DataSource dataSource;
 
@@ -27,7 +36,7 @@ public class TeamRegistrationRepository {
     private TeamMapper teamMapper;
 
     public boolean existsByTeamAndEvent(String teamId, String eventId) {
-        String sql = "SELECT * FROM team_registrations WHERE team_id = ? AND event_id = ?";
+        String sql = "SELECT 1 FROM team_registrations WHERE team_id = ? AND event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -41,14 +50,15 @@ public class TeamRegistrationRepository {
         }
     }
 
-    public boolean insert(String eventId, String teamId, String categoryId, String status) {
-        String sql = "INSERT INTO team_registrations (event_id, team_id, category_id, status) VALUES (?, ?, ?, ?)";
+    public boolean insert(String eventId, String teamId, String status) {
+        String registrationId = UUID.randomUUID().toString();
+        String sql = "INSERT INTO team_registrations (registration_id, event_id, team_id, status) VALUES (?, ?, ?, ?)";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, eventId);
-            ps.setString(2, teamId);
-            ps.setString(3, categoryId);
+            ps.setString(1, registrationId);
+            ps.setString(2, eventId);
+            ps.setString(3, teamId);
             ps.setString(4, status);
             return ps.executeUpdate() > 0;
         } catch (Exception e) {
@@ -103,10 +113,13 @@ public class TeamRegistrationRepository {
 
     public Optional<TeamTrackMentorsResponse> findTrackDetailsByTeamAndEvent(String teamId, String eventId) {
         String sql = """
-            SELECT tr.registration_id, tr.status, tr.category_id, c.name AS category_name, e.title AS event_title
+            SELECT tr.registration_id, tr.status, e.title AS event_title,
+                   g.group_id, g.group_name, g.round_id
             FROM team_registrations tr
-            JOIN categories c ON tr.category_id = c.category_id
             JOIN events e ON tr.event_id = e.event_id
+            LEFT JOIN (
+            """ + GROUP_ASSIGNMENT_SUBQUERY + """
+            ) g ON g.team_id = tr.team_id AND g.event_id = tr.event_id AND g.rn = 1
             WHERE tr.team_id = ? AND tr.event_id = ?
             """;
         try (
@@ -119,8 +132,9 @@ public class TeamRegistrationRepository {
                     TeamTrackMentorsResponse response = new TeamTrackMentorsResponse();
                     response.setEventId(eventId);
                     response.setEventTitle(rs.getString("event_title"));
-                    response.setCategoryId(rs.getString("category_id"));
-                    response.setCategoryName(rs.getString("category_name"));
+                    response.setGroupId(rs.getString("group_id"));
+                    response.setGroupName(rs.getString("group_name"));
+                    response.setRoundId(rs.getString("round_id"));
                     response.setRegistrationId(rs.getString("registration_id"));
                     response.setRegistrationStatus(rs.getString("status"));
                     return Optional.of(response);
@@ -134,13 +148,15 @@ public class TeamRegistrationRepository {
 
     public List<TeamEventRegistrationResponse> findAllByTeamId(String teamId) {
         String sql = """
-            SELECT tr.registration_id, tr.event_id, tr.category_id, tr.status AS registration_status, tr.registered_at,
+            SELECT tr.registration_id, tr.event_id, tr.status AS registration_status, tr.registered_at,
                    e.title AS event_title, e.description AS event_description,
                    e.start_date AS event_start_date, e.end_date AS event_end_date, e.status AS event_status,
-                   c.name AS category_name
+                   g.group_id, g.group_name
             FROM team_registrations tr
             JOIN events e ON tr.event_id = e.event_id
-            JOIN categories c ON tr.category_id = c.category_id
+            LEFT JOIN (
+            """ + GROUP_ASSIGNMENT_SUBQUERY + """
+            ) g ON g.team_id = tr.team_id AND g.event_id = tr.event_id AND g.rn = 1
             WHERE tr.team_id = ?
             ORDER BY tr.registered_at DESC
             """;

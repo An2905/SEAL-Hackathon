@@ -7,6 +7,6 @@ public class JudgeAssignment {
     private String assignmentId;
     private String judgeId;
     private String roundId;
-    private String categoryId;
+    private String groupId;
     private String assignedAt;
 }

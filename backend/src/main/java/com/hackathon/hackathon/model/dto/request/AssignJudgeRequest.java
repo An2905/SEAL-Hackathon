@@ -8,5 +8,5 @@ public class AssignJudgeRequest {
 
     private String roundId;
 
-    private String categoryId;
+    private String groupId;
 }

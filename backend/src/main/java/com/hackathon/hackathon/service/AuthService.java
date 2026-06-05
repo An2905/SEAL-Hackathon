@@ -25,6 +25,7 @@ import com.hackathon.hackathon.model.dto.request.UpdatePasswordRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateProfileRequest;
 import com.hackathon.hackathon.model.dto.request.VerifyStudentRegisterRequest;
 import com.hackathon.hackathon.model.entity.User;
+import com.hackathon.hackathon.repository.ParticipantsProfileRepository;
 import com.hackathon.hackathon.repository.StudentProfileRepository;
 import com.hackathon.hackathon.repository.UserRepository;
 
@@ -106,6 +107,9 @@ public class AuthService {
     @Autowired
     private StudentProfileRepository studentProfileRepository;
 
+    @Autowired
+    private ParticipantsProfileRepository participantsProfileRepository;
+
     // #region LOGIN
 
     public LoginResponse login(LoginRequest request) {
@@ -171,43 +175,86 @@ public class AuthService {
         String newUniversity = request.getUniversity();
         String newStudentId = request.getStudentId();
         String newEmail = request.getEmail();
+        String newPhone = request.getPhone();
+        String newAvatarUrl = request.getAvatarUrl();
 
-        if (newFullName == null || newFullName.trim().isEmpty() || newUniversity == null
-                || newUniversity.trim().isEmpty() || newStudentId == null
-                || newStudentId.trim().isEmpty() || newEmail == null || newEmail.trim().isEmpty()) {
-            throw new BadRequestException("All fields are required.");
+        requireNonBlank(newFullName, "Full name");
+
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadRequestException("User not found."));
+        String role = currentUser.getRole();
+
+        String resolvedEmail = email;
+        if (newEmail != null && !newEmail.trim().isEmpty()) {
+            resolvedEmail = newEmail.trim();
+            if (!resolvedEmail.equalsIgnoreCase(email)) {
+                requireValidEmail(resolvedEmail);
+            }
         }
 
-        requireValidEmail(newEmail);
+        if (isStudentRole(role)) {
+            requireNonBlank(newUniversity, "University");
+            requireNonBlank(newStudentId, "Student ID");
 
-        String studentId = studentProfileRepository.findStudentCodeByUserEmail(email)
-                .orElse("");
+            String studentId = studentProfileRepository.findStudentCodeByUserEmail(email)
+                    .orElse("");
 
-        if (!newEmail.equalsIgnoreCase(email) && checkEmail(newEmail)) {
+            if (!newStudentId.equalsIgnoreCase(studentId)
+                    && checkStudentId(newStudentId, newUniversity)) {
+                throw new ConflictException("Student ID already exists.");
+            }
+        } else if (isExpertRole(role)) {
+            requireNonBlank(newPhone, "Phone");
+            if (newAvatarUrl != null && !newAvatarUrl.trim().isEmpty()) {
+                requireValidAvatarUrl(newAvatarUrl.trim());
+            }
+        }
+
+        if (!resolvedEmail.equalsIgnoreCase(email) && checkEmail(resolvedEmail)) {
             throw new ConflictException("Email already exists.");
         }
-        if (!newStudentId.equalsIgnoreCase(studentId)
-                && checkStudentId(newStudentId, newUniversity)) {
-            throw new ConflictException("Student ID already exists.");
-        }
 
-        // Fix parameters: newFullName first, then oldEmail (email), then newEmail
-        User updatedUser = userRepository.updateProfile(newFullName, email, newEmail);
+        User updatedUser = userRepository.updateProfile(newFullName, email, resolvedEmail);
         if (updatedUser == null) {
             throw new BadRequestException("Failed to update profile.");
         }
 
         String userId = updatedUser.getUserId();
-        String role = updatedUser.getRole();
 
-        if ("STUDENT_FPT".equalsIgnoreCase(role) || "STUDENT_EXTERNAL".equalsIgnoreCase(role)) {
+        if (isStudentRole(role)) {
             if (!studentProfileRepository.update(userId, newStudentId, newUniversity)) {
                 throw new BadRequestException("Failed to update student profile.");
             }
+        } else if (isExpertRole(role)) {
+            String avatarUrl = newAvatarUrl == null || newAvatarUrl.trim().isEmpty()
+                    ? null
+                    : newAvatarUrl.trim();
+            if (!participantsProfileRepository.updateExpertProfile(userId, newPhone.trim(), avatarUrl)) {
+                throw new BadRequestException("Failed to update expert profile.");
+            }
         }
 
-        String token = JwtUtil.generateToken(newEmail, role, userId, newFullName);
+        String token = JwtUtil.generateToken(resolvedEmail, role, userId, newFullName);
         return new ProfileUpdateResponse("Profile updated successfully.", token);
+    }
+
+    private boolean isStudentRole(String role) {
+        return "STUDENT_FPT".equalsIgnoreCase(role) || "STUDENT_EXTERNAL".equalsIgnoreCase(role);
+    }
+
+    private boolean isExpertRole(String role) {
+        return "EXPERT_INTERNAL".equalsIgnoreCase(role)
+                || "EXPERT_EXTERNAL".equalsIgnoreCase(role);
+    }
+
+    private void requireValidAvatarUrl(String avatarUrl) {
+        if (avatarUrl.length() > 512) {
+            throw new BadRequestException("Avatar URL is too long.");
+        }
+        String urlRegex = "^https?://[^\\s]+$";
+        if (!avatarUrl.matches(urlRegex)) {
+            throw new BadRequestException("Avatar URL must start with http:// or https://");
+        }
     }
 
     // #endregion

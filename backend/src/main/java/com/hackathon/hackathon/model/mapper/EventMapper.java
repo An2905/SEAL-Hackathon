@@ -9,14 +9,13 @@ import org.springframework.stereotype.Component;
 import com.hackathon.hackathon.model.dto.response.EventAssignedJudgeResponse;
 import com.hackathon.hackathon.model.dto.response.EventAssignedMentorResponse;
 import com.hackathon.hackathon.model.dto.response.EventAwardResponse;
-import com.hackathon.hackathon.model.dto.response.EventCategoryResponse;
+import com.hackathon.hackathon.model.dto.response.EventGroupResponse;
 import com.hackathon.hackathon.model.dto.response.EventDetailResponse;
 import com.hackathon.hackathon.model.dto.response.EventRoundResponse;
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
 import com.hackathon.hackathon.model.dto.response.EventTeamResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.model.entity.Award;
-import com.hackathon.hackathon.model.entity.Category;
 import com.hackathon.hackathon.model.entity.Event;
 import com.hackathon.hackathon.model.entity.Round;
 import com.hackathon.hackathon.model.entity.TeamRegistration;
@@ -38,26 +37,34 @@ public class EventMapper {
 
     public Event fromDetailHeaderRow(ResultSet rs) throws SQLException {
         Event event = fromSummaryRow(rs);
+        int maxTeams = rs.getInt("max_teams");
+        event.setMaxTeams(rs.wasNull() ? null : maxTeams);
+        event.setNumRounds(rs.getInt("num_rounds"));
         event.setTotalTeams(rs.getString("total_teams"));
         event.setPendingTeams(rs.getString("pending_teams"));
-        event.setTotalCategories(rs.getString("total_categories"));
+        event.setTotalGroups(rs.getString("total_groups"));
         event.setTotalRounds(rs.getString("total_rounds"));
         event.setTotalAwards(rs.getString("total_awards"));
         return event;
     }
 
-    public Category categoryFromResultSet(ResultSet rs) throws SQLException {
-        Category category = new Category();
-        category.setCategoryId(rs.getString("category_id"));
-        category.setName(rs.getString("name"));
-        category.setDescription(rs.getString("description"));
-        return category;
+    public EventGroupResponse groupFromResultSet(ResultSet rs) throws SQLException {
+        EventGroupResponse response = new EventGroupResponse();
+        response.setGroupId(rs.getString("group_id"));
+        response.setRoundId(rs.getString("round_id"));
+        response.setRoundName(rs.getString("round_name"));
+        response.setRoundOrder(rs.getString("round_order"));
+        response.setName(rs.getString("name"));
+        int maxTeams = rs.getInt("max_teams");
+        response.setMaxTeams(rs.wasNull() ? null : maxTeams);
+        return response;
     }
 
     public Round roundFromResultSet(ResultSet rs) throws SQLException {
         Round round = new Round();
         round.setRoundId(rs.getString("round_id"));
         round.setName(rs.getString("name"));
+        round.setRoundOrder(rs.getString("round_order"));
         round.setStartDate(rs.getString("start_date"));
         round.setEndDate(rs.getString("end_date"));
         round.setSubmissionDeadline(rs.getString("submission_deadline"));
@@ -108,7 +115,7 @@ public class EventMapper {
 
     public EventDetailResponse toDetailResponse(
             Event event,
-            List<Category> categories,
+            List<EventGroupResponse> groups,
             List<Round> rounds,
             List<TeamRegistration> teams,
             List<Award> awards,
@@ -122,12 +129,14 @@ public class EventMapper {
         response.setEndDate(event.getEndDate());
         response.setStatus(event.getStatus());
         response.setCreatedAt(event.getCreatedAt());
+        response.setMaxTeams(event.getMaxTeams());
+        response.setNumRounds(event.getNumRounds());
         response.setTotalTeams(event.getTotalTeams());
         response.setPendingTeams(event.getPendingTeams());
-        response.setTotalCategories(event.getTotalCategories());
+        response.setTotalGroups(event.getTotalGroups());
         response.setTotalRounds(event.getTotalRounds());
         response.setTotalAwards(event.getTotalAwards());
-        response.setCategories(categories.stream().map(this::toCategoryResponse).toList());
+        response.setGroups(groups);
         response.setRounds(rounds.stream().map(this::toRoundResponse).toList());
         response.setTeams(teams.stream().map(this::toTeamResponse).toList());
         response.setAwards(awards.stream().map(this::toAwardResponse).toList());
@@ -136,18 +145,11 @@ public class EventMapper {
         return response;
     }
 
-    public EventCategoryResponse toCategoryResponse(Category category) {
-        EventCategoryResponse response = new EventCategoryResponse();
-        response.setCategoryId(category.getCategoryId());
-        response.setName(category.getName());
-        response.setDescription(category.getDescription());
-        return response;
-    }
-
     public EventRoundResponse toRoundResponse(Round round) {
         EventRoundResponse response = new EventRoundResponse();
         response.setRoundId(round.getRoundId());
         response.setName(round.getName());
+        response.setRoundOrder(round.getRoundOrder());
         response.setStartDate(round.getStartDate());
         response.setEndDate(round.getEndDate());
         response.setSubmissionDeadline(round.getSubmissionDeadline());

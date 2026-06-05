@@ -9,7 +9,7 @@ public class TeamSubmissionsResponse {
     private String eventTitle;
     private String teamId;
     private String teamName;
-    private String categoryId;
-    private String categoryName;
+    private String groupId;
+    private String groupName;
     private List<TeamSubmissionItemResponse> submissions;
 }

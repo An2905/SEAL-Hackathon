@@ -146,9 +146,9 @@ export default function HomePage() {
 
 						<div className="schedule-item">
 							<span className="date">11 / 04 / 2026</span>
-							<h3>Khai mạc &amp; Chia track</h3>
+							<h3>Khai mạc &amp; Chia bảng</h3>
 							<p>
-								Lễ khai mạc chính thức, công bố track thi đấu và buổi gặp gỡ
+								Lễ khai mạc chính thức, công bố bảng thi đấu và buổi gặp gỡ
 								giữa các đội.
 							</p>
 							<div className="meta">Offline · FPT University HCM</div>

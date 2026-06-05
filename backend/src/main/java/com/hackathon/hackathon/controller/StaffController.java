@@ -21,12 +21,15 @@ import com.hackathon.hackathon.model.dto.response.EventDetailResponse;
 import com.hackathon.hackathon.model.dto.request.ChangeAccountStatusRequest;
 import com.hackathon.hackathon.model.dto.request.ChangeEventStatusRequest;
 import com.hackathon.hackathon.model.dto.request.ChangeTeamRegistrationStatusRequest;
+import com.hackathon.hackathon.model.dto.request.CreateEventRequest;
 import com.hackathon.hackathon.model.dto.request.CreateStaffAccountRequest;
+import com.hackathon.hackathon.model.dto.response.CreateEventResponse;
 import com.hackathon.hackathon.model.dto.request.SendAllAnnouncementRequest;
 import com.hackathon.hackathon.model.dto.request.SendParticipantAnnouncementRequest;
 import com.hackathon.hackathon.model.dto.response.AnnouncementResponse;
 import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
-import com.hackathon.hackathon.model.dto.request.AssignMentorCategoryRequest;
+import com.hackathon.hackathon.model.dto.request.AssignMentorGroupRequest;
+import com.hackathon.hackathon.service.EventService;
 import com.hackathon.hackathon.service.StaffService;
 
 @RestController
@@ -38,6 +41,9 @@ public class StaffController {
     @Autowired
     private StaffService staffService;
 
+    @Autowired
+    private EventService eventService;
+
     @PostMapping("/register")
     public ResponseEntity<String> registerAccount(@RequestHeader("Authorization") String authHeader,
             @RequestBody CreateStaffAccountRequest request) {
@@ -45,11 +51,18 @@ public class StaffController {
         return ResponseEntity.ok(result);
     }
 
+    @PostMapping("/events")
+    public ResponseEntity<CreateEventResponse> createEvent(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody CreateEventRequest request) {
+        return ResponseEntity.ok(eventService.createEvent(authHeader, request));
+    }
+
     @PutMapping("/events/status")
     public ResponseEntity<String> changeEventStatus(
             @RequestHeader("Authorization") String authHeader,
             @RequestBody ChangeEventStatusRequest request) {
-        String result = staffService.changeEventStatus(authHeader, request);
+        String result = eventService.changeEventStatus(authHeader, request);
         return ResponseEntity.ok(result);
     }
 
@@ -74,14 +87,14 @@ public class StaffController {
     public ResponseEntity<List<EventSummaryResponse>> getAllEvents(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam(required = false, defaultValue = "ALL") String status) {
-        List<EventSummaryResponse> result = staffService.getAllEvents(authHeader, status);
+        List<EventSummaryResponse> result = eventService.getAllEvents(authHeader, status);
         return ResponseEntity.ok(result);
     }
 
     @GetMapping("/events/detail")
     public ResponseEntity<EventDetailResponse> getEventDetail(
             @RequestHeader("Authorization") String authHeader, @RequestParam String eventId) {
-        EventDetailResponse event = staffService.getEventDetail(authHeader, eventId);
+        EventDetailResponse event = eventService.getEventDetail(authHeader, eventId);
 
         return ResponseEntity.ok(event);
     }
@@ -116,13 +129,13 @@ public class StaffController {
 
     @PostMapping("/assign/mentor")
     public ResponseEntity<String> assignMentor(@RequestHeader("Authorization") String authHeader,
-            @RequestBody AssignMentorCategoryRequest request) {
+            @RequestBody AssignMentorGroupRequest request) {
         return ResponseEntity.ok(staffService.assignMentor(authHeader, request));
     }
 
     @GetMapping("/events/export")
     public ResponseEntity<byte[]> exportEventsExcel(
             @RequestHeader("Authorization") String authHeader) {
-        return staffService.exportEventsExcel(authHeader);
+        return eventService.exportEventsExcel(authHeader);
     }
 }

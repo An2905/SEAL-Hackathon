@@ -27,7 +27,7 @@ public class JudgeService {
     private EventMapper eventMapper;
 
     public List<EventSummaryResponse> getAssignedEvents(String authHeader) {
-        Claims claims = authService.validateRole(authHeader, "JUDGE_INTERNAL");
+        Claims claims = authService.validateRole(authHeader, "EXPERT_INTERNAL", "EXPERT_EXTERNAL");
 
         String judgeId = claims.get("userId", String.class);
         if (judgeId == null || judgeId.trim().isEmpty()) {

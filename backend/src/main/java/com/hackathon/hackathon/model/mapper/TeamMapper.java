@@ -69,7 +69,8 @@ public class TeamMapper {
         TeamEventRegistrationResponse response = new TeamEventRegistrationResponse();
         response.setRegistrationId(rs.getString("registration_id"));
         response.setEventId(rs.getString("event_id"));
-        response.setCategoryId(rs.getString("category_id"));
+        response.setGroupId(rs.getString("group_id"));
+        response.setGroupName(rs.getString("group_name"));
         response.setRegistrationStatus(rs.getString("registration_status"));
         response.setRegisteredAt(rs.getString("registered_at"));
         response.setEventTitle(rs.getString("event_title"));
@@ -77,7 +78,6 @@ public class TeamMapper {
         response.setEventStartDate(rs.getString("event_start_date"));
         response.setEventEndDate(rs.getString("event_end_date"));
         response.setEventStatus(rs.getString("event_status"));
-        response.setCategoryName(rs.getString("category_name"));
         return response;
     }
 

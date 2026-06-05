@@ -7,8 +7,8 @@ public class UpdateJudgeAssignmentRequest {
     private String eventId;
     private String judgeId;
     private String roundId;
-    private String categoryId;
+    private String groupId;
     private String newJudgeId;
     private String newRoundId;
-    private String newCategoryId;
+    private String newGroupId;
 }

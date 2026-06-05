@@ -24,27 +24,6 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'b424a162-5f1e-11f1-82ff-dc4628233c63:1-113';
 
 --
--- Table structure for table `advancement_rules`
---
-
-DROP TABLE IF EXISTS `advancement_rules`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `advancement_rules` (
-  `rule_id` bigint NOT NULL AUTO_INCREMENT,
-  `round_id` bigint NOT NULL,
-  `category_id` bigint NOT NULL,
-  `top_n` int NOT NULL,
-  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`rule_id`),
-  KEY `fk_adv_rules_category` (`category_id`),
-  KEY `fk_adv_rules_round` (`round_id`),
-  CONSTRAINT `fk_adv_rules_category` FOREIGN KEY (`category_id`) REFERENCES `categories` (`category_id`),
-  CONSTRAINT `fk_adv_rules_round` FOREIGN KEY (`round_id`) REFERENCES `rounds` (`round_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Table structure for table `announcements`
 --
 

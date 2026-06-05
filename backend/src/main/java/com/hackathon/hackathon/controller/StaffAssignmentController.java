@@ -38,10 +38,11 @@ public class StaffAssignmentController {
     public ResponseEntity<MessageResponse> deleteMentorAssignment(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam String eventId,
-            @RequestParam String categoryId,
+            @RequestParam String roundId,
+            @RequestParam String groupId,
             @RequestParam String mentorId) {
         return ResponseEntity.ok(
-                staffAssignmentService.deleteMentorAssignment(authHeader, eventId, categoryId, mentorId));
+                staffAssignmentService.deleteMentorAssignment(authHeader, eventId, roundId, groupId, mentorId));
     }
 
     @PutMapping("/judge")
@@ -57,8 +58,8 @@ public class StaffAssignmentController {
             @RequestParam String eventId,
             @RequestParam String judgeId,
             @RequestParam String roundId,
-            @RequestParam String categoryId) {
+            @RequestParam String groupId) {
         return ResponseEntity.ok(staffAssignmentService.deleteJudgeAssignment(
-                authHeader, eventId, judgeId, roundId, categoryId));
+                authHeader, eventId, judgeId, roundId, groupId));
     }
 }

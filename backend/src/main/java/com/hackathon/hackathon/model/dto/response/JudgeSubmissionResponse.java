@@ -9,8 +9,8 @@ public class JudgeSubmissionResponse {
     private String teamName;
     private String roundId;
     private String roundName;
-    private String categoryId;
-    private String categoryName;
+    private String groupId;
+    private String groupName;
     private String githubUrl;
     private String demoUrl;
     private String reportUrl;

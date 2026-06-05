@@ -3,9 +3,9 @@ package com.hackathon.hackathon.model.dto.request;
 import lombok.Data;
 
 @Data
-public class UpdateEventCategoryRequest {
+public class CreateEventGroupRequest {
     private String eventId;
-    private String categoryId;
+    private String roundId;
     private String name;
-    private String description;
+    private Integer maxTeams;
 }

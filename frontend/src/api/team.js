@@ -33,13 +33,23 @@ export async function getMyTeam() {
   }
 }
 
+function normalizeTeamName(value) {
+  return String(value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
 // PUT /api/team/create
 // Response: { message, teamId, teamName, enrollCode }
 export async function createTeam({ teamName }) {
+  const name = normalizeTeamName(teamName)
+  if (!name) throw new Error('Tên đội không được để trống')
+  if (name.length > 100) throw new Error('Tên đội tối đa 100 ký tự')
+
   const data = parseJson(
     await apiFetch('/api/team/create', {
       method: 'PUT',
-      body: { teamName }
+      body: { teamName: name }
     })
   )
 
@@ -67,11 +77,14 @@ export async function joinTeam({ enrollCode }) {
 
 // PUT /api/team/join-event
 // Response: { message }
-export async function joinEvent({ eventId, categoryId }) {
+export async function joinEvent({ eventId }) {
+  const id = normalizeEventId(eventId)
+  if (!id) throw new Error('Sự kiện không hợp lệ')
+
   const data = parseJson(
     await apiFetch('/api/team/join-event', {
       method: 'PUT',
-      body: { eventId, categoryId }
+      body: { eventId: id }
     })
   )
   if (!/join event successfully/i.test(data.message || '')) {
@@ -83,9 +96,9 @@ export async function joinEvent({ eventId, categoryId }) {
 // DELETE /api/team/delete-member
 // Response: { message }
 export async function deleteMember({ memberId }) {
-  const id = normalizeAccountUserId(memberId)
-  if (!id || !/^\d+$/.test(id)) {
-    throw new Error('Member ID không hợp lệ')
+  const id = (memberId || '').trim()
+  if (!id) {
+    throw new Error('Vui lòng nhập email thành viên')
   }
 
   const data = parseJson(
@@ -110,8 +123,8 @@ function mapTeamRegistrationRow(row) {
     eventStartDate: r.eventStartDate ?? r.event_start_date ?? '',
     eventEndDate: r.eventEndDate ?? r.event_end_date ?? '',
     eventStatus: r.eventStatus ?? r.event_status ?? '',
-    categoryId: normalizeEventId(r.categoryId ?? r.category_id),
-    categoryName: r.categoryName ?? r.category_name ?? '',
+    groupId: String(r.groupId ?? r.group_id ?? ''),
+    groupName: r.groupName ?? r.group_name ?? '',
     registrationStatus: r.registrationStatus ?? r.registration_status ?? '',
     registeredAt: r.registeredAt ?? r.registered_at ?? ''
   }
@@ -132,8 +145,8 @@ function mapTeamTrackMentors(data) {
   return {
     eventId: normalizeEventId(r.eventId ?? r.event_id),
     eventTitle: r.eventTitle ?? r.event_title ?? '',
-    categoryId: normalizeEventId(r.categoryId ?? r.category_id),
-    categoryName: r.categoryName ?? r.category_name ?? '',
+    groupId: String(r.groupId ?? r.group_id ?? ''),
+    groupName: r.groupName ?? r.group_name ?? '',
     registrationId: normalizeRegistrationId(r.registrationId ?? r.registration_id),
     registrationStatus: r.registrationStatus ?? r.registration_status ?? '',
     mentors
@@ -157,14 +170,14 @@ export async function getTeamRegistrations() {
 // Response: TeamTrackMentorsResponse (mentors only when registration APPROVED)
 export async function getTeamTrackMentors(eventId) {
   const id = normalizeEventId(eventId)
-  if (!id) throw new Error('Event ID không hợp lệ')
+  if (!id) throw new Error('Sự kiện không hợp lệ')
 
   const params = new URLSearchParams({ eventId: id })
   const text = await apiFetch(`/api/team/mentors?${params}`, { method: 'GET' })
   try {
     return mapTeamTrackMentors(parseJson(text))
   } catch {
-    throw new Error(text?.trim() || 'Không thể tải mentor của track')
+    throw new Error(text?.trim() || 'Không thể tải mentor của bảng')
   }
 }
 
@@ -182,7 +195,7 @@ function mapRoundRow(row) {
 // GET /api/team/rounds?eventId=...
 export async function getTeamRounds(eventId) {
   const id = normalizeEventId(eventId)
-  if (!id) throw new Error('Event ID không hợp lệ')
+  if (!id) throw new Error('Sự kiện không hợp lệ')
 
   const params = new URLSearchParams({ eventId: id })
   const text = await apiFetch(`/api/team/rounds?${params}`, { method: 'GET' })

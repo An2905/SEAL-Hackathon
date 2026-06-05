@@ -6,11 +6,11 @@ export { normalizeEventId, countPendingTeams }
 
 // GET /api/staff/events/detail?eventId=...
 // Requires a Bearer token (any authenticated role per BE).
-// Returns: { ...event fields, totalTeams, totalCategories, totalRounds, totalAwards,
-//            teams[], categories[], rounds[], awards[] }
+// Returns: { ...event fields, totalTeams, totalGroups, totalRounds, totalAwards,
+//            teams[], groups[], rounds[], awards[] }
 export async function getEventDetail(eventId) {
   const id = normalizeEventId(eventId)
-  if (!id) throw new Error('Event ID không hợp lệ')
+  if (!id) throw new Error('Sự kiện không hợp lệ')
 
   const params = new URLSearchParams({ eventId: id })
   const text = await apiFetch(`/api/staff/events/detail?${params.toString()}`, {

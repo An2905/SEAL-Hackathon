@@ -67,8 +67,8 @@ public class AnnouncementRepository {
     /// Only email and full_name are mapped — sufficient for email dispatch.
     ///
     /// STUDENT_FPT / STUDENT_EXTERNAL : team_members → teams → team_registrations
-    /// MENTOR                          : category_mentors → categories
-    /// JUDGE_INTERNAL                  : judge_assignments → rounds
+    /// MENTOR         : mentor_assignments → rounds (theo phân công mentor)
+    /// JUDGE_INTERNAL : judge_assignments → rounds (theo phân công giám khảo)
     public List<User> findEventParticipantsByRole(String eventId, String role) {
         List<User> participants = new ArrayList<>();
         String sql = buildParticipantSql(role);
@@ -78,7 +78,6 @@ public class AnnouncementRepository {
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, eventId);
-            ps.setString(2, role);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     User user = new User();
@@ -106,15 +105,15 @@ public class AnnouncementRepository {
         } else if ("MENTOR".equals(role)) {
             return "SELECT DISTINCT u.email, u.full_name "
                  + "FROM users u "
-                 + "JOIN category_mentors cm ON u.user_id = cm.mentor_id "
-                 + "JOIN categories c ON cm.category_id = c.category_id "
-                 + "WHERE c.event_id = ? AND u.role = ?";
-        } else if ("JUDGE_INTERNAL".equals(role)) {
+                 + "JOIN mentor_assignments ma ON u.user_id = ma.mentor_id "
+                 + "JOIN rounds r ON ma.round_id = r.round_id "
+                 + "WHERE r.event_id = ?";
+        } else if ("JUDGE_INTERNAL".equals(role) || "JUDGE".equals(role)) {
             return "SELECT DISTINCT u.email, u.full_name "
                  + "FROM users u "
                  + "JOIN judge_assignments ja ON u.user_id = ja.judge_id "
                  + "JOIN rounds r ON ja.round_id = r.round_id "
-                 + "WHERE r.event_id = ? AND u.role = ?";
+                 + "WHERE r.event_id = ?";
         }
         return null;
     }

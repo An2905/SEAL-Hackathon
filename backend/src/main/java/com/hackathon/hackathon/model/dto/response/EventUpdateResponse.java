@@ -10,5 +10,7 @@ public class EventUpdateResponse {
     private String startDate;
     private String endDate;
     private String status;
+    private Integer maxTeams;
+    private Integer numRounds;
     private String createdAt;
 }

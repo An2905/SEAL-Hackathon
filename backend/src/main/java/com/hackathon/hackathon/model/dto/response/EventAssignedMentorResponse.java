@@ -4,8 +4,10 @@ import lombok.Data;
 
 @Data
 public class EventAssignedMentorResponse {
-    private String categoryId;
-    private String categoryName;
+    private String roundId;
+    private String roundName;
+    private String groupId;
+    private String groupName;
     private String mentorId;
     private String mentorName;
     private String mentorEmail;

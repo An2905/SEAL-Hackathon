@@ -8,6 +8,6 @@ public class ViewJudgeAssignedEventResponse {
     private String title;
     private String status;
     private String roundName;
-    private String categoryName;
+    private String groupName;
 }
 

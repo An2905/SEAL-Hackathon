@@ -8,6 +8,8 @@ public class EventRoundResponse {
 
     private String name;
 
+    private String roundOrder;
+
     private String startDate;
 
     private String endDate;

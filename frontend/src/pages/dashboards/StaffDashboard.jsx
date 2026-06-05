@@ -7,6 +7,7 @@ import PendingTeamsBadge from '../../components/common/PendingTeamsBadge'
 import LoadingButton from '../../components/common/LoadingButton'
 import {
   createStaffAccount,
+  createEvent,
   changeEventStatus,
   changeAccountStatus,
   getAllAccounts,
@@ -16,8 +17,10 @@ import { getAllEvents, attachPendingTeamsToEvents } from '../../api/event'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { localizeError } from '../../utils/errors'
+import { roleUiLabel } from '../../utils/roleLabels'
 
 const EVENT_STATUSES = [
+  { value: 'BUILDING', label: 'Đang thiết lập (BUILDING)' },
   { value: 'UPCOMING', label: 'Sắp diễn ra (UPCOMING)' },
   { value: 'ONGOING', label: 'Đang diễn ra (ONGOING)' },
   { value: 'COMPLETED', label: 'Đã kết thúc (COMPLETED)' }
@@ -25,19 +28,12 @@ const EVENT_STATUSES = [
 
 const ACCOUNT_ROLE_FILTERS = [
   { value: 'ALL', label: 'Tất cả' },
-  { value: 'MENTOR', label: 'Mentor' },
-  { value: 'JUDGE_INTERNAL', label: 'Judge' },
+  { value: 'EXPERT', label: 'Khách' },
+  { value: 'EXPERT_INTERNAL', label: 'Khách (INTERNAL)' },
+  { value: 'EXPERT_EXTERNAL', label: 'Khách (EXTERNAL)' },
   { value: 'STUDENT_EXTERNAL', label: 'Student' },
   { value: 'STUDENT_FPT', label: 'FPT Student' }
 ]
-
-const ROLE_LABELS = {
-  MENTOR: 'Mentor',
-  JUDGE_INTERNAL: 'Judge',
-  STUDENT_FPT: 'FPT Student',
-  STUDENT_EXTERNAL: 'Student',
-  COORDINATOR: 'Coordinator'
-}
 
 const ACCOUNT_STATUSES = ['PENDING', 'APPROVED', 'REJECTED']
 
@@ -70,7 +66,7 @@ function AccountStatusPicker({ account, onUpdated }) {
 
     const resolvedId = resolveAccountUserId(account)
     if (!resolvedId) {
-      showToast('Thiếu User ID — vui lòng tải lại danh sách', 'error')
+      showToast('Không xác định được tài khoản — vui lòng tải lại danh sách', 'error')
       return
     }
 
@@ -127,7 +123,7 @@ export function CreateStaffAccountForm({ onSuccess }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
-  const [form, setForm] = useState({ email: '', fullName: '', role: 'JUDGE_INTERNAL' })
+  const [form, setForm] = useState({ email: '', fullName: '', role: 'EXPERT_INTERNAL' })
 
   const handle = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
 
@@ -143,13 +139,14 @@ export function CreateStaffAccountForm({ onSuccess }) {
     setLoading(true)
     try {
       await createStaffAccount({ email, fullName, role: form.role })
+      const createdLabel = roleUiLabel(form.role) || 'Khách'
       setMessage({
-        text: `Đã tạo tài khoản ${form.role} cho ${email}. Mật khẩu tạm đã được gửi qua email.`,
+        text: `Đã tạo tài khoản ${createdLabel} cho ${email}. Mật khẩu tạm đã được gửi qua email.`,
         type: 'success'
       })
       showToast('Đã tạo tài khoản & gửi email mời', 'success')
       setForm({ email: '', fullName: '', role: form.role })
-      onSuccess?.(`Tạo tài khoản ${form.role} — ${email}`)
+      onSuccess?.(`Tạo tài khoản ${createdLabel} — ${email}`)
     } catch (err) {
       setMessage({ text: localizeError(err.message), type: 'error' })
     } finally {
@@ -160,9 +157,9 @@ export function CreateStaffAccountForm({ onSuccess }) {
   return (
     <div className='card'>
       <div className='card-head'>
-        <div className='card-title'>Tạo tài khoản Judge / Mentor</div>
+        <div className='card-title'>Tạo tài khoản Khách</div>
       </div>
-      <p className='card-sub'>Hệ thống sinh mật khẩu ngẫu nhiên và gửi email mời cho người được tạo tài khoản.</p>
+      <p className='card-sub'>Khách có thể được phân công làm Mentor và/hoặc Judge theo từng sự kiện. Hệ thống sinh mật khẩu tạm và gửi email mời.</p>
       <form className='form' onSubmit={handleSubmit}>
         <FormField label='Họ và tên'>
           <input name='fullName' value={form.fullName} onChange={handle} required placeholder='Nguyễn Văn A' />
@@ -177,10 +174,10 @@ export function CreateStaffAccountForm({ onSuccess }) {
             placeholder='judge@fpt.edu.vn'
           />
         </FormField>
-        <FormField label='Vai trò'>
+        <FormField label='Loại khách'>
           <select name='role' value={form.role} onChange={handle} required>
-            <option value='JUDGE_INTERNAL'>Judge — Giám khảo</option>
-            <option value='MENTOR'>Mentor — Người hướng dẫn</option>
+            <option value='EXPERT_INTERNAL'>Khách (INTERNAL)</option>
+            <option value='EXPERT_EXTERNAL'>Khách (EXTERNAL)</option>
           </select>
         </FormField>
         <LoadingButton loading={loading} type='submit'>
@@ -192,9 +189,180 @@ export function CreateStaffAccountForm({ onSuccess }) {
   )
 }
 
+// ─── Create Event Form ────────────────────────────────────────────────────────
+export function CreateEventForm({ onSuccess }) {
+  const { showToast } = useToast()
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState(null)
+  const [lastCreated, setLastCreated] = useState(null)
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    startDate: '',
+    endDate: '',
+    maxTeams: '',
+    numRounds: '1'
+  })
+
+  const handle = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setMessage(null)
+    setLastCreated(null)
+    const title = form.title.trim()
+    if (!title) {
+      setMessage({ text: 'Vui lòng nhập tên sự kiện', type: 'error' })
+      return
+    }
+    if (form.startDate && form.endDate && form.startDate > form.endDate) {
+      setMessage({ text: 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc', type: 'error' })
+      return
+    }
+    const maxTeams = form.maxTeams === '' ? null : Number(form.maxTeams)
+    if (maxTeams != null && (!Number.isFinite(maxTeams) || maxTeams < 1)) {
+      setMessage({ text: 'Số đội tối đa phải ≥ 1', type: 'error' })
+      return
+    }
+    const numRounds = form.numRounds === '' ? 1 : Number(form.numRounds)
+    if (!Number.isFinite(numRounds) || numRounds < 1) {
+      setMessage({ text: 'Số vòng thi phải ≥ 1', type: 'error' })
+      return
+    }
+
+    setLoading(true)
+    try {
+      const created = await createEvent({
+        title,
+        description: form.description,
+        startDate: form.startDate || null,
+        endDate: form.endDate || null,
+        maxTeams,
+        numRounds
+      })
+      setLastCreated(created)
+      setMessage({
+        text: `Đã tạo sự kiện "${created.title}" — trạng thái BUILDING.`,
+        type: 'success'
+      })
+      showToast('Đã tạo sự kiện mới', 'success')
+      setForm({
+        title: '',
+        description: '',
+        startDate: '',
+        endDate: '',
+        maxTeams: '',
+        numRounds: '1'
+      })
+      onSuccess?.(created)
+    } catch (err) {
+      setMessage({ text: localizeError(err.message), type: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className='card'>
+      <div className='card-head'>
+        <div className='card-title'>Tạo sự kiện mới</div>
+      </div>
+      <p className='card-sub'>
+        Sự kiện mới có trạng thái <strong>BUILDING</strong> — sinh viên chưa đăng ký được. Sau khi tạo, cấu hình
+        bảng/vòng thi rồi chuyển sang <strong>UPCOMING</strong>.
+      </p>
+      <form className='form' onSubmit={handleSubmit}>
+        <FormField label='Tên sự kiện *'>
+          <input
+            name='title'
+            value={form.title}
+            onChange={handle}
+            maxLength={200}
+            required
+            disabled={loading}
+            placeholder='VD: FPT Tech Hackathon 2026'
+          />
+        </FormField>
+        <FormField label='Mô tả'>
+          <textarea
+            name='description'
+            value={form.description}
+            onChange={handle}
+            rows={3}
+            disabled={loading}
+            placeholder='Mô tả ngắn (tuỳ chọn)'
+          />
+        </FormField>
+        <FormField label='Ngày bắt đầu'>
+          <input
+            type='datetime-local'
+            name='startDate'
+            value={form.startDate}
+            onChange={handle}
+            disabled={loading}
+          />
+        </FormField>
+        <FormField label='Ngày kết thúc'>
+          <input
+            type='datetime-local'
+            name='endDate'
+            value={form.endDate}
+            onChange={handle}
+            disabled={loading}
+          />
+        </FormField>
+        <FormField label='Số đội tối đa'>
+          <input
+            type='number'
+            name='maxTeams'
+            value={form.maxTeams}
+            onChange={handle}
+            min={1}
+            disabled={loading}
+            placeholder='Tuỳ chọn'
+          />
+        </FormField>
+        <FormField label='Số vòng thi dự kiến'>
+          <input
+            type='number'
+            name='numRounds'
+            value={form.numRounds}
+            onChange={handle}
+            min={1}
+            disabled={loading}
+          />
+        </FormField>
+        <LoadingButton loading={loading} type='submit'>
+          Tạo sự kiện
+        </LoadingButton>
+        <FormMessage message={message?.text} type={message?.type} />
+        {lastCreated?.eventId && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+            <Link
+              to={`/staff/events/${encodeURIComponent(lastCreated.eventId)}`}
+              className='btn btn-outline'
+              style={{ fontSize: 13 }}
+            >
+              Chi tiết sự kiện
+            </Link>
+            <Link
+              to={`/staff/setup?eventId=${encodeURIComponent(lastCreated.eventId)}`}
+              className='btn btn-outline'
+              style={{ fontSize: 13 }}
+            >
+              Cấu hình bảng & vòng
+            </Link>
+          </div>
+        )}
+      </form>
+    </div>
+  )
+}
+
 // ─── Event Status Picker ──────────────────────────────────────────────────────
 function eventStatusPillClass(status) {
   const key = (status || '').toUpperCase()
+  if (key === 'BUILDING') return 'status-pending'
   if (key === 'UPCOMING') return 'status-pending'
   if (key === 'ONGOING') return 'status-active'
   if (key === 'COMPLETED') return 'status-default'
@@ -216,7 +384,7 @@ function EventStatusPicker({ event, onUpdated }) {
       .toUpperCase()
     if (next === currentStatus) return
     if (!eventId) {
-      showToast('Thiếu Event ID — vui lòng tải lại danh sách', 'error')
+      showToast('Không xác định được sự kiện — vui lòng tải lại danh sách', 'error')
       return
     }
     setSaving(true)
@@ -327,7 +495,7 @@ export function EventsListSection({ refreshKey = 0, onStatusChanged, onPendingTo
         <div className='card-title'>Danh sách sự kiện</div>
       </div>
       <p className='card-sub'>
-        Xem tất cả hackathon trong hệ thống. Nhấn badge trạng thái để đổi — chỉ COORDINATOR có quyền thao tác.
+        Xem tất cả hackathon trong hệ thống. Nhấn badge trạng thái để đổi — chỉ Staff có quyền thao tác.
       </p>
 
       <FormField label='Lọc theo trạng thái'>
@@ -371,7 +539,6 @@ export function EventsListSection({ refreshKey = 0, onStatusChanged, onPendingTo
                     <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{ev.description}</div>
                   )}
                   <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>
-                    ID: {ev.eventId}
                     {ev.startDate || ev.endDate
                       ? ` · ${formatEventDate(ev.startDate)} → ${formatEventDate(ev.endDate)}`
                       : ''}
@@ -447,7 +614,7 @@ export function AccountsListSection() {
       <div className='card-head'>
         <div className='card-title'>Danh sách tài khoản</div>
       </div>
-      <p className='card-sub'>Lọc theo vai trò trong hệ thống. Chỉ COORDINATOR có quyền xem.</p>
+      <p className='card-sub'>Lọc theo vai trò trong hệ thống. Chỉ Staff có quyền xem.</p>
 
       <form className='form' onSubmit={handleSearchSubmit}>
         <FormField label='Lọc theo vai trò'>
@@ -465,7 +632,7 @@ export function AccountsListSection() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             disabled={loading}
-            placeholder='Nhập tên, email hoặc User ID'
+            placeholder='Nhập tên hoặc email'
           />
         </FormField>
         <LoadingButton loading={loading} type='submit'>
@@ -498,7 +665,6 @@ export function AccountsListSection() {
                   <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
                     <div style={{ fontWeight: 600, color: 'var(--text)' }}>{a.fullName || '—'}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{a.email}</div>
-                    {uid && <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2 }}>ID: {uid}</div>}
                   </span>
                   <span
                     style={{
@@ -509,7 +675,7 @@ export function AccountsListSection() {
                       justifyContent: 'flex-end'
                     }}
                   >
-                    <span className='card-badge'>{ROLE_LABELS[a.role] || a.role}</span>
+                    <span className='card-badge'>{roleUiLabel(a.role) || '—'}</span>
                     <AccountStatusPicker account={a} onUpdated={handleStatusUpdated} />
                   </span>
                 </div>
@@ -535,7 +701,7 @@ export default function StaffDashboard() {
       subtitle={`Xin chào${
         auth.fullName ? ', ' + auth.fullName : ''
       }! Quản lý sự kiện, tài khoản và phân công nhân sự tại đây.`}
-      role='COORDINATOR'
+      role='Staff'
     >
       <div className='section-title'>
         <h2>Sự kiện</h2>

@@ -10,6 +10,7 @@ import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ForbiddenException;
 import com.hackathon.hackathon.exception.UnauthorizedException;
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
+import com.hackathon.hackathon.model.dto.response.MentorAssignmentResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedTeamResponse;
 import com.hackathon.hackathon.model.entity.Event;
@@ -39,7 +40,7 @@ public class MentorService {
     private AuthService authService;
 
     public List<EventSummaryResponse> getAssignedEvents(String authHeader) {
-        Claims claims = authService.validateRole(authHeader, "MENTOR");
+        Claims claims = authService.validateRole(authHeader, "EXPERT_INTERNAL", "EXPERT_EXTERNAL");
 
         String mentorId = claims.get("userId", String.class);
         if (mentorId == null || mentorId.trim().isEmpty()) {
@@ -54,7 +55,7 @@ public class MentorService {
     }
 
     public List<MentorAssignedCurrentRoundResponse> getAssignedCurrentRounds(String authHeader) {
-        Claims claims = authService.validateRole(authHeader, "MENTOR");
+        Claims claims = authService.validateRole(authHeader, "EXPERT_INTERNAL", "EXPERT_EXTERNAL");
 
         String mentorId = claims.get("userId", String.class);
         if (mentorId == null || mentorId.trim().isEmpty()) {
@@ -64,34 +65,50 @@ public class MentorService {
         return eventRepository.findAssignedCurrentRoundsByMentorId(mentorId.trim());
     }
 
-    public List<MentorAssignedTeamResponse> getAssignedTeams(
-            String authHeader,
-            String eventId,
-            String categoryId,
-            String registrationStatus) {
-        Claims claims = authService.validateRole(authHeader, "MENTOR");
+    public List<MentorAssignmentResponse> getAssignments(String authHeader) {
+        Claims claims = authService.validateRole(authHeader, "EXPERT_INTERNAL", "EXPERT_EXTERNAL");
 
         String mentorId = claims.get("userId", String.class);
         if (mentorId == null || mentorId.trim().isEmpty()) {
             throw new UnauthorizedException("Invalid or missing token.");
         }
-        //thỏa mãn các yêu cầu về việc eventid và cateID không được rỗng
+
+        return eventRepository.findMentorAssignmentsByMentorId(mentorId.trim());
+    }
+
+    public List<MentorAssignedTeamResponse> getAssignedTeams(
+            String authHeader,
+            String eventId,
+            String roundId,
+            String groupId,
+            String registrationStatus) {
+        Claims claims = authService.validateRole(authHeader, "EXPERT_INTERNAL", "EXPERT_EXTERNAL");
+
+        String mentorId = claims.get("userId", String.class);
+        if (mentorId == null || mentorId.trim().isEmpty()) {
+            throw new UnauthorizedException("Invalid or missing token.");
+        }
         if (eventId == null || eventId.trim().isEmpty()) {
             throw new BadRequestException("eventId is required.");
         }
-        if (categoryId == null || categoryId.trim().isEmpty()) {
-            throw new BadRequestException("categoryId is required.");
+        if (roundId == null || roundId.trim().isEmpty()) {
+            throw new BadRequestException("roundId is required.");
+        }
+        if (groupId == null || groupId.trim().isEmpty()) {
+            throw new BadRequestException("groupId is required.");
         }
 
         String normalizedEventId = eventId.trim();
-        String normalizedCategoryId = categoryId.trim();
-        //thỏa mãn yêu cầu về hạng mục phải thuộc event
-        if (!eventRepository.categoryBelongsToEvent(normalizedCategoryId, normalizedEventId)) {
-            throw new BadRequestException("categoryId does not belong to eventId.");
+        String normalizedRoundId = roundId.trim();
+        String normalizedGroupId = groupId.trim();
+
+        if (!eventRepository.groupBelongsToEvent(normalizedGroupId, normalizedEventId)) {
+            throw new BadRequestException("groupId does not belong to eventId.");
         }
-        
-        if (!assignmentRepository.mentorAssignmentExists(normalizedCategoryId, mentorId.trim())) {
-            throw new ForbiddenException("Mentor chưa được phân công track này");
+
+        if (!assignmentRepository.mentorAssignmentExists(
+                normalizedRoundId, normalizedGroupId, mentorId.trim())) {
+            throw new ForbiddenException("Mentor chưa được phân công bảng này");
         }
 
         String statusFilter = registrationStatus == null || registrationStatus.trim().isEmpty()
@@ -103,7 +120,7 @@ public class MentorService {
             throw new BadRequestException("Invalid registrationStatus.");
         }
 
-        return teamRepository.findAssignedTeamsByMentorAndCategory(
-                mentorId.trim(), normalizedEventId, normalizedCategoryId, statusFilter);
+        return teamRepository.findAssignedTeamsByMentorAndGroup(
+                mentorId.trim(), normalizedEventId, normalizedRoundId, normalizedGroupId, statusFilter);
     }
 }

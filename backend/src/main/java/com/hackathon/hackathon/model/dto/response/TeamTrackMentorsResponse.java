@@ -11,8 +11,9 @@ import lombok.NoArgsConstructor;
 public class TeamTrackMentorsResponse {
     private String eventId;
     private String eventTitle;
-    private String categoryId;
-    private String categoryName;
+    private String groupId;
+    private String groupName;
+    private String roundId;
     private String registrationId;
     private String registrationStatus;
     private List<TeamTrackMentorItemResponse> mentors;

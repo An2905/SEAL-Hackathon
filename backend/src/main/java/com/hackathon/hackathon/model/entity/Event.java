@@ -11,8 +11,10 @@ public class Event {
     private String endDate;
     private String status;
     private String createdAt;
+    private Integer maxTeams;
+    private Integer numRounds;
     private String totalTeams;
-    private String totalCategories;
+    private String totalGroups;
     private String totalRounds;
     private String totalAwards;
     private String pendingTeams;

@@ -11,8 +11,8 @@ public class TeamEventRegistrationResponse {
     private String eventStartDate;
     private String eventEndDate;
     private String eventStatus;
-    private String categoryId;
-    private String categoryName;
+    private String groupId;
+    private String groupName;
     private String registrationStatus;
     private String registeredAt;
 }

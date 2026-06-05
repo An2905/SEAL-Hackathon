@@ -13,23 +13,24 @@ import {
 	updateMentorAssignment,
 } from "../../api/staffAssignment";
 import {
-	deleteEventCategory,
+	deleteEventGroup,
 	deleteEventRound,
 	getEventRoundDetail,
 	updateEvent,
-	updateEventCategory,
+	updateEventGroup,
 	updateEventRound,
-} from "../../api/staffEventSetup";
+} from "../../api/eventService";
 import FormField from "../../components/common/FormField";
 import LoadingButton from "../../components/common/LoadingButton";
 import { useToast } from "../../context/ToastContext";
 import { localizeError } from "../../utils/errors";
 
 const REGISTRATION_STATUSES = ["PENDING", "APPROVED", "REJECTED"];
-const EVENT_STATUSES = ["UPCOMING", "ONGOING", "COMPLETED"];
+const EVENT_STATUSES = ["BUILDING", "UPCOMING", "ONGOING", "COMPLETED"];
 
 function eventStatusPillClass(status) {
 	const key = (status || "").toUpperCase();
+	if (key === "BUILDING") return "status-pending";
 	if (key === "UPCOMING") return "status-pending";
 	if (key === "ONGOING") return "status-active";
 	if (key === "COMPLETED") return "status-default";
@@ -50,6 +51,20 @@ function formatEventDateTime(value) {
 	});
 }
 
+function formatMaxTeams(value) {
+	if (value == null || value === "") return "Không giới hạn";
+	return String(value);
+}
+
+function eventStatusLabel(status) {
+	const key = String(status ?? "").trim().toUpperCase();
+	if (key === "BUILDING") return "Đang thiết lập (BUILDING)";
+	if (key === "UPCOMING") return "Sắp diễn ra (UPCOMING)";
+	if (key === "ONGOING") return "Đang diễn ra (ONGOING)";
+	if (key === "COMPLETED") return "Đã kết thúc (COMPLETED)";
+	return status || "—";
+}
+
 function toDatetimeLocalValue(value) {
 	if (!value) return "";
 	const d = new Date(value);
@@ -62,10 +77,51 @@ function toDatetimeLocalValue(value) {
 	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function StatRow({ label, count, badgeCount, onOpen }) {
+function SetupWarningBadge({ title }) {
+	if (!title) return null;
+	return (
+		<span
+			className="event-setup-warning-badge"
+			title={title}
+			aria-label={title}
+		>
+			!
+		</span>
+	);
+}
+
+function buildSetupWarnings(event) {
+	if (String(event?.status ?? "").toUpperCase() !== "BUILDING") {
+		return {};
+	}
+	const actualRounds = Number(event.totalRounds) || 0;
+	const plannedRounds = Number(event.numRounds) || 1;
+	const groups = Number(event.totalGroups) || 0;
+	const mentors = event.assignedMentors?.length ?? 0;
+	const judges = event.assignedJudges?.length ?? 0;
+	const warnings = {};
+
+	if (actualRounds < plannedRounds) {
+		warnings.rounds = `Cần tạo đủ ${plannedRounds} vòng thi (hiện có ${actualRounds})`;
+	}
+	if (groups === 0) {
+		warnings.groups = "Cần tạo ít nhất một bảng thi";
+	}
+	if (mentors === 0) {
+		warnings.mentors = "Cần phân công mentor";
+	}
+	if (judges === 0) {
+		warnings.judges = "Cần phân công judge";
+	}
+
+	return warnings;
+}
+
+function StatRow({ label, count, badgeCount, setupWarning, onOpen }) {
 	return (
 		<div className="event-stat-row">
 			<PendingTeamsBadge count={badgeCount} />
+			<SetupWarningBadge title={setupWarning} />
 			<button
 				type="button"
 				className="event-stat-row-trigger"
@@ -113,7 +169,7 @@ function TeamRegistrationStatusPicker({ team, onUpdated }) {
 		if (next === currentStatus) return;
 
 		if (!registrationId) {
-			showToast("Thiếu Registration ID — vui lòng tải lại trang", "error");
+			showToast("Không xác định được đăng ký — vui lòng tải lại trang", "error");
 			return;
 		}
 
@@ -186,10 +242,6 @@ function TeamsDropdownContent({ teams, onUpdated }) {
 					<span style={{ minWidth: 0, flex: 1, textAlign: "left" }}>
 						<div style={{ fontWeight: 600 }}>{team.teamName || "—"}</div>
 						<div style={{ fontSize: 11, color: "var(--text-mute)" }}>
-							Team ID: {team.teamId}
-							{team.registrationId
-								? ` · Reg ID: ${team.registrationId}`
-								: ""}
 						</div>
 					</span>
 					<TeamRegistrationStatusPicker
@@ -275,20 +327,23 @@ function StatItemDeleteButton({ itemLabel, onDelete }) {
 	);
 }
 
-function CategoryStatItem({ eventId, cat, onUpdated, onDeleted }) {
+function GroupStatItem({ eventId, group, onUpdated, onDeleted }) {
 	const { showToast } = useToast();
 	const [editOpen, setEditOpen] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [form, setForm] = useState({
-		name: cat.name || "",
-		description: cat.description || "",
+		name: group.name || "",
+		maxTeams: group.maxTeams == null ? "" : String(group.maxTeams),
 	});
 
 	useEffect(() => {
 		if (!editOpen) {
-			setForm({ name: cat.name || "", description: cat.description || "" });
+			setForm({
+				name: group.name || "",
+				maxTeams: group.maxTeams == null ? "" : String(group.maxTeams),
+			});
 		}
-	}, [cat.name, cat.description, editOpen]);
+	}, [group.name, group.maxTeams, editOpen]);
 
 	const handleChange = (e) =>
 		setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -297,14 +352,15 @@ function CategoryStatItem({ eventId, cat, onUpdated, onDeleted }) {
 		e.preventDefault();
 		setSaving(true);
 		try {
-			const updated = await updateEventCategory({
+			const updated = await updateEventGroup({
 				eventId,
-				categoryId: cat.categoryId,
+				roundId: group.roundId,
+				groupId: group.groupId,
 				name: form.name,
-				description: form.description,
+				maxTeams: form.maxTeams,
 			});
 			onUpdated?.(updated);
-			showToast("Đã cập nhật track", "success");
+			showToast("Đã cập nhật bảng thi", "success");
 			setEditOpen(false);
 		} catch (err) {
 			showToast(localizeError(err.message), "error");
@@ -317,14 +373,12 @@ function CategoryStatItem({ eventId, cat, onUpdated, onDeleted }) {
 		<div className={`event-stat-item-card${editOpen ? " is-edit-open" : ""}`}>
 			<div className="kv event-stat-item">
 				<span style={{ minWidth: 0, flex: 1, textAlign: "left" }}>
-					<div style={{ fontWeight: 600 }}>{cat.name || "—"}</div>
-					{cat.description ? (
-						<div style={{ fontSize: 11, color: "var(--text-dim)" }}>
-							{cat.description}
-						</div>
-					) : null}
-					<div style={{ fontSize: 11, color: "var(--text-mute)" }}>
-						ID: {cat.categoryId} (không đổi)
+					<div style={{ fontWeight: 600 }}>{group.name || "—"}</div>
+					<div style={{ fontSize: 11, color: "var(--text-dim)" }}>
+						Vòng: {group.roundName || "—"}
+						{group.maxTeams != null
+							? ` · Tối đa ${group.maxTeams} đội`
+							: ""}
 					</div>
 				</span>
 				<div className="event-stat-item-actions">
@@ -337,20 +391,21 @@ function CategoryStatItem({ eventId, cat, onUpdated, onDeleted }) {
 						{editOpen ? "Thu gọn" : "Sửa"}
 					</button>
 					<StatItemDeleteButton
-						itemLabel={cat.name || "track"}
+						itemLabel={group.name || "bảng"}
 						onDelete={async () => {
-							await deleteEventCategory({
+							await deleteEventGroup({
 								eventId,
-								categoryId: cat.categoryId,
+								roundId: group.roundId,
+								groupId: group.groupId,
 							});
-							onDeleted?.(cat.categoryId);
+							onDeleted?.(group.groupId);
 						}}
 					/>
 				</div>
 			</div>
 			{editOpen ? (
 				<form className="event-stat-item-edit" onSubmit={handleSave}>
-					<FormField label="Tên track *">
+					<FormField label="Tên bảng *">
 						<input
 							name="name"
 							value={form.name}
@@ -360,13 +415,15 @@ function CategoryStatItem({ eventId, cat, onUpdated, onDeleted }) {
 							required
 						/>
 					</FormField>
-					<FormField label="Mô tả">
-						<textarea
-							name="description"
-							value={form.description}
+					<FormField label="Số đội tối đa">
+						<input
+							type="number"
+							name="maxTeams"
+							value={form.maxTeams}
 							onChange={handleChange}
-							rows={3}
+							min={1}
 							disabled={saving}
+							placeholder="Để trống = không giới hạn"
 						/>
 					</FormField>
 					<div className="event-stat-item-edit-foot">
@@ -459,11 +516,12 @@ function RoundStatItem({ eventId, round, onUpdated, onDeleted }) {
 				<span style={{ minWidth: 0, flex: 1, textAlign: "left" }}>
 					<div style={{ fontWeight: 600 }}>{round.name || "—"}</div>
 					<div style={{ fontSize: 11, color: "var(--text-dim)" }}>
+						Vòng {round.roundOrder || "—"} ·{" "}
 						{formatEventDateTime(round.startDate)} →{" "}
 						{formatEventDateTime(round.endDate)}
 					</div>
 					<div style={{ fontSize: 11, color: "var(--text-mute)" }}>
-						Deadline: {formatEventDateTime(round.submissionDeadline)}
+						Deadline nộp bài: {formatEventDateTime(round.submissionDeadline)}
 					</div>
 				</span>
 				<div className="event-stat-item-actions">
@@ -493,9 +551,6 @@ function RoundStatItem({ eventId, round, onUpdated, onDeleted }) {
 						<div className="event-stat-dropdown-empty">Đang tải…</div>
 					) : (
 						<>
-							<p className="event-stat-edit-hint">
-								ID vòng: {round.roundId} (IDENTITY — không đổi)
-							</p>
 							<FormField label="Tên vòng *">
 								<input
 									name="name"
@@ -569,31 +624,31 @@ function RoundStatItem({ eventId, round, onUpdated, onDeleted }) {
 	);
 }
 
-function CategoriesDropdownContent({
+function GroupsDropdownContent({
 	eventId,
-	categories,
-	onCategoryDeleted,
-	onCategoryUpdated,
+	groups,
+	onGroupDeleted,
+	onGroupUpdated,
 }) {
 	return (
 		<>
-			{!categories.length ? (
-				<div className="event-stat-dropdown-empty">Chưa có category nào.</div>
+			{!groups.length ? (
+				<div className="event-stat-dropdown-empty">Chưa có bảng thi nào.</div>
 			) : (
 				<div className="kv-list">
-					{categories.map((cat) => (
-						<CategoryStatItem
-							key={cat.categoryId}
+					{groups.map((group) => (
+						<GroupStatItem
+							key={group.groupId}
 							eventId={eventId}
-							cat={cat}
-							onUpdated={onCategoryUpdated}
-							onDeleted={onCategoryDeleted}
+							group={group}
+							onUpdated={onGroupUpdated}
+							onDeleted={onGroupDeleted}
 						/>
 					))}
 				</div>
 			)}
-			<SetupPanelLink eventId={eventId} focus="category">
-				+ Thêm category
+			<SetupPanelLink eventId={eventId} focus="group">
+				+ Thêm bảng thi
 			</SetupPanelLink>
 		</>
 	);
@@ -632,7 +687,8 @@ function RoundsDropdownContent({
 function MentorStatItem({
 	eventId,
 	assignment,
-	categories,
+	rounds,
+	groups,
 	onUpdated,
 	onDeleted,
 }) {
@@ -642,19 +698,25 @@ function MentorStatItem({
 	const [loadingAccounts, setLoadingAccounts] = useState(false);
 	const [mentorAccounts, setMentorAccounts] = useState([]);
 	const [form, setForm] = useState({
-		categoryId: assignment.categoryId || "",
+		roundId: assignment.roundId || "",
+		groupId: assignment.groupId || "",
 		mentorId: assignment.mentorId || "",
 	});
 
+	const filteredGroups = groups.filter(
+		(g) => !form.roundId || g.roundId === form.roundId
+	);
+
 	const handleStartEdit = async () => {
 		setForm({
-			categoryId: assignment.categoryId || "",
+			roundId: assignment.roundId || "",
+			groupId: assignment.groupId || "",
 			mentorId: assignment.mentorId || "",
 		});
 		setEditOpen(true);
 		setLoadingAccounts(true);
 		try {
-			setMentorAccounts(await getAllAccounts("MENTOR"));
+			setMentorAccounts(await getAllAccounts("EXPERT"));
 		} catch (err) {
 			showToast(localizeError(err.message), "error");
 			setEditOpen(false);
@@ -665,7 +727,8 @@ function MentorStatItem({
 
 	const handleCancel = () => {
 		setForm({
-			categoryId: assignment.categoryId || "",
+			roundId: assignment.roundId || "",
+			groupId: assignment.groupId || "",
 			mentorId: assignment.mentorId || "",
 		});
 		setEditOpen(false);
@@ -677,9 +740,11 @@ function MentorStatItem({
 		try {
 			const updated = await updateMentorAssignment({
 				eventId,
-				categoryId: assignment.categoryId,
+				roundId: assignment.roundId,
+				groupId: assignment.groupId,
 				mentorId: assignment.mentorId,
-				newCategoryId: form.categoryId,
+				newRoundId: form.roundId,
+				newGroupId: form.groupId,
 				newMentorId: form.mentorId,
 			});
 			onUpdated?.(assignment, updated);
@@ -698,7 +763,7 @@ function MentorStatItem({
 				<span style={{ minWidth: 0, flex: 1, textAlign: "left" }}>
 					<div style={{ fontWeight: 600 }}>{assignment.mentorName || "—"}</div>
 					<div style={{ fontSize: 11, color: "var(--text-dim)" }}>
-						Track: {assignment.categoryName || "—"}
+						{assignment.roundName || "—"} · {assignment.groupName || "—"}
 					</div>
 					<div style={{ fontSize: 11, color: "var(--text-mute)" }}>
 						{assignment.mentorEmail || "—"}
@@ -717,7 +782,8 @@ function MentorStatItem({
 						onDelete={async () => {
 							await deleteMentorAssignment({
 								eventId,
-								categoryId: assignment.categoryId,
+								roundId: assignment.roundId,
+								groupId: assignment.groupId,
 								mentorId: assignment.mentorId,
 							});
 							onDeleted?.(assignment);
@@ -731,23 +797,45 @@ function MentorStatItem({
 						<div className="event-stat-dropdown-empty">Đang tải…</div>
 					) : (
 						<>
-							<FormField label="Track *">
+							<FormField label="Vòng *">
 								<select
-									name="categoryId"
-									value={form.categoryId}
+									name="roundId"
+									value={form.roundId}
 									onChange={(e) =>
 										setForm((f) => ({
 											...f,
-											categoryId: e.target.value,
+											roundId: e.target.value,
+											groupId: "",
 										}))
 									}
-									disabled={saving || !categories.length}
+									disabled={saving || !rounds.length}
 									required
 								>
-									<option value="">— Chọn track —</option>
-									{categories.map((c) => (
-										<option key={c.categoryId} value={c.categoryId}>
-											{c.name} (#{c.categoryId})
+									<option value="">— Chọn vòng —</option>
+									{rounds.map((r) => (
+										<option key={r.roundId} value={r.roundId}>
+											{r.name}
+										</option>
+									))}
+								</select>
+							</FormField>
+							<FormField label="Bảng *">
+								<select
+									name="groupId"
+									value={form.groupId}
+									onChange={(e) =>
+										setForm((f) => ({
+											...f,
+											groupId: e.target.value,
+										}))
+									}
+									disabled={saving || !filteredGroups.length}
+									required
+								>
+									<option value="">— Chọn bảng —</option>
+									{filteredGroups.map((g) => (
+										<option key={g.groupId} value={g.groupId}>
+											{g.name}
 										</option>
 									))}
 								</select>
@@ -768,7 +856,7 @@ function MentorStatItem({
 									<option value="">— Chọn mentor —</option>
 									{mentorAccounts.map((m) => (
 										<option key={m.userId} value={m.userId}>
-											{m.fullName || m.email} (#{m.userId})
+											{m.fullName || m.email}
 										</option>
 									))}
 								</select>
@@ -798,7 +886,7 @@ function JudgeStatItem({
 	eventId,
 	assignment,
 	rounds,
-	categories,
+	groups,
 	onUpdated,
 	onDeleted,
 }) {
@@ -810,19 +898,23 @@ function JudgeStatItem({
 	const [form, setForm] = useState({
 		judgeId: assignment.judgeId || "",
 		roundId: assignment.roundId || "",
-		categoryId: assignment.categoryId || "",
+		groupId: assignment.groupId || "",
 	});
+
+	const filteredGroups = groups.filter(
+		(g) => !form.roundId || g.roundId === form.roundId
+	);
 
 	const handleStartEdit = async () => {
 		setForm({
 			judgeId: assignment.judgeId || "",
 			roundId: assignment.roundId || "",
-			categoryId: assignment.categoryId || "",
+			groupId: assignment.groupId || "",
 		});
 		setEditOpen(true);
 		setLoadingAccounts(true);
 		try {
-			setJudgeAccounts(await getAllAccounts("JUDGE_INTERNAL"));
+			setJudgeAccounts(await getAllAccounts("EXPERT"));
 		} catch (err) {
 			showToast(localizeError(err.message), "error");
 			setEditOpen(false);
@@ -835,7 +927,7 @@ function JudgeStatItem({
 		setForm({
 			judgeId: assignment.judgeId || "",
 			roundId: assignment.roundId || "",
-			categoryId: assignment.categoryId || "",
+			groupId: assignment.groupId || "",
 		});
 		setEditOpen(false);
 	};
@@ -848,10 +940,10 @@ function JudgeStatItem({
 				eventId,
 				judgeId: assignment.judgeId,
 				roundId: assignment.roundId,
-				categoryId: assignment.categoryId,
+				groupId: assignment.groupId,
 				newJudgeId: form.judgeId,
 				newRoundId: form.roundId,
-				newCategoryId: form.categoryId,
+				newGroupId: form.groupId,
 			});
 			onUpdated?.(assignment, updated);
 			showToast("Đã cập nhật phân công judge", "success");
@@ -869,8 +961,7 @@ function JudgeStatItem({
 				<span style={{ minWidth: 0, flex: 1, textAlign: "left" }}>
 					<div style={{ fontWeight: 600 }}>{assignment.judgeName || "—"}</div>
 					<div style={{ fontSize: 11, color: "var(--text-dim)" }}>
-						Vòng: {assignment.roundName || "—"} · Track:{" "}
-						{assignment.categoryName || "—"}
+						{assignment.roundName || "—"} · {assignment.groupName || "—"}
 					</div>
 					<div style={{ fontSize: 11, color: "var(--text-mute)" }}>
 						{assignment.judgeEmail || "—"}
@@ -891,7 +982,7 @@ function JudgeStatItem({
 								eventId,
 								judgeId: assignment.judgeId,
 								roundId: assignment.roundId,
-								categoryId: assignment.categoryId,
+								groupId: assignment.groupId,
 							});
 							onDeleted?.(assignment);
 						}}
@@ -909,7 +1000,11 @@ function JudgeStatItem({
 									name="roundId"
 									value={form.roundId}
 									onChange={(e) =>
-										setForm((f) => ({ ...f, roundId: e.target.value }))
+										setForm((f) => ({
+											...f,
+											roundId: e.target.value,
+											groupId: "",
+										}))
 									}
 									disabled={saving || !rounds.length}
 									required
@@ -917,28 +1012,28 @@ function JudgeStatItem({
 									<option value="">— Chọn vòng —</option>
 									{rounds.map((r) => (
 										<option key={r.roundId} value={r.roundId}>
-											{r.name} (#{r.roundId})
+											{r.name}
 										</option>
 									))}
 								</select>
 							</FormField>
-							<FormField label="Track *">
+							<FormField label="Bảng *">
 								<select
-									name="categoryId"
-									value={form.categoryId}
+									name="groupId"
+									value={form.groupId}
 									onChange={(e) =>
 										setForm((f) => ({
 											...f,
-											categoryId: e.target.value,
+											groupId: e.target.value,
 										}))
 									}
-									disabled={saving || !categories.length}
+									disabled={saving || !filteredGroups.length}
 									required
 								>
-									<option value="">— Chọn track —</option>
-									{categories.map((c) => (
-										<option key={c.categoryId} value={c.categoryId}>
-											{c.name} (#{c.categoryId})
+									<option value="">— Chọn bảng —</option>
+									{filteredGroups.map((g) => (
+										<option key={g.groupId} value={g.groupId}>
+											{g.name}
 										</option>
 									))}
 								</select>
@@ -956,7 +1051,7 @@ function JudgeStatItem({
 									<option value="">— Chọn judge —</option>
 									{judgeAccounts.map((j) => (
 										<option key={j.userId} value={j.userId}>
-											{j.fullName || j.email} (#{j.userId})
+											{j.fullName || j.email}
 										</option>
 									))}
 								</select>
@@ -985,7 +1080,8 @@ function JudgeStatItem({
 function MentorsDropdownContent({
 	eventId,
 	assignedMentors = [],
-	categories = [],
+	rounds = [],
+	groups = [],
 	onUpdated,
 	onDeleted,
 }) {
@@ -999,10 +1095,11 @@ function MentorsDropdownContent({
 				<div className="kv-list">
 					{assignedMentors.map((m) => (
 						<MentorStatItem
-							key={`${m.categoryId}-${m.mentorId}`}
+							key={`${m.roundId}-${m.groupId}-${m.mentorId}`}
 							eventId={eventId}
 							assignment={m}
-							categories={categories}
+							rounds={rounds}
+							groups={groups}
 							onUpdated={onUpdated}
 							onDeleted={onDeleted}
 						/>
@@ -1020,7 +1117,7 @@ function JudgesDropdownContent({
 	eventId,
 	assignedJudges = [],
 	rounds = [],
-	categories = [],
+	groups = [],
 	onUpdated,
 	onDeleted,
 }) {
@@ -1034,11 +1131,11 @@ function JudgesDropdownContent({
 				<div className="kv-list">
 					{assignedJudges.map((j) => (
 						<JudgeStatItem
-							key={`${j.roundId}-${j.categoryId}-${j.judgeId}`}
+							key={`${j.roundId}-${j.groupId}-${j.judgeId}`}
 							eventId={eventId}
 							assignment={j}
 							rounds={rounds}
-							categories={categories}
+							groups={groups}
 							onUpdated={onUpdated}
 							onDeleted={onDeleted}
 						/>
@@ -1058,7 +1155,9 @@ function buildEventInfoForm(event) {
 		description: event.description || "",
 		startDate: toDatetimeLocalValue(event.startDate),
 		endDate: toDatetimeLocalValue(event.endDate),
-		status: (event.status || "UPCOMING").toUpperCase(),
+		status: (event.status || "BUILDING").toUpperCase(),
+		maxTeams: event.maxTeams == null ? "" : String(event.maxTeams),
+		numRounds: event.numRounds == null ? "1" : String(event.numRounds),
 	};
 }
 
@@ -1089,9 +1188,11 @@ function EventDetailInfoPanel({ event, onUpdated }) {
 				eventId: event.eventId,
 				title: form.title,
 				description: form.description,
-				startDate: form.startDate,
-				endDate: form.endDate,
+				startDate: form.startDate || null,
+				endDate: form.endDate || null,
 				status: form.status,
+				maxTeams: form.maxTeams,
+				numRounds: form.numRounds,
 			});
 			onUpdated?.(updated);
 			showToast("Đã cập nhật sự kiện", "success");
@@ -1120,10 +1221,6 @@ function EventDetailInfoPanel({ event, onUpdated }) {
 				{!editOpen ? (
 					<div className="kv-list">
 						<div className="kv">
-							<span>Event ID</span>
-							<span>{event.eventId}</span>
-						</div>
-						<div className="kv">
 							<span>Tên sự kiện</span>
 							<span>{event.title || "—"}</span>
 						</div>
@@ -1143,7 +1240,19 @@ function EventDetailInfoPanel({ event, onUpdated }) {
 						</div>
 						<div className="kv">
 							<span>Trạng thái</span>
-							<span>{event.status || "—"}</span>
+							<span>{eventStatusLabel(event.status)}</span>
+						</div>
+						<div className="kv">
+							<span>Số vòng dự kiến</span>
+							<span>{event.numRounds ?? "—"}</span>
+						</div>
+						<div className="kv">
+							<span>Giới hạn đội</span>
+							<span>{formatMaxTeams(event.maxTeams)}</span>
+						</div>
+						<div className="kv">
+							<span>Đội đã đăng ký</span>
+							<span>{event.totalTeams ?? "0"}</span>
 						</div>
 						<div className="kv">
 							<span>Ngày tạo</span>
@@ -1157,10 +1266,6 @@ function EventDetailInfoPanel({ event, onUpdated }) {
 						onSubmit={handleConfirm}
 					>
 						<div className="kv-list event-detail-info-readonly">
-							<div className="kv">
-								<span>Event ID</span>
-								<span>{event.eventId}</span>
-							</div>
 							<div className="kv">
 								<span>Ngày tạo</span>
 								<span>{formatEventDateTime(event.createdAt)}</span>
@@ -1185,24 +1290,44 @@ function EventDetailInfoPanel({ event, onUpdated }) {
 								disabled={saving}
 							/>
 						</FormField>
-						<FormField label="Ngày bắt đầu *">
+						<FormField label="Ngày bắt đầu">
 							<input
 								type="datetime-local"
 								name="startDate"
 								value={form.startDate}
 								onChange={handleChange}
 								disabled={saving}
-								required
 							/>
 						</FormField>
-						<FormField label="Ngày kết thúc *">
+						<FormField label="Ngày kết thúc">
 							<input
 								type="datetime-local"
 								name="endDate"
 								value={form.endDate}
 								onChange={handleChange}
 								disabled={saving}
+							/>
+						</FormField>
+						<FormField label="Số vòng dự kiến *">
+							<input
+								type="number"
+								name="numRounds"
+								min={1}
+								value={form.numRounds}
+								onChange={handleChange}
+								disabled={saving}
 								required
+							/>
+						</FormField>
+						<FormField label="Giới hạn đội">
+							<input
+								type="number"
+								name="maxTeams"
+								min={1}
+								value={form.maxTeams}
+								onChange={handleChange}
+								disabled={saving}
+								placeholder="Để trống = không giới hạn"
 							/>
 						</FormField>
 						<FormField label="Trạng thái *">
@@ -1341,33 +1466,36 @@ export default function EventDetailsPage() {
 				startDate: updated.startDate,
 				endDate: updated.endDate,
 				status: updated.status,
+				maxTeams: updated.maxTeams ?? null,
+				numRounds: updated.numRounds ?? prev.numRounds,
 				createdAt: updated.createdAt || prev.createdAt,
 			};
 		});
 	};
 
-	const handleCategoryUpdated = (updated) => {
+	const handleGroupUpdated = (updated) => {
 		setEvent((prev) => {
 			if (!prev) return prev;
 			return {
 				...prev,
-				categories: prev.categories.map((c) =>
-					c.categoryId === updated.categoryId
+				groups: prev.groups.map((g) =>
+					g.groupId === updated.groupId
 						? {
-								...c,
+								...g,
 								name: updated.name,
-								description: updated.description ?? "",
+								maxTeams: updated.maxTeams ?? null,
+								roundName: updated.roundName ?? g.roundName,
 							}
-						: c
+						: g
 				),
 				assignedMentors: (prev.assignedMentors ?? []).map((m) =>
-					m.categoryId === updated.categoryId
-						? { ...m, categoryName: updated.name }
+					m.groupId === updated.groupId
+						? { ...m, groupName: updated.name }
 						: m
 				),
 				assignedJudges: (prev.assignedJudges ?? []).map((j) =>
-					j.categoryId === updated.categoryId
-						? { ...j, categoryName: updated.name }
+					j.groupId === updated.groupId
+						? { ...j, groupName: updated.name }
 						: j
 				),
 			};
@@ -1412,7 +1540,8 @@ export default function EventDetailsPage() {
 			const next = (prev.assignedMentors ?? []).filter(
 				(m) =>
 					!(
-						m.categoryId === assignment.categoryId &&
+						m.roundId === assignment.roundId &&
+						m.groupId === assignment.groupId &&
 						m.mentorId === assignment.mentorId
 					)
 			);
@@ -1426,7 +1555,8 @@ export default function EventDetailsPage() {
 			return {
 				...prev,
 				assignedMentors: (prev.assignedMentors ?? []).map((m) =>
-					m.categoryId === oldAssignment.categoryId &&
+					m.roundId === oldAssignment.roundId &&
+					m.groupId === oldAssignment.groupId &&
 					m.mentorId === oldAssignment.mentorId
 						? { ...m, ...updated }
 						: m
@@ -1442,7 +1572,7 @@ export default function EventDetailsPage() {
 				(j) =>
 					!(
 						j.roundId === assignment.roundId &&
-						j.categoryId === assignment.categoryId &&
+						j.groupId === assignment.groupId &&
 						j.judgeId === assignment.judgeId
 					)
 			);
@@ -1457,7 +1587,7 @@ export default function EventDetailsPage() {
 				...prev,
 				assignedJudges: (prev.assignedJudges ?? []).map((j) =>
 					j.roundId === oldAssignment.roundId &&
-					j.categoryId === oldAssignment.categoryId &&
+					j.groupId === oldAssignment.groupId &&
 					j.judgeId === oldAssignment.judgeId
 						? { ...j, ...updated }
 						: j
@@ -1466,21 +1596,19 @@ export default function EventDetailsPage() {
 		});
 	};
 
-	const handleCategoryDeleted = (categoryId) => {
+	const handleGroupDeleted = (groupId) => {
 		setEvent((prev) => {
 			if (!prev) return prev;
-			const nextCategories = prev.categories.filter(
-				(c) => c.categoryId !== categoryId
-			);
+			const nextGroups = prev.groups.filter((g) => g.groupId !== groupId);
 			return {
 				...prev,
-				categories: nextCategories,
-				totalCategories: String(nextCategories.length),
+				groups: nextGroups,
+				totalGroups: String(nextGroups.length),
 				assignedMentors: (prev.assignedMentors ?? []).filter(
-					(m) => m.categoryId !== categoryId
+					(m) => m.groupId !== groupId
 				),
 				assignedJudges: (prev.assignedJudges ?? []).filter(
-					(j) => j.categoryId !== categoryId
+					(j) => j.groupId !== groupId
 				),
 			};
 		});
@@ -1502,6 +1630,7 @@ export default function EventDetailsPage() {
 	};
 
 	const pendingTeamsCount = countPendingTeams(event?.teams);
+	const setupWarnings = event ? buildSetupWarnings(event) : {};
 
 	const statPopupMeta = event
 		? {
@@ -1509,9 +1638,9 @@ export default function EventDetailsPage() {
 					title: "Đội tham gia",
 					count: event.totalTeams,
 				},
-				categories: {
-					title: "Categories",
-					count: event.totalCategories,
+				groups: {
+					title: "Bảng thi",
+					count: event.totalGroups,
 				},
 				rounds: {
 					title: "Vòng thi",
@@ -1542,13 +1671,13 @@ export default function EventDetailsPage() {
 						onUpdated={handleTeamRegistrationUpdated}
 					/>
 				);
-			case "categories":
+			case "groups":
 				return (
-					<CategoriesDropdownContent
+					<GroupsDropdownContent
 						eventId={event.eventId}
-						categories={event.categories}
-						onCategoryDeleted={handleCategoryDeleted}
-						onCategoryUpdated={handleCategoryUpdated}
+						groups={event.groups}
+						onGroupDeleted={handleGroupDeleted}
+						onGroupUpdated={handleGroupUpdated}
 					/>
 				);
 			case "rounds":
@@ -1565,7 +1694,8 @@ export default function EventDetailsPage() {
 					<MentorsDropdownContent
 						eventId={event.eventId}
 						assignedMentors={event.assignedMentors}
-						categories={event.categories}
+						rounds={event.rounds}
+						groups={event.groups}
 						onUpdated={handleMentorUpdated}
 						onDeleted={handleMentorDeleted}
 					/>
@@ -1576,7 +1706,7 @@ export default function EventDetailsPage() {
 						eventId={event.eventId}
 						assignedJudges={event.assignedJudges}
 						rounds={event.rounds}
-						categories={event.categories}
+						groups={event.groups}
 						onUpdated={handleJudgeUpdated}
 						onDeleted={handleJudgeDeleted}
 					/>
@@ -1595,7 +1725,7 @@ export default function EventDetailsPage() {
 			roleLabel="Staff"
 			title="Chi tiết sự kiện"
 			subtitle="Thông tin đầy đủ của hackathon."
-			role="COORDINATOR"
+			role="Staff"
 		>
 			<div className="action-row" style={{ marginBottom: 16 }}>
 				<Link to="/staff" className="btn btn-ghost">
@@ -1615,7 +1745,9 @@ export default function EventDetailsPage() {
 						<div>
 							<div className="card-title">{event.title || "—"}</div>
 							<div className="card-sub" style={{ margin: 0 }}>
-								Event ID: {event.eventId}
+								{event.numRounds ?? 1} vòng dự kiến ·{" "}
+								{formatMaxTeams(event.maxTeams)} ·{" "}
+								{event.totalTeams ?? 0} đội đăng ký
 							</div>
 						</div>
 						<span
@@ -1640,23 +1772,27 @@ export default function EventDetailsPage() {
 							onOpen={() => setStatPopup("teams")}
 						/>
 						<StatRow
-							label="Categories"
-							count={event.totalCategories}
-							onOpen={() => setStatPopup("categories")}
+							label="Bảng thi"
+							count={event.totalGroups}
+							setupWarning={setupWarnings.groups}
+							onOpen={() => setStatPopup("groups")}
 						/>
 						<StatRow
 							label="Vòng thi"
 							count={event.totalRounds}
+							setupWarning={setupWarnings.rounds}
 							onOpen={() => setStatPopup("rounds")}
 						/>
 						<StatRow
 							label="Mentor"
 							count={String(event.assignedMentors?.length ?? 0)}
+							setupWarning={setupWarnings.mentors}
 							onOpen={() => setStatPopup("mentors")}
 						/>
 						<StatRow
 							label="Judge"
 							count={String(event.assignedJudges?.length ?? 0)}
+							setupWarning={setupWarnings.judges}
 							onOpen={() => setStatPopup("judges")}
 						/>
 						<StatRow

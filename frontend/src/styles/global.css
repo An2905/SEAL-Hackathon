@@ -894,6 +894,7 @@ main {
 }
 .role-student,
 .role-staff,
+.role-guest,
 .role-mentor,
 .role-judge {
   background: var(--bg-subtle);
@@ -1041,6 +1042,25 @@ main {
   text-align: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   pointer-events: none;
+}
+.event-setup-warning-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #d97706;
+  color: #fff !important;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  cursor: help;
 }
 .kv.event-list-item {
   position: relative;

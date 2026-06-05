@@ -40,6 +40,7 @@ function registrationStatusPillClass(status) {
 function eventStatusPillClass(status) {
   const key = (status || '').toUpperCase()
   if (key === 'ONGOING') return 'status-active status-ongoing-highlight'
+  if (key === 'BUILDING') return 'status-pending'
   if (key === 'UPCOMING') return 'status-pending'
   if (key === 'COMPLETED') return 'status-default'
   if (key === 'CANCELLED') return 'status-inactive'
@@ -49,6 +50,7 @@ function eventStatusPillClass(status) {
 function eventStatusLabel(status) {
   const key = (status || '').toUpperCase()
   if (key === 'ONGOING') return 'Đang diễn ra'
+  if (key === 'BUILDING') return 'Đang thiết lập'
   if (key === 'UPCOMING') return 'Sắp diễn ra'
   if (key === 'COMPLETED') return 'Đã kết thúc'
   if (key === 'CANCELLED') return 'Đã hủy'
@@ -105,7 +107,6 @@ function TeamInfoCard({ data, onRefresh }) {
               </div>
               <div className="member-meta">{m.email || ''}</div>
             </div>
-            <span className="member-id-chip" title="user_id">#{m.userId}</span>
           </div>
         ))}
       </div>
@@ -128,9 +129,18 @@ function CreateTeamForm({ onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setMessage(null)
+    const normalized = teamName.trim().replace(/\s+/g, ' ')
+    if (!normalized) {
+      setMessage({ text: 'Tên đội không được để trống', type: 'error' })
+      return
+    }
+    if (normalized.length > 100) {
+      setMessage({ text: 'Tên đội tối đa 100 ký tự', type: 'error' })
+      return
+    }
     setLoading(true)
     try {
-      const { enrollCode } = await createTeam({ teamName: teamName.trim() })
+      const { enrollCode } = await createTeam({ teamName: normalized })
       setMessage({ text: `Tạo đội thành công! Mã enroll: ${enrollCode}`, type: 'success' })
       showToast('Đã tạo đội — mã enroll: ' + enrollCode, 'success')
       setTeamName('')
@@ -149,8 +159,11 @@ function CreateTeamForm({ onSuccess }) {
       <form className="form" onSubmit={handleSubmit}>
         <FormField label="Tên đội">
           <input name="teamName" value={teamName} onChange={e => setTeamName(e.target.value)}
-            required placeholder="VD: Code Hunters" />
+            required maxLength={100} placeholder="VD: Code Hunters" />
         </FormField>
+        <p className="card-sub" style={{ marginTop: 0 }}>
+          Tên đội phải là duy nhất trên toàn hệ thống (không phân biệt hoa thường).
+        </p>
         <LoadingButton loading={loading} type="submit">Tạo đội</LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
       </form>
@@ -230,7 +243,7 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
   if (mentors.length === 0) {
     return (
       <div className="empty-state" style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }}>
-        Chưa có mentor cho track này.
+        Chưa có mentor cho bảng này.
       </div>
     )
   }
@@ -238,7 +251,7 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
   return (
     <div style={{ marginTop: 12 }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-dim)', marginBottom: 8 }}>
-        Mentor track
+        Mentor bảng
       </div>
       <div className="kv-list">
         {mentors.map((m) => (
@@ -333,7 +346,7 @@ function TeamEventsPanel({ refreshKey, onOpenChat }) {
       <div className="card-head">
         <div className="card-title">Sự kiện & mentor</div>
       </div>
-      <p className="card-sub">Các hackathon đội đã đăng ký — track và mentor được gán theo từng sự kiện.</p>
+      <p className="card-sub">Các hackathon đội đã đăng ký — bảng và mentor được gán sau khi BTC duyệt và phân bảng.</p>
       {loading && <div className="empty-state">Đang tải…</div>}
       {!loading && error && <div className="empty-state">{error}</div>}
       {!loading && !error && list.length === 0 && (
@@ -372,7 +385,7 @@ function TeamEventsPanel({ refreshKey, onOpenChat }) {
                     }}
                   >
                     <span>
-                      Track: <strong style={isOngoing ? { color: 'var(--text)' } : undefined}>{reg.categoryName || '—'}</strong>
+                      Bảng: <strong style={isOngoing ? { color: 'var(--text)' } : undefined}>{reg.groupName || '—'}</strong>
                     </span>
                     <span
                       className={`status-pill ${eventStatusPillClass(reg.eventStatus)}`}
@@ -418,18 +431,17 @@ function JoinEventForm({ onSuccess }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
-  const [form, setForm] = useState({ eventId: '', categoryId: '' })
-  const handle = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
+  const [eventId, setEventId] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setMessage(null)
     setLoading(true)
     try {
-      await joinEvent({ eventId: form.eventId.trim(), categoryId: form.categoryId.trim() })
+      await joinEvent({ eventId: eventId.trim() })
       setMessage({ text: 'Đăng ký event thành công!', type: 'success' })
       showToast('Đăng ký event thành công', 'success')
-      setForm({ eventId: '', categoryId: '' })
+      setEventId('')
       onSuccess?.()
     } catch (err) {
       setMessage({ text: localizeError(err.message), type: 'error' })
@@ -441,13 +453,10 @@ function JoinEventForm({ onSuccess }) {
   return (
     <div className="card">
       <div className="card-head"><div className="card-title">Đăng ký sự kiện</div></div>
-      <p className="card-sub">Dẫn đội tham gia event hackathon. Nhập <strong>Event ID</strong> và <strong>Category ID</strong>.</p>
+      <p className="card-sub">Đăng ký đội tham gia sự kiện hackathon. Liên hệ BTC nếu chưa biết mã sự kiện. BTC sẽ phân bảng sau khi duyệt.</p>
       <form className="form" onSubmit={handleSubmit}>
-        <FormField label="Event ID">
-          <input name="eventId" value={form.eventId} onChange={handle} required placeholder="VD: 1" />
-        </FormField>
-        <FormField label="Category ID">
-          <input name="categoryId" value={form.categoryId} onChange={handle} required placeholder="VD: 2" />
+        <FormField label="Sự kiện">
+          <input name="eventId" value={eventId} onChange={e => setEventId(e.target.value)} required placeholder="Mã sự kiện do BTC cung cấp" />
         </FormField>
         <LoadingButton loading={loading} type="submit">Đăng ký event</LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
@@ -485,9 +494,9 @@ function DeleteMemberForm({ onSuccess }) {
       <div className="card-head"><div className="card-title">Xóa thành viên</div></div>
       <p className="card-sub">Loại một thành viên ra khỏi đội. Chỉ leader mới có quyền này.</p>
       <form className="form" onSubmit={handleSubmit}>
-        <FormField label="Member ID">
-          <input name="memberId" value={memberId} onChange={e => setMemberId(e.target.value)}
-            required placeholder="Nhập user_id của thành viên" />
+        <FormField label="Email thành viên">
+          <input name="memberId" type="email" value={memberId} onChange={e => setMemberId(e.target.value)}
+            required placeholder="Nhập email thành viên" />
         </FormField>
         <LoadingButton loading={loading} type="submit">Xóa thành viên</LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
@@ -577,7 +586,7 @@ export default function StudentDashboard() {
         <>
           <div className="section-title" style={{ marginTop: 24 }}>
             <h2>Đăng ký sự kiện</h2>
-            <span className="hint">Event, track và mentor của đội</span>
+            <span className="hint">Sự kiện, bảng và mentor của đội</span>
           </div>
           <TeamEventsPanel
             refreshKey={registrationsRefreshKey}

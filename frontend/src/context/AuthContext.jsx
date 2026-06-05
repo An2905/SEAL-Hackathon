@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback } from 'react'
 import { parseJwt } from '../utils/jwt'
+import { ROLE_UI_LABELS } from '../utils/roleLabels'
 
 const AuthContext = createContext(null)
 
@@ -10,22 +11,18 @@ const STORAGE_KEYS = {
   fullName: 'hh_full_name'
 }
 
-// FIX: Keys khớp với giá trị role thực tế BE trả về trong JWT claim.
-// BE dùng: COORDINATOR, MENTOR, JUDGE_INTERNAL, STUDENT_FPT, STUDENT_EXTERNAL
-// Code cũ dùng "Staff", "Student"... không khớp → sau login bị redirect về "/" thay vì dashboard đúng.
 const ROLE_PATHS = {
   COORDINATOR: '/staff',
-  MENTOR: '/mentor',
-  JUDGE_INTERNAL: '/judge',
+  EXPERT_INTERNAL: '/mentor',
+  EXPERT_EXTERNAL: '/mentor',
   STUDENT_FPT: '/student',
   STUDENT_EXTERNAL: '/student'
 }
 
-// Label hiển thị trên UI theo role
 const ROLE_DISPLAY_LABELS = {
   COORDINATOR: 'Trang Staff',
-  MENTOR: 'Trang Mentor',
-  JUDGE_INTERNAL: 'Trang Giám khảo',
+  EXPERT_INTERNAL: 'Trang Khách (INTERNAL)',
+  EXPERT_EXTERNAL: 'Trang Khách (EXTERNAL)',
   STUDENT_FPT: 'Trang Sinh viên',
   STUDENT_EXTERNAL: 'Trang Sinh viên'
 }
@@ -41,8 +38,6 @@ export function AuthProvider({ children }) {
   const saveAuth = useCallback((patch = {}) => {
     const { token, email, role, fullName } = patch
 
-    // Khi có token mới, ưu tiên lấy fullName/email từ JWT claims
-    // (BE nhúng fullName vào JWT — xem JwtUtil.generateToken)
     let derivedFullName = fullName
     let derivedEmail = email
     if (token) {
@@ -73,14 +68,14 @@ export function AuthProvider({ children }) {
 
   const isLoggedIn = !!auth.token
 
-  // Trả về đường dẫn dashboard theo role BE, fallback về "/" nếu role không xác định
   const pathForRole = (role) => ROLE_PATHS[role] || '/'
 
-  // Trả về label hiển thị trên nút "Vào dashboard" trong HomeNavbar
   const labelForRole = (role) => ROLE_DISPLAY_LABELS[role] || 'Vào dashboard'
 
+  const pillLabelForRole = (role) => (role && role in ROLE_UI_LABELS ? ROLE_UI_LABELS[role] : null)
+
   return (
-    <AuthContext.Provider value={{ auth, saveAuth, clearAuth, isLoggedIn, pathForRole, labelForRole }}>
+    <AuthContext.Provider value={{ auth, saveAuth, clearAuth, isLoggedIn, pathForRole, labelForRole, pillLabelForRole }}>
       {children}
     </AuthContext.Provider>
   )

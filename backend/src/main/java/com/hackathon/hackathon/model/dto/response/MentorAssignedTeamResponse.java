@@ -9,8 +9,10 @@ import lombok.Data;
 public class MentorAssignedTeamResponse {
     private String eventId;
     private String eventTitle;
-    private String categoryId;
-    private String categoryName;
+    private String roundId;
+    private String roundName;
+    private String groupId;
+    private String groupName;
     private String registrationId;
     private String registrationStatus;
     private String registeredAt;

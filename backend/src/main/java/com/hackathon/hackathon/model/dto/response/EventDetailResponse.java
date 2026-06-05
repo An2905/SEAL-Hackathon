@@ -20,9 +20,13 @@ public class EventDetailResponse {
 
     private String createdAt;
 
+    private Integer maxTeams;
+
+    private Integer numRounds;
+
     private String totalTeams;
 
-    private String totalCategories;
+    private String totalGroups;
 
     private String totalRounds;
 
@@ -30,7 +34,7 @@ public class EventDetailResponse {
 
     private String pendingTeams;
 
-    private List<EventCategoryResponse> categories;
+    private List<EventGroupResponse> groups;
 
     private List<EventRoundResponse> rounds;
 

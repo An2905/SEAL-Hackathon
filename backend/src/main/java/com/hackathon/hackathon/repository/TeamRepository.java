@@ -4,8 +4,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.UUID;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +31,7 @@ public class TeamRepository {
     private TeamMapper teamMapper;
 
     public boolean existsByTeamName(String teamName) {
-        String sql = "SELECT * FROM teams WHERE team_name = ?";
+        String sql = "SELECT 1 FROM teams WHERE team_name = ? LIMIT 1";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -59,24 +59,67 @@ public class TeamRepository {
     }
 
     public String insert(String teamName, String leaderId, String enrollCode) {
-        String sql = "INSERT INTO teams (team_name, leader_id, status, enrollCode) VALUES (?, ?, 'ACTIVE', ?)";
+        String teamId = UUID.randomUUID().toString();
+        String sql = "INSERT INTO teams (team_id, team_name, leader_id, status, enrollCode) VALUES (?, ?, ?, 'ACTIVE', ?)";
         try (
                 Connection conn = dataSource.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, teamName);
-            ps.setString(2, leaderId);
-            ps.setString(3, enrollCode);
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, teamId);
+            ps.setString(2, teamName);
+            ps.setString(3, leaderId);
+            ps.setString(4, enrollCode);
             if (ps.executeUpdate() > 0) {
-                try (ResultSet rs = ps.getGeneratedKeys()) {
-                    if (rs.next()) {
-                        return rs.getString(1);
-                    }
+                return teamId;
+            }
+        } catch (SQLException e) {
+            if (isDuplicateTeamName(e)) {
+                return null;
+            }
+            throw new RuntimeException(sql, e);
+        }
+        return null;
+    }
+
+    private boolean isDuplicateTeamName(SQLException e) {
+        if (e.getErrorCode() == 1062) {
+            return true;
+        }
+        String sqlState = e.getSQLState();
+        return sqlState != null && sqlState.startsWith("23");
+    }
+
+    public int countMembers(String teamId) {
+        String sql = "SELECT COUNT(*) FROM team_members WHERE team_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, teamId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
                 }
             }
         } catch (SQLException e) {
             throw new RuntimeException(sql, e);
         }
-        return null;
+        return 0;
+    }
+
+    public int findMaxMembers(String teamId) {
+        String sql = "SELECT max_members FROM teams WHERE team_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, teamId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("max_members");
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(sql, e);
+        }
+        return 5;
     }
 
     public boolean addMember(String teamId, String userId) {
@@ -156,30 +199,34 @@ public class TeamRepository {
         }
     }
 
-    public List<MentorAssignedTeamResponse> findAssignedTeamsByMentorAndCategory(
+    public List<MentorAssignedTeamResponse> findAssignedTeamsByMentorAndGroup(
             String mentorId,
             String eventId,
-            String categoryId,
+            String roundId,
+            String groupId,
             String registrationStatus) {
         List<MentorAssignedTeamResponse> teams = new ArrayList<>();
         Map<String, MentorAssignedTeamResponse> teamMap = new HashMap<>();
 
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT e.event_id, e.title AS event_title, ")
-                .append("c.category_id, c.name AS category_name, ")
+                .append("r.round_id, r.name AS round_name, ")
+                .append("rg.group_id, rg.name AS group_name, ")
                 .append("tr.registration_id, tr.status AS registration_status, tr.registered_at AS registered_at, ")
                 .append("t.team_id, t.team_name, t.status AS team_status, t.enrollCode, ")
                 .append("t.leader_id, lu.full_name AS leader_name, lu.email AS leader_email, ")
                 .append("um.user_id AS member_user_id, um.full_name AS member_full_name, um.email AS member_email, um.role AS member_role ")
-                .append("FROM category_mentors cm ")
-                .append("JOIN categories c ON cm.category_id = c.category_id ")
-                .append("JOIN events e ON c.event_id = e.event_id ")
-                .append("JOIN team_registrations tr ON tr.category_id = c.category_id AND tr.event_id = c.event_id ")
+                .append("FROM mentor_assignments ma ")
+                .append("JOIN round_groups rg ON ma.group_id = rg.group_id ")
+                .append("JOIN rounds r ON ma.round_id = r.round_id ")
+                .append("JOIN events e ON r.event_id = e.event_id ")
+                .append("JOIN group_teams gt ON gt.group_id = rg.group_id AND gt.round_id = r.round_id ")
+                .append("JOIN team_registrations tr ON tr.team_id = gt.team_id AND tr.event_id = e.event_id ")
                 .append("JOIN teams t ON tr.team_id = t.team_id ")
                 .append("JOIN users lu ON t.leader_id = lu.user_id ")
                 .append("LEFT JOIN team_members tm ON tm.team_id = t.team_id ")
                 .append("LEFT JOIN users um ON tm.user_id = um.user_id ")
-                .append("WHERE cm.mentor_id = ? AND c.category_id = ? AND c.event_id = ? ");
+                .append("WHERE ma.mentor_id = ? AND rg.group_id = ? AND r.round_id = ? AND e.event_id = ? ");
 
         boolean filterAll = "ALL".equalsIgnoreCase(registrationStatus);
         if (!filterAll) {
@@ -191,10 +238,11 @@ public class TeamRepository {
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql.toString())) {
             ps.setString(1, mentorId);
-            ps.setString(2, categoryId);
-            ps.setString(3, eventId);
+            ps.setString(2, groupId);
+            ps.setString(3, roundId);
+            ps.setString(4, eventId);
             if (!filterAll) {
-                ps.setString(4, registrationStatus);
+                ps.setString(5, registrationStatus);
             }
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -204,8 +252,10 @@ public class TeamRepository {
                         team = new MentorAssignedTeamResponse();
                         team.setEventId(rs.getString("event_id"));
                         team.setEventTitle(rs.getString("event_title"));
-                        team.setCategoryId(rs.getString("category_id"));
-                        team.setCategoryName(rs.getString("category_name"));
+                        team.setRoundId(rs.getString("round_id"));
+                        team.setRoundName(rs.getString("round_name"));
+                        team.setGroupId(rs.getString("group_id"));
+                        team.setGroupName(rs.getString("group_name"));
                         team.setRegistrationId(rs.getString("registration_id"));
                         team.setRegistrationStatus(rs.getString("registration_status"));
                         team.setRegisteredAt(rs.getString("registered_at"));

@@ -67,11 +67,16 @@ export function mapEventRow(row) {
   }
 }
 
-function mapCategoryRow(row) {
+function mapGroupRow(row) {
+  const maxRaw = row.maxTeams ?? row.max_teams
+  const maxNum = maxRaw == null || maxRaw === '' ? null : Number(maxRaw)
   return {
-    categoryId: normalizeId(row.categoryId ?? row.category_id),
+    groupId: normalizeId(row.groupId ?? row.group_id),
+    roundId: normalizeId(row.roundId ?? row.round_id),
+    roundName: row.roundName ?? row.round_name ?? '',
+    roundOrder: String(row.roundOrder ?? row.round_order ?? ''),
     name: row.name ?? '',
-    description: row.description ?? ''
+    maxTeams: Number.isFinite(maxNum) ? maxNum : null
   }
 }
 
@@ -79,10 +84,17 @@ function mapRoundRow(row) {
   return {
     roundId: normalizeId(row.roundId ?? row.round_id),
     name: row.name ?? '',
+    roundOrder: String(row.roundOrder ?? row.round_order ?? ''),
     startDate: row.startDate ?? row.start_date ?? '',
     endDate: row.endDate ?? row.end_date ?? '',
     submissionDeadline: row.submissionDeadline ?? row.submission_deadline ?? ''
   }
+}
+
+function mapOptionalInt(value) {
+  if (value == null || value === '') return null
+  const num = Number(value)
+  return Number.isFinite(num) ? num : null
 }
 
 function mapTeamRow(row) {
@@ -97,8 +109,10 @@ function mapTeamRow(row) {
 function mapAssignedMentorRow(row) {
   const m = row && typeof row === 'object' ? row : {}
   return {
-    categoryId: normalizeId(m.categoryId ?? m.category_id),
-    categoryName: m.categoryName ?? m.category_name ?? '',
+    roundId: normalizeId(m.roundId ?? m.round_id),
+    roundName: m.roundName ?? m.round_name ?? '',
+    groupId: normalizeId(m.groupId ?? m.group_id),
+    groupName: m.groupName ?? m.group_name ?? '',
     mentorId: normalizeId(m.mentorId ?? m.mentor_id),
     mentorName: m.mentorName ?? m.mentor_name ?? '',
     mentorEmail: m.mentorEmail ?? m.mentor_email ?? ''
@@ -110,8 +124,8 @@ function mapAssignedJudgeRow(row) {
   return {
     roundId: normalizeId(j.roundId ?? j.round_id),
     roundName: j.roundName ?? j.round_name ?? '',
-    categoryId: normalizeId(j.categoryId ?? j.category_id),
-    categoryName: j.categoryName ?? j.category_name ?? '',
+    groupId: normalizeId(j.groupId ?? j.group_id),
+    groupName: j.groupName ?? j.group_name ?? '',
     judgeId: normalizeId(j.judgeId ?? j.judge_id),
     judgeName: j.judgeName ?? j.judge_name ?? '',
     judgeEmail: j.judgeEmail ?? j.judge_email ?? ''
@@ -127,16 +141,65 @@ function mapAwardRow(row) {
   }
 }
 
+export function mapMentorAssignmentRow(row) {
+  const r = row && typeof row === 'object' ? row : {}
+  return {
+    eventId: normalizeId(r.eventId ?? r.event_id),
+    eventTitle: r.eventTitle ?? r.event_title ?? '',
+    roundId: normalizeId(r.roundId ?? r.round_id),
+    roundName: r.roundName ?? r.round_name ?? '',
+    groupId: normalizeId(r.groupId ?? r.group_id),
+    groupName: r.groupName ?? r.group_name ?? ''
+  }
+}
+
+function mapMentorAssignedTeamMemberRow(row) {
+  const r = row && typeof row === 'object' ? row : {}
+  return {
+    userId: normalizeId(r.userId ?? r.user_id),
+    fullName: r.fullName ?? r.full_name ?? '',
+    email: r.email ?? '',
+    userRole: r.userRole ?? r.user_role ?? '',
+    teamRole: r.teamRole ?? r.team_role ?? ''
+  }
+}
+
+export function mapMentorAssignedTeamRow(row) {
+  const r = row && typeof row === 'object' ? row : {}
+  return {
+    eventId: normalizeId(r.eventId ?? r.event_id),
+    eventTitle: r.eventTitle ?? r.event_title ?? '',
+    roundId: normalizeId(r.roundId ?? r.round_id),
+    roundName: r.roundName ?? r.round_name ?? '',
+    groupId: normalizeId(r.groupId ?? r.group_id),
+    groupName: r.groupName ?? r.group_name ?? '',
+    registrationId: normalizeId(r.registrationId ?? r.registration_id),
+    registrationStatus: r.registrationStatus ?? r.registration_status ?? '',
+    registeredAt: r.registeredAt ?? r.registered_at ?? '',
+    teamId: normalizeId(r.teamId ?? r.team_id),
+    teamName: r.teamName ?? r.team_name ?? '',
+    teamStatus: r.teamStatus ?? r.team_status ?? '',
+    enrollCode: r.enrollCode ?? r.enroll_code ?? '',
+    leaderId: normalizeId(r.leaderId ?? r.leader_id),
+    leaderName: r.leaderName ?? r.leader_name ?? '',
+    leaderEmail: r.leaderEmail ?? r.leader_email ?? '',
+    memberCount: mapCount(r.memberCount ?? r.member_count),
+    members: mapList(r.members, mapMentorAssignedTeamMemberRow)
+  }
+}
+
 export function mapEventDetailRow(row) {
   const r = row && typeof row === 'object' ? row : {}
   return {
     ...mapEventRow(r),
+    maxTeams: mapOptionalInt(r.maxTeams ?? r.max_teams),
+    numRounds: mapOptionalInt(r.numRounds ?? r.num_rounds) ?? 1,
     totalTeams: mapCount(r.totalTeams ?? r.total_teams),
-    totalCategories: mapCount(r.totalCategories ?? r.total_categories),
+    totalGroups: mapCount(r.totalGroups ?? r.total_groups),
     totalRounds: mapCount(r.totalRounds ?? r.total_rounds),
     totalAwards: mapCount(r.totalAwards ?? r.total_awards),
     teams: mapList(r.teams, mapTeamRow),
-    categories: mapList(r.categories, mapCategoryRow),
+    groups: mapList(r.groups, mapGroupRow),
     rounds: mapList(r.rounds, mapRoundRow),
     awards: mapList(r.awards, mapAwardRow),
     assignedMentors: mapList(r.assignedMentors ?? r.assigned_mentors, mapAssignedMentorRow),

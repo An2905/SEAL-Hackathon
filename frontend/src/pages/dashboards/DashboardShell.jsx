@@ -4,7 +4,7 @@ import SiteFooter from '../../components/layout/SiteFooter'
 import { ProfileModal, PasswordModal } from '../../components/common/ProfileModals'
 import { useAuth } from '../../context/AuthContext'
 
-export default function DashboardShell({ roleLabel, title, subtitle, role, showStudentFields = false, children }) {
+export default function DashboardShell({ roleLabel, title, subtitle, role, showStudentFields = false, showStaffFields = false, children }) {
   const { auth } = useAuth()
   const [profileOpen, setProfileOpen] = useState(false)
   const [passwordOpen, setPasswordOpen] = useState(false)
@@ -35,7 +35,12 @@ export default function DashboardShell({ roleLabel, title, subtitle, role, showS
 
       <SiteFooter />
 
-      <ProfileModal isOpen={profileOpen} onClose={() => setProfileOpen(false)} showStudentFields={showStudentFields} />
+      <ProfileModal
+        isOpen={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        showStudentFields={showStudentFields}
+        showStaffFields={showStaffFields}
+      />
       <PasswordModal isOpen={passwordOpen} onClose={() => setPasswordOpen(false)} />
     </>
   )

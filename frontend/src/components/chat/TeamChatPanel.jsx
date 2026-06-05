@@ -262,7 +262,7 @@ export default function TeamChatPanel({ isLeader }) {
               onClick={() => setSelectedRoomId(room.roomId)}
             >
               <div className="chat-room-item-title">
-                {room.eventTitle || `Event ${room.eventId}`} · {room.roundName || `Round ${room.roundId}`}
+                {room.eventTitle || 'Sự kiện'} · {room.roundName || 'Vòng thi'}
               </div>
               <div className="chat-room-item-sub">
                 Mentor: {room.mentorName || room.mentorId}

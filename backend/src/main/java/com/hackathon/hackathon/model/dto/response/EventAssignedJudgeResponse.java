@@ -6,8 +6,8 @@ import lombok.Data;
 public class EventAssignedJudgeResponse {
     private String roundId;
     private String roundName;
-    private String categoryId;
-    private String categoryName;
+    private String groupId;
+    private String groupName;
     private String judgeId;
     private String judgeName;
     private String judgeEmail;

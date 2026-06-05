@@ -16,7 +16,7 @@ export default function StaffOverviewPage() {
 				<div className="kv-list">
 					<div className="kv"><span>Họ tên</span><span>{auth.fullName || "—"}</span></div>
 					<div className="kv"><span>Email</span><span>{auth.email}</span></div>
-					<div className="kv"><span>Vai trò</span><span>Staff (COORDINATOR)</span></div>
+					<div className="kv"><span>Vai trò</span><span>Staff</span></div>
 					<div className="kv"><span>Trạng thái phiên</span><span>Đã đăng nhập</span></div>
 				</div>
 			</div>

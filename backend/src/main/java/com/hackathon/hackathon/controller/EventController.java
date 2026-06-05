@@ -14,59 +14,59 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.hackathon.hackathon.model.dto.request.CreateEventCategoryRequest;
+import com.hackathon.hackathon.model.dto.request.CreateEventGroupRequest;
 import com.hackathon.hackathon.model.dto.request.CreateEventRoundRequest;
-import com.hackathon.hackathon.model.dto.request.UpdateEventCategoryRequest;
+import com.hackathon.hackathon.model.dto.request.UpdateEventGroupRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventRoundRequest;
-import com.hackathon.hackathon.model.dto.response.CreateEventCategoryResponse;
+import com.hackathon.hackathon.model.dto.response.CreateEventGroupResponse;
 import com.hackathon.hackathon.model.dto.response.CreateEventRoundResponse;
 import com.hackathon.hackathon.model.dto.response.EventRoundSetupResponse;
 import com.hackathon.hackathon.model.dto.response.EventUpdateResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
-import com.hackathon.hackathon.service.StaffEventSetupService;
+import com.hackathon.hackathon.service.EventService;
 
 @RestController
 @RequestMapping(value = "/api/staff/events", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
 @CrossOrigin("*")
-public class StaffEventSetupController {
+public class EventController {
 
     @Autowired
-    private StaffEventSetupService staffEventSetupService;
+    private EventService eventService;
 
     @PutMapping
     public ResponseEntity<EventUpdateResponse> updateEvent(
             @RequestHeader("Authorization") String authHeader,
             @RequestBody UpdateEventRequest request) {
-        return ResponseEntity.ok(staffEventSetupService.updateEvent(authHeader, request));
+        return ResponseEntity.ok(eventService.updateEvent(authHeader, request));
     }
 
-    @PostMapping("/categories")
-    public ResponseEntity<CreateEventCategoryResponse> createCategory(
+    @PostMapping("/groups")
+    public ResponseEntity<CreateEventGroupResponse> createGroup(
             @RequestHeader("Authorization") String authHeader,
-            @RequestBody CreateEventCategoryRequest request) {
-        return ResponseEntity.ok(staffEventSetupService.createCategory(authHeader, request));
+            @RequestBody CreateEventGroupRequest request) {
+        return ResponseEntity.ok(eventService.createGroup(authHeader, request));
     }
 
     @PostMapping("/rounds")
     public ResponseEntity<CreateEventRoundResponse> createRound(
             @RequestHeader("Authorization") String authHeader,
             @RequestBody CreateEventRoundRequest request) {
-        return ResponseEntity.ok(staffEventSetupService.createRound(authHeader, request));
+        return ResponseEntity.ok(eventService.createRound(authHeader, request));
     }
 
-    @PutMapping("/categories")
-    public ResponseEntity<CreateEventCategoryResponse> updateCategory(
+    @PutMapping("/groups")
+    public ResponseEntity<CreateEventGroupResponse> updateGroup(
             @RequestHeader("Authorization") String authHeader,
-            @RequestBody UpdateEventCategoryRequest request) {
-        return ResponseEntity.ok(staffEventSetupService.updateCategory(authHeader, request));
+            @RequestBody UpdateEventGroupRequest request) {
+        return ResponseEntity.ok(eventService.updateGroup(authHeader, request));
     }
 
     @PutMapping("/rounds")
     public ResponseEntity<CreateEventRoundResponse> updateRound(
             @RequestHeader("Authorization") String authHeader,
             @RequestBody UpdateEventRoundRequest request) {
-        return ResponseEntity.ok(staffEventSetupService.updateRound(authHeader, request));
+        return ResponseEntity.ok(eventService.updateRound(authHeader, request));
     }
 
     @GetMapping("/rounds/detail")
@@ -74,15 +74,16 @@ public class StaffEventSetupController {
             @RequestHeader("Authorization") String authHeader,
             @RequestParam String eventId,
             @RequestParam String roundId) {
-        return ResponseEntity.ok(staffEventSetupService.getRoundSetupDetail(authHeader, eventId, roundId));
+        return ResponseEntity.ok(eventService.getRoundSetupDetail(authHeader, eventId, roundId));
     }
 
-    @DeleteMapping("/categories")
-    public ResponseEntity<MessageResponse> deleteCategory(
+    @DeleteMapping("/groups")
+    public ResponseEntity<MessageResponse> deleteGroup(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam String eventId,
-            @RequestParam String categoryId) {
-        return ResponseEntity.ok(staffEventSetupService.deleteCategory(authHeader, eventId, categoryId));
+            @RequestParam String roundId,
+            @RequestParam String groupId) {
+        return ResponseEntity.ok(eventService.deleteGroup(authHeader, eventId, roundId, groupId));
     }
 
     @DeleteMapping("/rounds")
@@ -90,6 +91,6 @@ public class StaffEventSetupController {
             @RequestHeader("Authorization") String authHeader,
             @RequestParam String eventId,
             @RequestParam String roundId) {
-        return ResponseEntity.ok(staffEventSetupService.deleteRound(authHeader, eventId, roundId));
+        return ResponseEntity.ok(eventService.deleteRound(authHeader, eventId, roundId));
     }
 }

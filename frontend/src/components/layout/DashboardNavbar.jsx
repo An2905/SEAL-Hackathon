@@ -16,6 +16,13 @@ export default function DashboardNavbar({ roleLabel }) {
 
 	const displayName = auth.fullName || auth.email;
 	const initial = (displayName?.[0] || "U").toUpperCase();
+	const pillClass = {
+		COORDINATOR: "staff",
+		EXPERT_INTERNAL: "guest",
+		EXPERT_EXTERNAL: "guest",
+		STUDENT_FPT: "student",
+		STUDENT_EXTERNAL: "student",
+	}[auth.role] || "guest";
 
 	return (
 		<nav className="navbar">
@@ -38,14 +45,13 @@ export default function DashboardNavbar({ roleLabel }) {
 				</a>
 
 				<div className="nav-user">
-					<span className={`role-pill role-${roleLabel.toLowerCase()}`}>
+					<span className={`role-pill role-${pillClass}`}>
 						{roleLabel}
 					</span>
 					<div className="user-chip">
 						<div className="avatar">{initial}</div>
 						<div className="user-meta">
 							<span className="user-email">{displayName}</span>
-							<span className="user-role">{auth.role}</span>
 						</div>
 					</div>
 					<button className="btn btn-ghost" onClick={handleLogout}>

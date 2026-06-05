@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
+import com.hackathon.hackathon.model.dto.response.MentorAssignmentResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedTeamResponse;
 import com.hackathon.hackathon.service.MentorService;
@@ -37,12 +38,20 @@ public class MentorController {
         return ResponseEntity.ok(mentorService.getAssignedCurrentRounds(authHeader));
     }
 
+    @GetMapping("/assignments")
+    public ResponseEntity<List<MentorAssignmentResponse>> getAssignments(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return ResponseEntity.ok(mentorService.getAssignments(authHeader));
+    }
+
     @GetMapping("/teams")
     public ResponseEntity<List<MentorAssignedTeamResponse>> getAssignedTeams(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam(value = "eventId", required = false) String eventId,
-            @RequestParam(value = "categoryId", required = false) String categoryId,
+            @RequestParam(value = "roundId", required = false) String roundId,
+            @RequestParam(value = "groupId", required = false) String groupId,
             @RequestParam(value = "registrationStatus", required = false) String registrationStatus) {
-        return ResponseEntity.ok(mentorService.getAssignedTeams(authHeader, eventId, categoryId, registrationStatus));
+        return ResponseEntity.ok(mentorService.getAssignedTeams(
+                authHeader, eventId, roundId, groupId, registrationStatus));
     }
 }

@@ -58,7 +58,6 @@ export default function HomeNavbar({ onOpenLogin, onOpenRegister }) {
               <div className='avatar'>{((auth.fullName || auth.email)?.[0] || 'U').toUpperCase()}</div>
               <div className='user-meta'>
                 <span className='user-email'>{auth.fullName || auth.email}</span>
-                <span className='user-role'>{auth.role || 'USER'}</span>
               </div>
             </div>
             <button className='btn btn-ghost btn-sm logout-btn' onClick={handleLogout}>

@@ -15,9 +15,10 @@ import org.springframework.stereotype.Repository;
 import com.hackathon.hackathon.model.dto.response.EventAssignedJudgeResponse;
 import com.hackathon.hackathon.model.dto.response.EventAssignedMentorResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorItemResponse;
+import com.hackathon.hackathon.model.dto.response.MentorAssignmentResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.model.entity.Award;
-import com.hackathon.hackathon.model.entity.Category;
+import com.hackathon.hackathon.model.dto.response.EventGroupResponse;
 import com.hackathon.hackathon.model.entity.Event;
 import com.hackathon.hackathon.model.entity.Round;
 import com.hackathon.hackathon.model.entity.TeamRegistration;
@@ -63,12 +64,14 @@ public class EventRepository {
         }
     }
 
-    public boolean categoryBelongsToEvent(String categoryId, String eventId) {
-        String sql = "SELECT 1 FROM categories WHERE category_id = ? AND event_id = ?";
+    public boolean groupBelongsToEvent(String groupId, String eventId) {
+        String sql = "SELECT 1 FROM round_groups rg "
+                + "INNER JOIN rounds r ON rg.round_id = r.round_id "
+                + "WHERE rg.group_id = ? AND r.event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, categoryId);
+            ps.setString(1, groupId);
             ps.setString(2, eventId);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
@@ -117,18 +120,20 @@ public class EventRepository {
     public Optional<Event> findDetailHeader(String eventId) {
         String sql = "SELECT "
                 + "e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at, "
+                + "e.max_teams, e.num_rounds, "
                 + "COUNT(DISTINCT tr.team_id) AS total_teams, "
                 + "COUNT(DISTINCT CASE WHEN tr.status = 'PENDING' THEN tr.team_id END) AS pending_teams, "
-                + "COUNT(DISTINCT c.category_id) AS total_categories, "
+                + "(SELECT COUNT(*) FROM round_groups rg "
+                + " INNER JOIN rounds r2 ON rg.round_id = r2.round_id WHERE r2.event_id = e.event_id) AS total_groups, "
                 + "COUNT(DISTINCT r.round_id) AS total_rounds, "
                 + "COUNT(DISTINCT a.award_id) AS total_awards "
                 + "FROM events e "
-                + "LEFT JOIN categories c ON e.event_id = c.event_id "
                 + "LEFT JOIN rounds r ON e.event_id = r.event_id "
                 + "LEFT JOIN team_registrations tr ON e.event_id = tr.event_id "
                 + "LEFT JOIN awards a ON e.event_id = a.event_id "
                 + "WHERE e.event_id = ? "
-                + "GROUP BY e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at";
+                + "GROUP BY e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at, "
+                + "e.max_teams, e.num_rounds";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -144,27 +149,33 @@ public class EventRepository {
         return Optional.empty();
     }
 
-    public List<Category> findCategoriesByEventId(String eventId) {
-        List<Category> categories = new ArrayList<>();
-        String sql = "SELECT category_id, name, description FROM categories WHERE event_id = ?";
+    public List<EventGroupResponse> findGroupsByEventId(String eventId) {
+        List<EventGroupResponse> groups = new ArrayList<>();
+        String sql = "SELECT rg.group_id, rg.round_id, rg.name, rg.max_teams, "
+                + "r.name AS round_name, r.round_order "
+                + "FROM round_groups rg "
+                + "INNER JOIN rounds r ON rg.round_id = r.round_id "
+                + "WHERE r.event_id = ? "
+                + "ORDER BY r.round_order ASC, rg.name ASC";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, eventId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    categories.add(eventMapper.categoryFromResultSet(rs));
+                    groups.add(eventMapper.groupFromResultSet(rs));
                 }
             }
         } catch (Exception e) {
-            return categories;
+            return groups;
         }
-        return categories;
+        return groups;
     }
 
     public List<Round> findRoundsByEventId(String eventId) {
         List<Round> rounds = new ArrayList<>();
-        String sql = "SELECT round_id, name, start_date, end_date, submission_deadline FROM rounds WHERE event_id = ? ORDER BY round_order";
+        String sql = "SELECT round_id, name, round_order, start_date, end_date, submission_deadline "
+                + "FROM rounds WHERE event_id = ? ORDER BY round_order";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -220,13 +231,15 @@ public class EventRepository {
 
     public List<EventAssignedMentorResponse> findAssignedMentorsByEventId(String eventId) {
         List<EventAssignedMentorResponse> rows = new ArrayList<>();
-        String sql = "SELECT c.category_id, c.name AS category_name, "
+        String sql = "SELECT r.round_id, r.name AS round_name, "
+                + "rg.group_id, rg.name AS group_name, "
                 + "u.user_id AS mentor_id, u.full_name AS mentor_name, u.email AS mentor_email "
-                + "FROM categories c "
-                + "INNER JOIN category_mentors cm ON c.category_id = cm.category_id "
-                + "INNER JOIN users u ON cm.mentor_id = u.user_id "
-                + "WHERE c.event_id = ? "
-                + "ORDER BY c.name ASC, u.full_name ASC";
+                + "FROM mentor_assignments ma "
+                + "INNER JOIN round_groups rg ON ma.group_id = rg.group_id "
+                + "INNER JOIN rounds r ON ma.round_id = r.round_id "
+                + "INNER JOIN users u ON ma.mentor_id = u.user_id "
+                + "WHERE r.event_id = ? "
+                + "ORDER BY r.round_order ASC, rg.name ASC, u.full_name ASC";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -234,8 +247,10 @@ public class EventRepository {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     EventAssignedMentorResponse row = new EventAssignedMentorResponse();
-                    row.setCategoryId(rs.getString("category_id"));
-                    row.setCategoryName(rs.getString("category_name"));
+                    row.setRoundId(rs.getString("round_id"));
+                    row.setRoundName(rs.getString("round_name"));
+                    row.setGroupId(rs.getString("group_id"));
+                    row.setGroupName(rs.getString("group_name"));
                     row.setMentorId(rs.getString("mentor_id"));
                     row.setMentorName(rs.getString("mentor_name"));
                     row.setMentorEmail(rs.getString("mentor_email"));
@@ -251,14 +266,14 @@ public class EventRepository {
     public List<EventAssignedJudgeResponse> findAssignedJudgesByEventId(String eventId) {
         List<EventAssignedJudgeResponse> rows = new ArrayList<>();
         String sql = "SELECT r.round_id, r.name AS round_name, r.round_order, "
-                + "c.category_id, c.name AS category_name, "
+                + "rg.group_id, rg.name AS group_name, "
                 + "u.user_id AS judge_id, u.full_name AS judge_name, u.email AS judge_email "
                 + "FROM judge_assignments ja "
                 + "INNER JOIN rounds r ON ja.round_id = r.round_id "
-                + "INNER JOIN categories c ON ja.category_id = c.category_id "
+                + "INNER JOIN round_groups rg ON ja.group_id = rg.group_id "
                 + "INNER JOIN users u ON ja.judge_id = u.user_id "
                 + "WHERE r.event_id = ? "
-                + "ORDER BY r.round_order ASC, c.name ASC, u.full_name ASC";
+                + "ORDER BY r.round_order ASC, rg.name ASC, u.full_name ASC";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -268,8 +283,8 @@ public class EventRepository {
                     EventAssignedJudgeResponse row = new EventAssignedJudgeResponse();
                     row.setRoundId(rs.getString("round_id"));
                     row.setRoundName(rs.getString("round_name"));
-                    row.setCategoryId(rs.getString("category_id"));
-                    row.setCategoryName(rs.getString("category_name"));
+                    row.setGroupId(rs.getString("group_id"));
+                    row.setGroupName(rs.getString("group_name"));
                     row.setJudgeId(rs.getString("judge_id"));
                     row.setJudgeName(rs.getString("judge_name"));
                     row.setJudgeEmail(rs.getString("judge_email"));
@@ -286,9 +301,9 @@ public class EventRepository {
         List<Event> events = new ArrayList<>();
         String sql = "SELECT DISTINCT e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at "
                 + "FROM events e "
-                + "JOIN categories c ON e.event_id = c.event_id "
-                + "JOIN category_mentors cm ON c.category_id = cm.category_id "
-                + "WHERE cm.mentor_id = ? "
+                + "JOIN rounds r ON e.event_id = r.event_id "
+                + "JOIN mentor_assignments ma ON r.round_id = ma.round_id "
+                + "WHERE ma.mentor_id = ? "
                 + "ORDER BY e.start_date DESC";
         try (
                 Connection conn = dataSource.getConnection();
@@ -305,15 +320,47 @@ public class EventRepository {
         return events;
     }
 
+    public List<MentorAssignmentResponse> findMentorAssignmentsByMentorId(String mentorId) {
+        List<MentorAssignmentResponse> rows = new ArrayList<>();
+        String sql = "SELECT e.event_id, e.title AS event_title, "
+                + "r.round_id, r.name AS round_name, "
+                + "rg.group_id, rg.name AS group_name "
+                + "FROM mentor_assignments ma "
+                + "INNER JOIN round_groups rg ON ma.group_id = rg.group_id "
+                + "INNER JOIN rounds r ON ma.round_id = r.round_id "
+                + "INNER JOIN events e ON r.event_id = e.event_id "
+                + "WHERE ma.mentor_id = ? "
+                + "ORDER BY e.start_date DESC, r.round_order ASC, rg.name ASC";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, mentorId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    MentorAssignmentResponse row = new MentorAssignmentResponse();
+                    row.setEventId(rs.getString("event_id"));
+                    row.setEventTitle(rs.getString("event_title"));
+                    row.setRoundId(rs.getString("round_id"));
+                    row.setRoundName(rs.getString("round_name"));
+                    row.setGroupId(rs.getString("group_id"));
+                    row.setGroupName(rs.getString("group_name"));
+                    rows.add(row);
+                }
+            }
+        } catch (Exception e) {
+            return rows;
+        }
+        return rows;
+    }
+
     public List<MentorAssignedCurrentRoundResponse> findAssignedCurrentRoundsByMentorId(String mentorId) {
         List<MentorAssignedCurrentRoundResponse> rounds = new ArrayList<>();
         String sql = "SELECT DISTINCT e.event_id, e.title, r.round_id, r.name, r.start_date, r.end_date, "
                 + "'ONGOING' AS round_status "
                 + "FROM events e "
-                + "JOIN categories c ON e.event_id = c.event_id "
-                + "JOIN category_mentors cm ON c.category_id = cm.category_id "
                 + "JOIN rounds r ON e.event_id = r.event_id "
-                + "WHERE cm.mentor_id = ? "
+                + "JOIN mentor_assignments ma ON r.round_id = ma.round_id "
+                + "WHERE ma.mentor_id = ? "
                 + "AND NOW() BETWEEN r.start_date AND r.end_date "
                 + "ORDER BY e.start_date DESC";
         try (
@@ -480,9 +527,9 @@ public class EventRepository {
         List<Event> events = new ArrayList<>();
         String sql = "SELECT DISTINCT e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at "
                 + "FROM events e "
-                + "JOIN categories c ON e.event_id = c.event_id "
-                + "JOIN judge_assignments cm ON c.category_id = cm.category_id "
-                + "WHERE cm.judge_id = ? "
+                + "JOIN rounds r ON e.event_id = r.event_id "
+                + "JOIN judge_assignments ja ON r.round_id = ja.round_id "
+                + "WHERE ja.judge_id = ? "
                 + "ORDER BY e.start_date DESC";
         try (
                 Connection conn = dataSource.getConnection();
@@ -499,19 +546,20 @@ public class EventRepository {
         return events;
     }
 
-    public List<TeamTrackMentorItemResponse> findMentorsByCategoryId(String categoryId) {
+    public List<TeamTrackMentorItemResponse> findMentorsByGroupAndRound(String groupId, String roundId) {
         List<TeamTrackMentorItemResponse> mentors = new ArrayList<>();
         String sql = """
             SELECT u.user_id AS mentor_id, u.full_name AS mentor_name, u.email AS mentor_email
-            FROM category_mentors cm
-            JOIN users u ON cm.mentor_id = u.user_id
-            WHERE cm.category_id = ?
+            FROM mentor_assignments ma
+            JOIN users u ON ma.mentor_id = u.user_id
+            WHERE ma.group_id = ? AND ma.round_id = ?
             ORDER BY u.full_name ASC
             """;
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, categoryId);
+            ps.setString(1, groupId);
+            ps.setString(2, roundId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     TeamTrackMentorItemResponse mentor = new TeamTrackMentorItemResponse();

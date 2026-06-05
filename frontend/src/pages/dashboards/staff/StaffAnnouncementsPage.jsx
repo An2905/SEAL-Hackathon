@@ -10,8 +10,8 @@ import { localizeError } from '../../../utils/errors'
 const RECIPIENT_ROLES = [
   { value: 'STUDENT_FPT', label: 'FPT Student' },
   { value: 'STUDENT_EXTERNAL', label: 'Student' },
-  { value: 'MENTOR', label: 'Mentor' },
-  { value: 'JUDGE_INTERNAL', label: 'Judge' }
+  { value: 'MENTOR', label: 'Mentor (đã phân công)' },
+  { value: 'JUDGE_INTERNAL', label: 'Judge (đã phân công)' }
 ]
 
 function formatDateTime(value) {
@@ -129,7 +129,7 @@ function SendParticipantForm() {
         roles: selectedRoles
       })
       setMessage({
-        text: `Đã gửi thành công! ID: ${result.announcementId} · ${
+        text: `Đã gửi thành công · ${
           result.totalRecipients
         } người nhận · ${formatDateTime(result.createdAt)}`,
         type: 'success'
@@ -158,7 +158,7 @@ function SendParticipantForm() {
             <option value=''>— Chọn sự kiện —</option>
             {events.map((ev) => (
               <option key={ev.eventId} value={ev.eventId}>
-                {ev.title} (#{ev.eventId})
+                {ev.title}
               </option>
             ))}
           </select>

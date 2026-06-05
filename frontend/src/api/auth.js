@@ -60,10 +60,20 @@ export async function verifyAndResetPassword({ email, otp, newPassword }) {
   return true
 }
 
-export async function updateProfile({ fullName, email, university, studentId }) {
+export async function updateProfile({ fullName, email, university, studentId, phone, avatarUrl }) {
+  const body = { fullName, university, studentId, phone }
+  const trimmedEmail = (email ?? '').trim()
+  if (trimmedEmail) {
+    body.email = trimmedEmail
+  }
+  const trimmedAvatar = (avatarUrl ?? '').trim()
+  if (trimmedAvatar) {
+    body.avatarUrl = trimmedAvatar
+  }
+
   const text = await apiFetch('/api/auth/profile', {
     method: 'PUT',
-    body: { fullName, email, university, studentId }
+    body
   })
   if (!/profile updated successfully/i.test(text)) throw new Error(text)
 

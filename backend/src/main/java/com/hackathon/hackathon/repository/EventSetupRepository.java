@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.Optional;
+import java.util.UUID;
 
 import javax.sql.DataSource;
 
@@ -18,22 +19,18 @@ public class EventSetupRepository {
     @Autowired
     private DataSource dataSource;
 
-    public boolean categoryNameExistsForEvent(String eventId, String name) {
-        return categoryNameExistsForEvent(eventId, name, null);
-    }
-
-    public boolean categoryNameExistsForEvent(String eventId, String name, String excludeCategoryId) {
-        String sql = "SELECT 1 FROM categories WHERE event_id = ? AND name = ?";
-        if (excludeCategoryId != null && !excludeCategoryId.isBlank()) {
-            sql += " AND category_id <> ?";
+    public boolean groupNameExistsForRound(String roundId, String name, String excludeGroupId) {
+        String sql = "SELECT 1 FROM round_groups WHERE round_id = ? AND name = ?";
+        if (excludeGroupId != null && !excludeGroupId.isBlank()) {
+            sql += " AND group_id <> ?";
         }
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, eventId);
+            ps.setString(1, roundId);
             ps.setString(2, name);
-            if (excludeCategoryId != null && !excludeCategoryId.isBlank()) {
-                ps.setString(3, excludeCategoryId);
+            if (excludeGroupId != null && !excludeGroupId.isBlank()) {
+                ps.setString(3, excludeGroupId);
             }
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
@@ -149,6 +146,39 @@ public class EventSetupRepository {
         }
     }
 
+    public String insertEvent(
+            String title,
+            String description,
+            Timestamp startDate,
+            Timestamp endDate,
+            Integer maxTeams,
+            int numRounds) {
+        String eventId = UUID.randomUUID().toString();
+        String sql = "INSERT INTO events (event_id, title, description, start_date, end_date, status, max_teams, num_rounds) "
+                + "VALUES (?, ?, ?, ?, ?, 'BUILDING', ?, ?)";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, eventId);
+            ps.setString(2, title);
+            ps.setString(3, description);
+            ps.setTimestamp(4, startDate);
+            ps.setTimestamp(5, endDate);
+            if (maxTeams != null) {
+                ps.setInt(6, maxTeams);
+            } else {
+                ps.setNull(6, java.sql.Types.INTEGER);
+            }
+            ps.setInt(7, numRounds);
+            if (ps.executeUpdate() > 0) {
+                return eventId;
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(sql, e);
+        }
+        return null;
+    }
+
     public int countRoundsOutsideEventDates(String eventId, Timestamp eventStart, Timestamp eventEnd) {
         String sql = "SELECT COUNT(*) AS cnt FROM rounds WHERE event_id = ? AND ("
                 + "(start_date IS NOT NULL AND start_date < ?) OR "
@@ -196,9 +226,11 @@ public class EventSetupRepository {
             String description,
             Timestamp startDate,
             Timestamp endDate,
-            String status) {
-        String sql = "UPDATE events SET title = ?, description = ?, start_date = ?, end_date = ?, status = ? "
-                + "WHERE event_id = ?";
+            String status,
+            Integer maxTeams,
+            int numRounds) {
+        String sql = "UPDATE events SET title = ?, description = ?, start_date = ?, end_date = ?, status = ?, "
+                + "max_teams = ?, num_rounds = ? WHERE event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -207,7 +239,13 @@ public class EventSetupRepository {
             ps.setTimestamp(3, startDate);
             ps.setTimestamp(4, endDate);
             ps.setString(5, status);
-            ps.setString(6, eventId);
+            if (maxTeams != null) {
+                ps.setInt(6, maxTeams);
+            } else {
+                ps.setNull(6, java.sql.Types.INTEGER);
+            }
+            ps.setInt(7, numRounds);
+            ps.setString(8, eventId);
             return ps.executeUpdate() > 0;
         } catch (Exception e) {
             return false;
@@ -215,7 +253,7 @@ public class EventSetupRepository {
     }
 
     public Optional<EventSetupRow> findEventById(String eventId) {
-        String sql = "SELECT event_id, title, description, start_date, end_date, status, created_at "
+        String sql = "SELECT event_id, title, description, start_date, end_date, status, max_teams, num_rounds, created_at "
                 + "FROM events WHERE event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
@@ -230,6 +268,9 @@ public class EventSetupRepository {
                     row.startDate = rs.getTimestamp("start_date");
                     row.endDate = rs.getTimestamp("end_date");
                     row.status = rs.getString("status");
+                    int maxTeams = rs.getInt("max_teams");
+                    row.maxTeams = rs.wasNull() ? null : maxTeams;
+                    row.numRounds = rs.getInt("num_rounds");
                     row.createdAt = rs.getTimestamp("created_at");
                     return Optional.of(row);
                 }
@@ -260,16 +301,20 @@ public class EventSetupRepository {
         return Optional.empty();
     }
 
-    public boolean updateCategory(String eventId, String categoryId, String name, String description) {
-        String sql = "UPDATE categories SET name = ?, description = ? "
-                + "WHERE category_id = ? AND event_id = ?";
+    public boolean updateGroup(String roundId, String groupId, String name, Integer maxTeams) {
+        String sql = "UPDATE round_groups SET name = ?, max_teams = ? "
+                + "WHERE group_id = ? AND round_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, name);
-            ps.setString(2, description);
-            ps.setString(3, categoryId);
-            ps.setString(4, eventId);
+            if (maxTeams != null) {
+                ps.setInt(2, maxTeams);
+            } else {
+                ps.setNull(2, java.sql.Types.INTEGER);
+            }
+            ps.setString(3, groupId);
+            ps.setString(4, roundId);
             return ps.executeUpdate() > 0;
         } catch (Exception e) {
             return false;
@@ -309,6 +354,8 @@ public class EventSetupRepository {
         public Timestamp startDate;
         public Timestamp endDate;
         public String status;
+        public Integer maxTeams;
+        public Integer numRounds;
         public Timestamp createdAt;
     }
 
@@ -339,20 +386,22 @@ public class EventSetupRepository {
         return 1;
     }
 
-    public String insertCategory(String eventId, String name, String description) {
-        String sql = "INSERT INTO categories (event_id, name, description) VALUES (?, ?, ?)";
+    public String insertGroup(String roundId, String name, Integer maxTeams) {
+        String groupId = UUID.randomUUID().toString();
+        String sql = "INSERT INTO round_groups (group_id, round_id, name, max_teams) VALUES (?, ?, ?, ?)";
         try (
                 Connection conn = dataSource.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, eventId);
-            ps.setString(2, name);
-            ps.setString(3, description);
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, groupId);
+            ps.setString(2, roundId);
+            ps.setString(3, name);
+            if (maxTeams != null) {
+                ps.setInt(4, maxTeams);
+            } else {
+                ps.setNull(4, java.sql.Types.INTEGER);
+            }
             if (ps.executeUpdate() > 0) {
-                try (ResultSet rs = ps.getGeneratedKeys()) {
-                    if (rs.next()) {
-                        return rs.getString(1);
-                    }
-                }
+                return groupId;
             }
         } catch (Exception e) {
             return null;
@@ -367,23 +416,21 @@ public class EventSetupRepository {
             Timestamp startDate,
             Timestamp endDate,
             Timestamp submissionDeadline) {
-        String sql = "INSERT INTO rounds (event_id, name, round_order, start_date, end_date, submission_deadline) "
-                + "VALUES (?, ?, ?, ?, ?, ?)";
+        String roundId = UUID.randomUUID().toString();
+        String sql = "INSERT INTO rounds (round_id, event_id, name, round_order, start_date, end_date, submission_deadline) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (
                 Connection conn = dataSource.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, eventId);
-            ps.setString(2, name);
-            ps.setInt(3, roundOrder);
-            ps.setTimestamp(4, startDate);
-            ps.setTimestamp(5, endDate);
-            ps.setTimestamp(6, submissionDeadline);
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, roundId);
+            ps.setString(2, eventId);
+            ps.setString(3, name);
+            ps.setInt(4, roundOrder);
+            ps.setTimestamp(5, startDate);
+            ps.setTimestamp(6, endDate);
+            ps.setTimestamp(7, submissionDeadline);
             if (ps.executeUpdate() > 0) {
-                try (ResultSet rs = ps.getGeneratedKeys()) {
-                    if (rs.next()) {
-                        return rs.getString(1);
-                    }
-                }
+                return roundId;
             }
         } catch (Exception e) {
             return null;
@@ -391,9 +438,9 @@ public class EventSetupRepository {
         return null;
     }
 
-    public int countTeamRegistrationsByCategory(String categoryId) {
-        String sql = "SELECT COUNT(*) AS cnt FROM team_registrations WHERE category_id = ?";
-        return countById(sql, categoryId);
+    public int countGroupTeams(String groupId) {
+        String sql = "SELECT COUNT(*) AS cnt FROM group_teams WHERE group_id = ?";
+        return countById(sql, groupId);
     }
 
     public int countSubmissionsByRound(String roundId) {
@@ -401,14 +448,14 @@ public class EventSetupRepository {
         return countById(sql, roundId);
     }
 
-    public void deleteCategoryMentorsByCategory(String categoryId) {
-        String sql = "DELETE FROM category_mentors WHERE category_id = ?";
-        executeUpdate(sql, categoryId);
+    public void deleteMentorAssignmentsByGroup(String groupId) {
+        String sql = "DELETE FROM mentor_assignments WHERE group_id = ?";
+        executeUpdate(sql, groupId);
     }
 
-    public void deleteJudgeAssignmentsByCategory(String categoryId) {
-        String sql = "DELETE FROM judge_assignments WHERE category_id = ?";
-        executeUpdate(sql, categoryId);
+    public void deleteJudgeAssignmentsByGroup(String groupId) {
+        String sql = "DELETE FROM judge_assignments WHERE group_id = ?";
+        executeUpdate(sql, groupId);
     }
 
     public void deleteJudgeAssignmentsByRound(String roundId) {
@@ -416,23 +463,13 @@ public class EventSetupRepository {
         executeUpdate(sql, roundId);
     }
 
-    public void deleteAdvancementRulesByRound(String roundId) {
-        String sql = "DELETE FROM advancement_rules WHERE round_id = ?";
-        executeUpdate(sql, roundId);
-    }
-
-    public void deleteAdvancementRulesByCategory(String categoryId) {
-        String sql = "DELETE FROM advancement_rules WHERE category_id = ?";
-        executeUpdate(sql, categoryId);
-    }
-
-    public boolean deleteCategory(String eventId, String categoryId) {
-        String sql = "DELETE FROM categories WHERE category_id = ? AND event_id = ?";
+    public boolean deleteGroup(String roundId, String groupId) {
+        String sql = "DELETE FROM round_groups WHERE group_id = ? AND round_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, categoryId);
-            ps.setString(2, eventId);
+            ps.setString(1, groupId);
+            ps.setString(2, roundId);
             return ps.executeUpdate() > 0;
         } catch (Exception e) {
             return false;

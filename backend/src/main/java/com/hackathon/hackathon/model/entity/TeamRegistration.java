@@ -7,7 +7,7 @@ public class TeamRegistration {
     private String registrationId;
     private String eventId;
     private String teamId;
-    private String categoryId;
     private String teamName;
     private String status;
+    private String registeredAt;
 }
