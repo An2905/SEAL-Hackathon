@@ -40,6 +40,15 @@ import com.hackathon.hackathon.model.dto.request.SendAllAnnouncementRequest;
 import com.hackathon.hackathon.model.dto.request.SendParticipantAnnouncementRequest;
 import com.hackathon.hackathon.model.dto.response.AnnouncementResponse;
 import com.hackathon.hackathon.repository.AnnouncementRepository;
+import com.hackathon.hackathon.model.entity.University;
+import com.hackathon.hackathon.repository.UniversityRepository;
+import com.hackathon.hackathon.repository.StudentProfileRepository;
+import com.hackathon.hackathon.model.dto.request.CreateUniversityRequest;
+import com.hackathon.hackathon.model.dto.request.UpdateUniversityRequest;
+import com.hackathon.hackathon.model.dto.request.DeleteUniversityRequest;
+import com.hackathon.hackathon.model.dto.response.StaffUniversityItemResponse;
+import com.hackathon.hackathon.model.dto.response.DeleteUniversityPreviewResponse;
+import com.hackathon.hackathon.model.dto.response.MessageResponse;
 
 @Service
 public class StaffService {
@@ -73,16 +82,22 @@ public class StaffService {
     @Autowired
     private AnnouncementRepository announcementRepository;
 
+    @Autowired
+    private UniversityRepository universityRepository;
+
+    @Autowired
+    private StudentProfileRepository studentProfileRepository;
+
     // region CHANGE STATUS
 
-    public String changeEventStatus(String authHeader, ChangeEventStatusRequest request) {
+    public MessageResponse changeEventStatus(String authHeader, ChangeEventStatusRequest request) {
         authService.validateRole(authHeader, "COORDINATOR");
 
         if (!eventRepository.updateStatus(request.getEventId(), request.getNewStatus())) {
             throw new BadRequestException("Event not found.");
         }
 
-        return "Event status updated successfully";
+        return new MessageResponse("Event status updated successfully");
     }
     // endregion
 
@@ -93,7 +108,7 @@ public class StaffService {
     // endregion
 
     // region REGIS ACCOUNT FOR ADS
-    public String registerAccount(String authHeader, CreateStaffAccountRequest request) {
+    public MessageResponse registerAccount(String authHeader, CreateStaffAccountRequest request) {
         authService.validateRole(authHeader, "COORDINATOR");
 
         String email = request.getEmail().trim();
@@ -127,7 +142,7 @@ public class StaffService {
             throw new BadRequestException("Account created but failed to send email.");
         }
 
-        return "Account created and email sent successfully";
+        return new MessageResponse("Account created and email sent successfully");
     }
     // endregion
 
@@ -173,7 +188,7 @@ public class StaffService {
 
     // region CHANGE ACCOUNT STATUS
 
-    public String changeAccountStatus(String authHeader, ChangeAccountStatusRequest request) {
+    public MessageResponse changeAccountStatus(String authHeader, ChangeAccountStatusRequest request) {
         authService.validateRole(authHeader, "COORDINATOR");
 
         String userId = request.getUserId();
@@ -210,7 +225,7 @@ public class StaffService {
             throw new BadRequestException("Account not found.");
         }
 
-        return "Account status updated successfully";
+        return new MessageResponse("Account status updated successfully");
     }
 
     // endregion
@@ -253,7 +268,7 @@ public class StaffService {
 
     // region CHANGE TEAM REGISTRATION STATUS
 
-    public String changeTeamRegistrationStatus(String authHeader,
+    public MessageResponse changeTeamRegistrationStatus(String authHeader,
             ChangeTeamRegistrationStatusRequest request) {
         authService.validateRole(authHeader, "COORDINATOR");
 
@@ -287,7 +302,7 @@ public class StaffService {
             throw new BadRequestException("Update failed.");
         }
 
-        return "Team registration status updated successfully";
+        return new MessageResponse("Team registration status updated successfully");
     }
 
     // endregion
@@ -383,7 +398,7 @@ public class StaffService {
 
     // region ASSIGN JUDGE / MENTOR
 
-    public String assignJudge(String authHeader, AssignJudgeRequest request) {
+    public MessageResponse assignJudge(String authHeader, AssignJudgeRequest request) {
         authService.validateRole(authHeader, "COORDINATOR");
 
         String judgeId = request.getJudgeId() == null ? "" : request.getJudgeId().trim();
@@ -402,10 +417,10 @@ public class StaffService {
             throw new BadRequestException("Phân công judge thất bại.");
         }
 
-        return "Judge assigned successfully";
+        return new MessageResponse("Judge assigned successfully");
     }
 
-    public String assignMentor(String authHeader, AssignMentorCategoryRequest request) {
+    public MessageResponse assignMentor(String authHeader, AssignMentorCategoryRequest request) {
         authService.validateRole(authHeader, "COORDINATOR");
 
         String mentorId = request.getUserId() == null ? "" : request.getUserId().trim();
@@ -423,7 +438,7 @@ public class StaffService {
             throw new BadRequestException("Phân công mentor thất bại.");
         }
 
-        return "Mentor assigned successfully";
+        return new MessageResponse("Mentor assigned successfully");
     }
 
     // endregion
@@ -501,4 +516,145 @@ public class StaffService {
     }
 
     // endregion
+
+    // region STAFF UNIVERSITIES CRUD
+    public List<StaffUniversityItemResponse> getStaffUniversities(String authHeader) {
+        authService.validateRole(authHeader, "COORDINATOR");
+        
+        List<University> list = universityRepository.findAll();
+        List<StaffUniversityItemResponse> responses = new ArrayList<>();
+        for (University u : list) {
+            int count = studentProfileRepository.countByUniversityName(u.getUniversityName());
+            responses.add(new StaffUniversityItemResponse(u.getUniversityId(), u.getUniversityName(), count));
+        }
+        return responses;
+    }
+
+    public MessageResponse createUniversity(String authHeader, CreateUniversityRequest request) {
+        authService.validateRole(authHeader, "COORDINATOR");
+
+        if (request.getUniversityName() == null) {
+            throw new BadRequestException("University name is required.");
+        }
+        String name = request.getUniversityName().trim();
+        if (name.isEmpty()) {
+            throw new BadRequestException("University name is required.");
+        }
+        if (name.length() > 255) {
+            throw new BadRequestException("University name is too long.");
+        }
+
+        if (universityRepository.existsByName(name)) {
+            throw new ConflictException("University name already exists.");
+        }
+
+        if (!universityRepository.insert(name)) {
+            throw new BadRequestException("Create university failed.");
+        }
+
+        return new MessageResponse("University created successfully");
+    }
+
+    public MessageResponse updateUniversity(String authHeader, UpdateUniversityRequest request) {
+        authService.validateRole(authHeader, "COORDINATOR");
+
+        if (request.getUniversityId() == null || request.getUniversityId().trim().isEmpty()) {
+            throw new BadRequestException("University ID cannot be empty.");
+        }
+        if (request.getUniversityName() == null || request.getUniversityName().trim().isEmpty()) {
+            throw new BadRequestException("University name cannot be empty.");
+        }
+
+        String id = request.getUniversityId().trim();
+        String newName = request.getUniversityName().trim();
+
+        University oldUni = universityRepository.findById(id)
+                .orElseThrow(() -> new BadRequestException("University is not valid."));
+
+        String oldName = oldUni.getUniversityName();
+
+        if (!newName.equalsIgnoreCase(oldName)) {
+            if (universityRepository.existsByNameExcludingId(newName, id)) {
+                throw new ConflictException("University name already exists.");
+            }
+            // Cascade update on profiles
+            studentProfileRepository.updateUniversityNameByOldName(oldName, newName);
+        }
+
+        if (!universityRepository.updateName(id, newName)) {
+            throw new BadRequestException("Update university failed.");
+        }
+
+        return new MessageResponse("University updated successfully");
+    }
+
+    public DeleteUniversityPreviewResponse getDeleteUniversityPreview(String authHeader, String universityId) {
+        authService.validateRole(authHeader, "COORDINATOR");
+
+        if (universityId == null || universityId.trim().isEmpty()) {
+            throw new BadRequestException("University ID is required.");
+        }
+
+        University uni = universityRepository.findById(universityId.trim())
+                .orElseThrow(() -> new BadRequestException("University is not valid."));
+
+        int count = studentProfileRepository.countByUniversityName(uni.getUniversityName());
+        boolean canDeleteDirectly = (count == 0);
+        boolean requiresUserHandling = (count > 0);
+        String message = count + " student profile(s) are linked to this university. Choose a replacement university or clear their university.";
+
+        return new DeleteUniversityPreviewResponse(
+                uni.getUniversityId(),
+                uni.getUniversityName(),
+                count,
+                canDeleteDirectly,
+                requiresUserHandling,
+                message
+        );
+    }
+
+    public MessageResponse deleteUniversity(String authHeader, DeleteUniversityRequest request) {
+        authService.validateRole(authHeader, "COORDINATOR");
+
+        if (request.getUniversityId() == null || request.getUniversityId().trim().isEmpty()) {
+            throw new BadRequestException("University ID is required.");
+        }
+
+        String id = request.getUniversityId().trim();
+
+        University uni = universityRepository.findById(id)
+                .orElseThrow(() -> new BadRequestException("University is not valid."));
+
+        String oldName = uni.getUniversityName();
+        int count = studentProfileRepository.countByUniversityName(oldName);
+
+        if (count > 0) {
+            String replacementName = request.getReplacementUniversityName();
+            Boolean clearUsers = request.getClearLinkedUsers();
+
+            if (replacementName != null && !replacementName.trim().isEmpty()) {
+                String repName = replacementName.trim();
+                if (repName.equalsIgnoreCase(oldName)) {
+                    throw new BadRequestException("Replacement university cannot be the one being deleted.");
+                }
+                // Verify replacement exists
+                universityRepository.findByName(repName)
+                        .orElseThrow(() -> new BadRequestException("Replacement university is not valid."));
+
+                // Reassign profiles
+                studentProfileRepository.updateUniversityNameByOldName(oldName, repName);
+            } else if (Boolean.TRUE.equals(clearUsers)) {
+                // Clear profiles to NULL
+                studentProfileRepository.clearUniversityNameByUniversityName(oldName);
+            } else {
+                throw new BadRequestException("This university still has linked students. Provide a replacement university name or confirm clearing.");
+            }
+        }
+
+        if (!universityRepository.deleteById(id)) {
+            throw new BadRequestException("Delete university failed.");
+        }
+
+        return new MessageResponse("University deleted successfully");
+    }
 }

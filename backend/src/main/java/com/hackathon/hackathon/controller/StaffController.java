@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,6 +28,12 @@ import com.hackathon.hackathon.model.dto.request.SendParticipantAnnouncementRequ
 import com.hackathon.hackathon.model.dto.response.AnnouncementResponse;
 import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
 import com.hackathon.hackathon.model.dto.request.AssignMentorCategoryRequest;
+import com.hackathon.hackathon.model.dto.response.MessageResponse;
+import com.hackathon.hackathon.model.dto.response.StaffUniversityItemResponse;
+import com.hackathon.hackathon.model.dto.response.DeleteUniversityPreviewResponse;
+import com.hackathon.hackathon.model.dto.request.CreateUniversityRequest;
+import com.hackathon.hackathon.model.dto.request.UpdateUniversityRequest;
+import com.hackathon.hackathon.model.dto.request.DeleteUniversityRequest;
 import com.hackathon.hackathon.service.StaffService;
 
 @RestController
@@ -39,25 +46,25 @@ public class StaffController {
     private StaffService staffService;
 
     @PostMapping("/register")
-    public ResponseEntity<String> registerAccount(@RequestHeader("Authorization") String authHeader,
+    public ResponseEntity<MessageResponse> registerAccount(@RequestHeader("Authorization") String authHeader,
             @RequestBody CreateStaffAccountRequest request) {
-        String result = staffService.registerAccount(authHeader, request);
+        MessageResponse result = staffService.registerAccount(authHeader, request);
         return ResponseEntity.ok(result);
     }
 
     @PutMapping("/events/status")
-    public ResponseEntity<String> changeEventStatus(
+    public ResponseEntity<MessageResponse> changeEventStatus(
             @RequestHeader("Authorization") String authHeader,
             @RequestBody ChangeEventStatusRequest request) {
-        String result = staffService.changeEventStatus(authHeader, request);
+        MessageResponse result = staffService.changeEventStatus(authHeader, request);
         return ResponseEntity.ok(result);
     }
 
     @PutMapping("/change-status")
-    public ResponseEntity<String> changeAccountStatus(
+    public ResponseEntity<MessageResponse> changeAccountStatus(
             @RequestHeader("Authorization") String authHeader,
             @RequestBody ChangeAccountStatusRequest request) {
-        String result = staffService.changeAccountStatus(authHeader, request);
+        MessageResponse result = staffService.changeAccountStatus(authHeader, request);
         return ResponseEntity.ok(result);
     }
 
@@ -87,10 +94,10 @@ public class StaffController {
     }
 
     @PutMapping("/team-registration/status")
-    public ResponseEntity<String> changeTeamRegistrationStatus(
+    public ResponseEntity<MessageResponse> changeTeamRegistrationStatus(
             @RequestHeader("Authorization") String authHeader,
             @RequestBody ChangeTeamRegistrationStatusRequest request) {
-        String result = staffService.changeTeamRegistrationStatus(authHeader, request);
+        MessageResponse result = staffService.changeTeamRegistrationStatus(authHeader, request);
         return ResponseEntity.ok(result);
     }
 
@@ -109,13 +116,13 @@ public class StaffController {
     }
 
     @PostMapping("/assign/judge")
-    public ResponseEntity<String> assignJudge(@RequestHeader("Authorization") String authHeader,
+    public ResponseEntity<MessageResponse> assignJudge(@RequestHeader("Authorization") String authHeader,
             @RequestBody AssignJudgeRequest request) {
         return ResponseEntity.ok(staffService.assignJudge(authHeader, request));
     }
 
     @PostMapping("/assign/mentor")
-    public ResponseEntity<String> assignMentor(@RequestHeader("Authorization") String authHeader,
+    public ResponseEntity<MessageResponse> assignMentor(@RequestHeader("Authorization") String authHeader,
             @RequestBody AssignMentorCategoryRequest request) {
         return ResponseEntity.ok(staffService.assignMentor(authHeader, request));
     }
@@ -124,5 +131,39 @@ public class StaffController {
     public ResponseEntity<byte[]> exportEventsExcel(
             @RequestHeader("Authorization") String authHeader) {
         return staffService.exportEventsExcel(authHeader);
+    }
+
+    @GetMapping("/universities")
+    public ResponseEntity<List<StaffUniversityItemResponse>> getStaffUniversities(
+            @RequestHeader("Authorization") String authHeader) {
+        return ResponseEntity.ok(staffService.getStaffUniversities(authHeader));
+    }
+
+    @PostMapping("/universities")
+    public ResponseEntity<MessageResponse> createUniversity(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody CreateUniversityRequest request) {
+        return ResponseEntity.ok(staffService.createUniversity(authHeader, request));
+    }
+
+    @PutMapping("/universities")
+    public ResponseEntity<MessageResponse> updateUniversity(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody UpdateUniversityRequest request) {
+        return ResponseEntity.ok(staffService.updateUniversity(authHeader, request));
+    }
+
+    @GetMapping("/universities/delete-preview")
+    public ResponseEntity<DeleteUniversityPreviewResponse> getDeleteUniversityPreview(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam String universityId) {
+        return ResponseEntity.ok(staffService.getDeleteUniversityPreview(authHeader, universityId));
+    }
+
+    @DeleteMapping("/universities")
+    public ResponseEntity<MessageResponse> deleteUniversity(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody DeleteUniversityRequest request) {
+        return ResponseEntity.ok(staffService.deleteUniversity(authHeader, request));
     }
 }
