@@ -1,3 +1,5 @@
+import fptLogo from "../../assets/images/fpt-logo.png";
+
 export default function SiteFooter() {
 	return (
 		<footer className="site-footer" id="contact">
@@ -5,7 +7,7 @@ export default function SiteFooter() {
 				<div className="footer-col">
 					<a href="/" className="footer-brand">
 						<img
-							src="/assets/images/fpt-logo.png"
+							src={fptLogo}
 							alt="FPT University"
 							className="brand-logo"
 						/>

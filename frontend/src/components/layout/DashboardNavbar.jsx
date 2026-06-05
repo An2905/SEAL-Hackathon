@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
+import fptLogo from "../../assets/images/fpt-logo.png";
 
 export default function DashboardNavbar({ roleLabel }) {
 	const { auth, clearAuth } = useAuth();
@@ -25,7 +26,7 @@ export default function DashboardNavbar({ roleLabel }) {
 					style={{ cursor: "pointer" }}
 				>
 					<img
-						src="/assets/images/fpt-logo.png"
+						src={fptLogo}
 						alt="FPT University"
 						className="brand-logo"
 					/>
