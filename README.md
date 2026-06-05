@@ -24,6 +24,7 @@ The system serves a dual purpose: a robust competition management platform and a
 | **Team & Submission Management** | Self-service team formation (3-5 members), Track registration, and multi-format submissions (URLs/repository links).                                |
 | **Assessment & Ranking**         | Dedicated scoring portal for judges, automated ranking calculations based on weighted criteria, real-time leaderboards, and elimination audit logs. |
 | **Research Module (RBL)**        | Judge calibration tools, score variance dashboards, and exportable anonymized scoring datasets for academic research.                               |
+| **Real-time Chat Module**        | Dynamic chat rooms between teams and assigned mentors for event rounds. Supports real-time message broadcasting via WebSockets (STOMP), user authentication via JWT, and message history persistence. |
 
 ## 🛠 Tech Stack
 
@@ -31,7 +32,8 @@ The system serves a dual purpose: a robust competition management platform and a
 
 - **Framework:** Spring Boot 4.0.6
 - **Language:** Java 17
-- **Database:** SQL Server (Microsoft SQL Server)
+- **Database:** MySQL
+- **Real-time Chat:** Spring Boot WebSockets + STOMP (with JWT authentication)
 - **Authentication:** JWT (JSON Web Token)
 - **Email Service:** Brevo (formerly Sendinblue)
 - **Architecture:** Direct JDBC (`Connection`, `PreparedStatement`) for high performance and low abstraction overhead.
@@ -51,14 +53,14 @@ The system serves a dual purpose: a robust competition management platform and a
 
 - **JDK 17**: Ensure Java 17 is installed and `JAVA_HOME` is set.
 - **Node.js**: v18.x or later is recommended.
-- **SQL Server**: A local instance of Microsoft SQL Server or an Azure SQL Database.
+- **MySQL**: A local instance of MySQL Database (v8.0 or later).
 - **Maven**: (Optional) Use the included `./mvnw` wrapper.
 
 ### 1. Database Setup
 
-1. Install and start your SQL Server instance.
-2. Create a new database named `Hackathon`.
-3. Locate the SQL scripts at `database/scripts/schema.sql` and `database/scripts/seeding.sql`.
+1. Install and start your MySQL server instance.
+2. Create a new database named `hackathon`.
+3. Locate the MySQL scripts at `database/scripts/schema.sql` and `database/scripts/seeding.sql`.
 4. Run `schema.sql` first to initialize the schema, followed by `seeding.sql` to seed initial data (including users and roles).
 
 ### 2. Backend Configuration
@@ -76,10 +78,10 @@ The backend uses environment variables for sensitive configuration. You can prov
    JWT_SECRET_KEY=your_very_secret_and_long_jwt_key_here
    ```
 
-3. **Optional Database Overrides**: If your local SQL Server instance does not use the default credentials (`sa` / `12345`) or port, add:
+3. **Optional Database Overrides**: If your local MySQL instance does not use the default credentials (`root` / `12345`) or port, add:
 
    ```properties
-   SPRING_DATASOURCE_URL=jdbc:sqlserver://localhost:1433;databaseName=Hackathon;encrypt=true;trustServerCertificate=true;sendStringParametersAsUnicode=true
+   SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/hackathon?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Ho_Chi_Minh&characterEncoding=utf8
    SPRING_DATASOURCE_USERNAME=your_username
    SPRING_DATASOURCE_PASSWORD=your_password
    ```
