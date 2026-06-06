@@ -3,9 +3,7 @@ name: Pull Request Verification
 on:
   pull_request:
     branches:
-      - BEJAV
-      - main
-      - master
+      - Main
   workflow_dispatch:
 
 jobs:
