@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import DashboardShell from "./DashboardShell";
 import FormMessage from "../../components/common/FormMessage";
@@ -13,10 +13,18 @@ import {
 	updateMentorAssignment,
 } from "../../api/staffAssignment";
 import {
+	createEventAward,
+	createEventGroup,
+	createEventRound,
+	deleteEventAward,
 	deleteEventGroup,
 	deleteEventRound,
+	getEventGroupTeams,
+	assignTeamToGroup,
+	removeTeamFromGroup,
 	getEventRoundDetail,
 	updateEvent,
+	updateEventAward,
 	updateEventGroup,
 	updateEventRound,
 } from "../../api/eventService";
@@ -54,6 +62,1075 @@ function formatEventDateTime(value) {
 function formatMaxTeams(value) {
 	if (value == null || value === "") return "Không giới hạn";
 	return String(value);
+}
+
+function getRoundPhase(round) {
+	const now = Date.now();
+	const start = round?.startDate ? new Date(round.startDate).getTime() : NaN;
+	const end = round?.endDate ? new Date(round.endDate).getTime() : NaN;
+	if (!Number.isFinite(start) || !Number.isFinite(end)) return "unknown";
+	if (now < start) return "upcoming";
+	if (now > end) return "past";
+	return "ongoing";
+}
+
+function isRoundOngoing(round) {
+	return getRoundPhase(round) === "ongoing";
+}
+
+function roundDisplayLabel(round) {
+	const name = String(round?.name ?? "").trim();
+	if (name) return name;
+	const order = round?.roundOrder;
+	return order ? `Vòng ${order}` : "Vòng";
+}
+
+function EventBoardCreateRoundModal({ eventId, isOpen, onClose, onCreated }) {
+	const { showToast } = useToast();
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState("");
+	const [form, setForm] = useState({
+		name: "",
+		winnersPerRound: "1",
+		startDate: "",
+		endDate: "",
+		submissionDeadline: "",
+	});
+
+	useEffect(() => {
+		if (!isOpen) return;
+		setError("");
+		setForm({
+			name: "",
+			winnersPerRound: "1",
+			startDate: "",
+			endDate: "",
+			submissionDeadline: "",
+		});
+	}, [isOpen]);
+
+	const handleChange = (e) =>
+		setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+	const handleSubmit = async (e) => {
+		e.preventDefault();
+		setError("");
+		setLoading(true);
+		try {
+			const created = await createEventRound({
+				eventId,
+				name: form.name,
+				winnersPerRound: form.winnersPerRound,
+				startDate: form.startDate,
+				endDate: form.endDate,
+				submissionDeadline: form.submissionDeadline,
+			});
+			onCreated?.(created);
+			showToast("Đã tạo vòng thi", "success");
+			onClose();
+		} catch (err) {
+			setError(localizeError(err.message));
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	return (
+		<Modal
+			isOpen={isOpen}
+			onClose={onClose}
+			title="Thêm vòng thi"
+			subtitle="Thứ tự vòng tự động tăng theo số vòng hiện có."
+		>
+			<form className="form" onSubmit={handleSubmit}>
+				<FormField label="Tên vòng *">
+					<input
+						name="name"
+						value={form.name}
+						onChange={handleChange}
+						maxLength={100}
+						disabled={loading}
+						placeholder="VD: Vòng 1 — Ý tưởng"
+						required
+					/>
+				</FormField>
+				<FormField label="Winner mỗi vòng *">
+					<input
+						type="number"
+						name="winnersPerRound"
+						min={1}
+						step={1}
+						value={form.winnersPerRound}
+						onChange={handleChange}
+						disabled={loading}
+						required
+					/>
+				</FormField>
+				<FormField label="Bắt đầu *">
+					<input
+						type="datetime-local"
+						name="startDate"
+						value={form.startDate}
+						onChange={handleChange}
+						disabled={loading}
+						required
+					/>
+				</FormField>
+				<FormField label="Kết thúc *">
+					<input
+						type="datetime-local"
+						name="endDate"
+						value={form.endDate}
+						onChange={handleChange}
+						disabled={loading}
+						required
+					/>
+				</FormField>
+				<FormField label="Deadline nộp bài *">
+					<input
+						type="datetime-local"
+						name="submissionDeadline"
+						value={form.submissionDeadline}
+						onChange={handleChange}
+						disabled={loading}
+						required
+					/>
+				</FormField>
+				<FormMessage message={error} type="error" />
+				<div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+					<LoadingButton loading={loading} type="submit">
+						Tạo vòng thi
+					</LoadingButton>
+					<button
+						type="button"
+						className="btn btn-ghost"
+						onClick={onClose}
+						disabled={loading}
+					>
+						Hủy
+					</button>
+				</div>
+			</form>
+		</Modal>
+	);
+}
+
+function EventBoardCreateGroupModal({
+	eventId,
+	rounds,
+	isOpen,
+	onClose,
+	onCreated,
+}) {
+	const { showToast } = useToast();
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState("");
+	const [form, setForm] = useState({ roundId: "", name: "", maxTeams: "" });
+
+	useEffect(() => {
+		if (!isOpen) return;
+		setError("");
+		setForm({ roundId: "", name: "", maxTeams: "" });
+	}, [isOpen]);
+
+	const handleChange = (e) =>
+		setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+	const handleSubmit = async (e) => {
+		e.preventDefault();
+		setError("");
+		setLoading(true);
+		try {
+			const created = await createEventGroup({
+				eventId,
+				roundId: form.roundId,
+				name: form.name,
+				maxTeams: form.maxTeams,
+			});
+			onCreated?.(created);
+			showToast("Đã tạo bảng thi", "success");
+			onClose();
+		} catch (err) {
+			setError(localizeError(err.message));
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	return (
+		<Modal
+			isOpen={isOpen}
+			onClose={onClose}
+			title="Thêm bảng thi"
+			subtitle="Mỗi bảng thuộc một vòng cụ thể."
+		>
+			{!rounds.length ? (
+				<div className="empty-state">
+					Tạo ít nhất một vòng thi trước khi thêm bảng.
+				</div>
+			) : (
+				<form className="form" onSubmit={handleSubmit}>
+					<FormField label="Vòng thi *">
+						<select
+							name="roundId"
+							value={form.roundId}
+							onChange={handleChange}
+							disabled={loading}
+							required
+						>
+							<option value="">— Chọn vòng —</option>
+							{rounds.map((round) => (
+								<option key={round.roundId} value={round.roundId}>
+									{roundDisplayLabel(round)}
+								</option>
+							))}
+						</select>
+					</FormField>
+					<FormField label="Tên bảng *">
+						<input
+							name="name"
+							value={form.name}
+							onChange={handleChange}
+							maxLength={100}
+							disabled={loading}
+							placeholder="VD: Bảng A"
+							required
+						/>
+					</FormField>
+					<FormField label="Số đội tối đa (tuỳ chọn)">
+						<input
+							type="number"
+							name="maxTeams"
+							value={form.maxTeams}
+							onChange={handleChange}
+							min={1}
+							disabled={loading}
+							placeholder="Để trống = không giới hạn"
+						/>
+					</FormField>
+					<FormMessage message={error} type="error" />
+					<div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+						<LoadingButton loading={loading} type="submit">
+							Tạo bảng
+						</LoadingButton>
+						<button
+							type="button"
+							className="btn btn-ghost"
+							onClick={onClose}
+							disabled={loading}
+						>
+							Hủy
+						</button>
+					</div>
+				</form>
+			)}
+		</Modal>
+	);
+}
+
+function EventBoardGroupDetailModal({
+	eventId,
+	group,
+	rounds = [],
+	isOpen,
+	onClose,
+	onUpdated,
+	onDeleted,
+}) {
+	const { showToast } = useToast();
+	const [saving, setSaving] = useState(false);
+	const [deleting, setDeleting] = useState(false);
+	const [teamsLoading, setTeamsLoading] = useState(false);
+	const [teamActionId, setTeamActionId] = useState("");
+	const [assignedTeams, setAssignedTeams] = useState([]);
+	const [availableTeams, setAvailableTeams] = useState([]);
+	const [teamCount, setTeamCount] = useState(0);
+	const [selectedTeamId, setSelectedTeamId] = useState("");
+	const [addingTeam, setAddingTeam] = useState(false);
+	const [error, setError] = useState("");
+	const [form, setForm] = useState({
+		name: "",
+		maxTeams: "",
+	});
+
+	const syncTeamsState = useCallback((data, notifyParent = false) => {
+		setAssignedTeams(data?.assigned ?? []);
+		setAvailableTeams(data?.available ?? []);
+		setTeamCount(data?.teamCount ?? 0);
+		setSelectedTeamId("");
+		if (notifyParent) {
+			onUpdated?.({
+				groupId: group?.groupId,
+				name: form.name || group?.name || "",
+				maxTeams:
+					form.maxTeams === ""
+						? null
+						: Number(form.maxTeams) || group?.maxTeams,
+				teamCount: data?.teamCount ?? 0,
+			});
+		}
+	}, [form.maxTeams, form.name, group?.groupId, group?.maxTeams, group?.name, onUpdated]);
+
+	useEffect(() => {
+		if (!isOpen || !group) return;
+		setError("");
+		setForm({
+			name: group.name || "",
+			maxTeams: group.maxTeams == null ? "" : String(group.maxTeams),
+		});
+		setTeamCount(group.teamCount ?? 0);
+		setAssignedTeams([]);
+		setAvailableTeams([]);
+		setSelectedTeamId("");
+
+		let cancelled = false;
+		(async () => {
+			setTeamsLoading(true);
+			try {
+				const data = await getEventGroupTeams({
+					eventId,
+					roundId: group.roundId,
+					groupId: group.groupId,
+				});
+				if (!cancelled) syncTeamsState(data, false);
+			} catch (err) {
+				if (!cancelled) setError(localizeError(err.message));
+			} finally {
+				if (!cancelled) setTeamsLoading(false);
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [isOpen, group, eventId]);
+
+	const roundLabel = useMemo(() => {
+		if (!group) return "—";
+		if (group.roundName) return group.roundName;
+		const round = rounds.find((r) => r.roundId === group.roundId);
+		return round ? roundDisplayLabel(round) : "—";
+	}, [group, rounds]);
+
+	const handleChange = (e) =>
+		setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+	const handleAddTeam = async () => {
+		if (!group?.groupId || !selectedTeamId) return;
+		setAddingTeam(true);
+		setError("");
+		try {
+			const data = await assignTeamToGroup({
+				eventId,
+				roundId: group.roundId,
+				groupId: group.groupId,
+				teamId: selectedTeamId,
+			});
+			syncTeamsState(data, true);
+			showToast("Đã thêm đội vào bảng", "success");
+		} catch (err) {
+			setError(localizeError(err.message));
+		} finally {
+			setAddingTeam(false);
+		}
+	};
+
+	const handleRemoveTeam = async (teamId) => {
+		if (!group?.groupId || !teamId) return;
+		setTeamActionId(teamId);
+		setError("");
+		try {
+			const data = await removeTeamFromGroup({
+				eventId,
+				roundId: group.roundId,
+				groupId: group.groupId,
+				teamId,
+			});
+			syncTeamsState(data, true);
+			showToast("Đã gỡ đội khỏi bảng", "success");
+		} catch (err) {
+			setError(localizeError(err.message));
+		} finally {
+			setTeamActionId("");
+		}
+	};
+
+	const handleSave = async (e) => {
+		e.preventDefault();
+		if (!group?.groupId) return;
+		setSaving(true);
+		setError("");
+		try {
+			const updated = await updateEventGroup({
+				eventId,
+				roundId: group.roundId,
+				groupId: group.groupId,
+				name: form.name,
+				maxTeams: form.maxTeams,
+			});
+			onUpdated?.(updated);
+			showToast("Đã cập nhật bảng thi", "success");
+			onClose();
+		} catch (err) {
+			setError(localizeError(err.message));
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	const handleDelete = async () => {
+		if (!group?.groupId) return;
+		const label = group.name || "bảng thi";
+		if (
+			!window.confirm(
+				`Xóa "${label}"? Phân công mentor/judge liên quan cũng sẽ bị gỡ.`,
+			)
+		) {
+			return;
+		}
+		setDeleting(true);
+		setError("");
+		try {
+			await deleteEventGroup({
+				eventId,
+				roundId: group.roundId,
+				groupId: group.groupId,
+			});
+			onDeleted?.(group.groupId);
+			showToast("Đã xóa bảng thi", "success");
+			onClose();
+		} catch (err) {
+			setError(localizeError(err.message));
+		} finally {
+			setDeleting(false);
+		}
+	};
+
+	const busy = saving || deleting || addingTeam || Boolean(teamActionId);
+
+	return (
+		<Modal
+			isOpen={isOpen}
+			onClose={onClose}
+			title="Chi tiết bảng thi"
+			subtitle={group?.name || undefined}
+			className="modal-wide"
+		>
+			{!group ? null : (
+				<>
+					<div className="kv-list" style={{ marginBottom: 16 }}>
+						<div className="kv">
+							<span>Vòng</span>
+							<span>{roundLabel}</span>
+						</div>
+						<div className="kv">
+							<span>Số đội</span>
+							<span>
+								{teamCount}/
+								{group.maxTeams ?? "—"}
+							</span>
+						</div>
+						<div className="kv">
+							<span>Giới hạn</span>
+							<span>
+								{group.maxTeams != null
+									? `Tối đa ${group.maxTeams} đội`
+									: "Không giới hạn"}
+							</span>
+						</div>
+					</div>
+
+					<div className="event-group-teams-panel" style={{ marginBottom: 16 }}>
+						<h4 className="section-subtitle">Đội trong bảng</h4>
+						{teamsLoading ? (
+							<p className="muted">Đang tải danh sách đội…</p>
+						) : assignedTeams.length === 0 ? (
+							<p className="muted">Chưa có đội nào trong bảng.</p>
+						) : (
+							<ul className="simple-list">
+								{assignedTeams.map((team) => (
+									<li
+										key={team.teamId}
+										className="simple-list-item"
+										style={{
+											display: "flex",
+											justifyContent: "space-between",
+											alignItems: "center",
+											gap: 8,
+										}}
+									>
+										<span>{team.teamName || team.teamId}</span>
+										<button
+											type="button"
+											className="btn btn-ghost btn-sm"
+											onClick={() => handleRemoveTeam(team.teamId)}
+											disabled={busy}
+										>
+											{teamActionId === team.teamId ? "…" : "Gỡ"}
+										</button>
+									</li>
+								))}
+							</ul>
+						)}
+
+						<div style={{ marginTop: 12 }}>
+							<FormField label="Thêm đội đã duyệt">
+								<div
+									style={{
+										display: "flex",
+										flexWrap: "wrap",
+										gap: 8,
+										alignItems: "center",
+									}}
+								>
+									<select
+										value={selectedTeamId}
+										onChange={(e) => setSelectedTeamId(e.target.value)}
+										disabled={busy || teamsLoading || availableTeams.length === 0}
+										style={{ flex: "1 1 200px", minWidth: 0 }}
+									>
+										<option value="">
+											{availableTeams.length === 0
+												? "Không còn đội khả dụng"
+												: "Chọn đội…"}
+										</option>
+										{availableTeams.map((team) => (
+											<option key={team.teamId} value={team.teamId}>
+												{team.teamName || team.teamId}
+											</option>
+										))}
+									</select>
+									<LoadingButton
+										type="button"
+										loading={addingTeam}
+										onClick={handleAddTeam}
+										disabled={busy || teamsLoading || !selectedTeamId}
+									>
+										Thêm đội
+									</LoadingButton>
+								</div>
+							</FormField>
+						</div>
+					</div>
+
+					<form className="form" onSubmit={handleSave}>
+						<FormField label="Tên bảng *">
+							<input
+								name="name"
+								value={form.name}
+								onChange={handleChange}
+								maxLength={100}
+								disabled={busy}
+								required
+							/>
+						</FormField>
+						<FormField label="Số đội tối đa">
+							<input
+								type="number"
+								name="maxTeams"
+								value={form.maxTeams}
+								onChange={handleChange}
+								min={1}
+								disabled={busy}
+								placeholder="Để trống = không giới hạn"
+							/>
+						</FormField>
+						<FormMessage message={error} type="error" />
+						<div
+							style={{
+								display: "flex",
+								flexWrap: "wrap",
+								gap: 8,
+								marginTop: 12,
+								justifyContent: "space-between",
+							}}
+						>
+							<div style={{ display: "flex", gap: 8 }}>
+								<LoadingButton loading={saving} type="submit" disabled={busy}>
+									Lưu thay đổi
+								</LoadingButton>
+								<button
+									type="button"
+									className="btn btn-ghost"
+									onClick={onClose}
+									disabled={busy}
+								>
+									Đóng
+								</button>
+							</div>
+							<button
+								type="button"
+								className="btn btn-danger btn-sm"
+								onClick={handleDelete}
+								disabled={busy}
+							>
+								{deleting ? "…" : "Xóa bảng"}
+							</button>
+						</div>
+					</form>
+				</>
+			)}
+		</Modal>
+	);
+}
+
+function EventBoardRoundDetailModal({
+	eventId,
+	round,
+	isOpen,
+	onClose,
+	onUpdated,
+	onDeleted,
+}) {
+	const { showToast } = useToast();
+	const [loadingDetail, setLoadingDetail] = useState(false);
+	const [saving, setSaving] = useState(false);
+	const [deleting, setDeleting] = useState(false);
+	const [error, setError] = useState("");
+	const [form, setForm] = useState({
+		name: "",
+		roundOrder: "1",
+		winnersPerRound: "1",
+		startDate: "",
+		endDate: "",
+		submissionDeadline: "",
+	});
+
+	const loadDetail = useCallback(async () => {
+		if (!round?.roundId) return;
+		setLoadingDetail(true);
+		setError("");
+		try {
+			const d = await getEventRoundDetail({
+				eventId,
+				roundId: round.roundId,
+			});
+			setForm({
+				name: d.name || "",
+				roundOrder: d.roundOrder || "1",
+				winnersPerRound: String(d.winnersPerRound ?? 1),
+				startDate: toDatetimeLocalValue(d.startDate),
+				endDate: toDatetimeLocalValue(d.endDate),
+				submissionDeadline: toDatetimeLocalValue(d.submissionDeadline),
+			});
+		} catch (err) {
+			setError(localizeError(err.message));
+		} finally {
+			setLoadingDetail(false);
+		}
+	}, [eventId, round?.roundId]);
+
+	useEffect(() => {
+		if (isOpen && round) loadDetail();
+	}, [isOpen, round, loadDetail]);
+
+	const handleChange = (e) =>
+		setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+	const handleSave = async (e) => {
+		e.preventDefault();
+		if (!round?.roundId) return;
+		setSaving(true);
+		setError("");
+		try {
+			const updated = await updateEventRound({
+				eventId,
+				roundId: round.roundId,
+				name: form.name,
+				roundOrder: form.roundOrder,
+				winnersPerRound: form.winnersPerRound,
+				startDate: form.startDate,
+				endDate: form.endDate,
+				submissionDeadline: form.submissionDeadline,
+			});
+			onUpdated?.(updated);
+			showToast("Đã cập nhật vòng thi", "success");
+			onClose();
+		} catch (err) {
+			setError(localizeError(err.message));
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	const handleDelete = async () => {
+		if (!round?.roundId) return;
+		const label = round.name || roundDisplayLabel(round);
+		if (
+			!window.confirm(
+				`Xóa "${label}"? Các bảng và phân công liên quan cũng sẽ bị gỡ.`,
+			)
+		) {
+			return;
+		}
+		setDeleting(true);
+		setError("");
+		try {
+			await deleteEventRound({ eventId, roundId: round.roundId });
+			onDeleted?.(round.roundId);
+			showToast("Đã xóa vòng thi", "success");
+			onClose();
+		} catch (err) {
+			setError(localizeError(err.message));
+		} finally {
+			setDeleting(false);
+		}
+	};
+
+	const busy = loadingDetail || saving || deleting;
+	const phase = round ? getRoundPhase(round) : "unknown";
+	const phaseLabel =
+		phase === "ongoing"
+			? "Đang diễn ra"
+			: phase === "upcoming"
+				? "Sắp diễn ra"
+				: phase === "past"
+					? "Đã kết thúc"
+					: "—";
+
+	return (
+		<Modal
+			isOpen={isOpen}
+			onClose={onClose}
+			title="Chi tiết vòng thi"
+			subtitle={round ? roundDisplayLabel(round) : undefined}
+			className="modal-wide"
+		>
+			{loadingDetail ? (
+				<div className="empty-state">Đang tải thông tin vòng…</div>
+			) : (
+				<>
+					<div className="kv-list" style={{ marginBottom: 16 }}>
+						<div className="kv">
+							<span>Trạng thái</span>
+							<span>{phaseLabel}</span>
+						</div>
+						<div className="kv">
+							<span>Winner</span>
+							<span>
+								{round?.winnerCount ?? 0}/{round?.winnersPerRound ?? 1}
+							</span>
+						</div>
+						<div className="kv">
+							<span>Bắt đầu</span>
+							<span>{formatEventDateTime(round?.startDate)}</span>
+						</div>
+						<div className="kv">
+							<span>Kết thúc</span>
+							<span>{formatEventDateTime(round?.endDate)}</span>
+						</div>
+						<div className="kv">
+							<span>Deadline nộp bài</span>
+							<span>{formatEventDateTime(round?.submissionDeadline)}</span>
+						</div>
+					</div>
+
+					<form className="form" onSubmit={handleSave}>
+						<FormField label="Tên vòng *">
+							<input
+								name="name"
+								value={form.name}
+								onChange={handleChange}
+								maxLength={100}
+								disabled={busy}
+								required
+							/>
+						</FormField>
+						<FormField label="Thứ tự vòng *">
+							<input
+								type="number"
+								name="roundOrder"
+								min={1}
+								step={1}
+								value={form.roundOrder}
+								onChange={handleChange}
+								disabled={busy}
+								required
+							/>
+						</FormField>
+						<FormField label="Winner mỗi vòng *">
+							<input
+								type="number"
+								name="winnersPerRound"
+								min={1}
+								step={1}
+								value={form.winnersPerRound}
+								onChange={handleChange}
+								disabled={busy}
+								required
+							/>
+						</FormField>
+						<FormField label="Bắt đầu *">
+							<input
+								type="datetime-local"
+								name="startDate"
+								value={form.startDate}
+								onChange={handleChange}
+								disabled={busy}
+								required
+							/>
+						</FormField>
+						<FormField label="Kết thúc *">
+							<input
+								type="datetime-local"
+								name="endDate"
+								value={form.endDate}
+								onChange={handleChange}
+								disabled={busy}
+								required
+							/>
+						</FormField>
+						<FormField label="Deadline nộp bài *">
+							<input
+								type="datetime-local"
+								name="submissionDeadline"
+								value={form.submissionDeadline}
+								onChange={handleChange}
+								disabled={busy}
+								required
+							/>
+						</FormField>
+						<FormMessage message={error} type="error" />
+						<div
+							style={{
+								display: "flex",
+								flexWrap: "wrap",
+								gap: 8,
+								marginTop: 12,
+								justifyContent: "space-between",
+							}}
+						>
+							<div style={{ display: "flex", gap: 8 }}>
+								<LoadingButton loading={saving} type="submit" disabled={busy}>
+									Lưu thay đổi
+								</LoadingButton>
+								<button
+									type="button"
+									className="btn btn-ghost"
+									onClick={onClose}
+									disabled={busy}
+								>
+									Đóng
+								</button>
+							</div>
+							<button
+								type="button"
+								className="btn btn-danger btn-sm"
+								onClick={handleDelete}
+								disabled={busy}
+							>
+								{deleting ? "…" : "Xóa vòng"}
+							</button>
+						</div>
+					</form>
+				</>
+			)}
+		</Modal>
+	);
+}
+
+function EventBoardWinnerCell({ round, active = false }) {
+	const winnerAssigned = round?.winnerCount ?? 0;
+	const winnerTotal = round?.winnersPerRound ?? 1;
+
+	return (
+		<div
+			className={`event-board-winner-pill${
+				active ? " is-active" : " is-idle"
+			}`}
+		>
+			<span className="event-board-winner-pill-title">Winner</span>
+			<span className="event-board-winner-pill-meta">
+				{winnerAssigned}/{winnerTotal}
+			</span>
+		</div>
+	);
+}
+
+function EventBoardSection({
+	event,
+	onRoundCreated,
+	onGroupCreated,
+	onRoundUpdated,
+	onRoundDeleted,
+	onGroupUpdated,
+	onGroupDeleted,
+}) {
+	const [roundModalOpen, setRoundModalOpen] = useState(false);
+	const [groupModalOpen, setGroupModalOpen] = useState(false);
+	const [roundDetailOpen, setRoundDetailOpen] = useState(false);
+	const [roundDetailRound, setRoundDetailRound] = useState(null);
+	const [groupDetailOpen, setGroupDetailOpen] = useState(false);
+	const [groupDetailGroup, setGroupDetailGroup] = useState(null);
+
+	const rounds = useMemo(
+		() =>
+			[...(event?.rounds ?? [])].sort(
+				(a, b) => Number(a.roundOrder) - Number(b.roundOrder),
+			),
+		[event?.rounds],
+	);
+
+	const groupsByRound = useMemo(() => {
+		const map = new Map();
+		for (const group of event?.groups ?? []) {
+			const roundId = group.roundId;
+			if (!roundId) continue;
+			if (!map.has(roundId)) map.set(roundId, []);
+			map.get(roundId).push(group);
+		}
+		for (const groups of map.values()) {
+			groups.sort((a, b) =>
+				String(a.name).localeCompare(String(b.name), "vi"),
+			);
+		}
+		return map;
+	}, [event?.groups]);
+
+	return (
+		<section className="event-board" style={{ marginTop: 16 }}>
+			{rounds.length ? (
+				rounds.map((round) => {
+					const groups = groupsByRound.get(round.roundId) ?? [];
+					const roundOngoing = isRoundOngoing(round);
+
+					return (
+						<div
+							key={round.roundId}
+							className={`event-board-row${
+								roundOngoing ? " is-ongoing" : ""
+							}`}
+						>
+							<div className="event-board-row-round">
+								<button
+									type="button"
+									className="event-board-round-pill event-board-round-pill-btn"
+									onClick={() => {
+										setRoundDetailRound(round);
+										setRoundDetailOpen(true);
+									}}
+								>
+									{roundDisplayLabel(round)}
+								</button>
+							</div>
+
+							<div className="event-board-row-groups">
+								{groups.length ? (
+									<div className="event-board-groups-track">
+										{groups.map((group) => (
+											<button
+												key={group.groupId}
+												type="button"
+												className="event-board-group-card event-board-group-card-btn"
+												onClick={() => {
+													setGroupDetailGroup(group);
+													setGroupDetailOpen(true);
+												}}
+											>
+												<div className="event-board-card-title">
+													{group.name || "—"}
+												</div>
+												<div className="event-board-card-meta">
+													{group.teamCount ?? 0}/
+													{group.maxTeams ?? "—"} Team
+												</div>
+											</button>
+										))}
+									</div>
+								) : (
+									<div className="event-board-groups-empty">
+										Chưa có bảng thi
+									</div>
+								)}
+							</div>
+
+							<div className="event-board-row-winner">
+								<EventBoardWinnerCell
+									round={round}
+									active={roundOngoing}
+								/>
+							</div>
+						</div>
+					);
+				})
+			) : (
+				<div className="event-board-row">
+					<div className="event-board-row-round">
+						<span className="event-board-round-pill event-board-round-pill-empty">
+							—
+						</span>
+					</div>
+					<div className="event-board-row-groups">
+						<div className="event-stat-dropdown-empty">
+							Chưa có vòng thi.
+						</div>
+					</div>
+					<div className="event-board-row-winner">
+						<EventBoardWinnerCell round={null} active={false} />
+					</div>
+				</div>
+			)}
+
+			<div className="event-board-row event-board-row-add">
+				<div className="event-board-row-round">
+					<button
+						type="button"
+						className="event-board-add-btn"
+						onClick={() => setRoundModalOpen(true)}
+					>
+						+ Vòng
+					</button>
+				</div>
+				<div className="event-board-row-groups event-board-row-groups-add">
+					<button
+						type="button"
+						className="event-board-add-btn"
+						onClick={() => setGroupModalOpen(true)}
+					>
+						+ Bảng
+					</button>
+				</div>
+				<div className="event-board-row-winner" />
+			</div>
+
+			<EventBoardCreateRoundModal
+				eventId={event.eventId}
+				isOpen={roundModalOpen}
+				onClose={() => setRoundModalOpen(false)}
+				onCreated={onRoundCreated}
+			/>
+			<EventBoardCreateGroupModal
+				eventId={event.eventId}
+				rounds={rounds}
+				isOpen={groupModalOpen}
+				onClose={() => setGroupModalOpen(false)}
+				onCreated={onGroupCreated}
+			/>
+			<EventBoardRoundDetailModal
+				eventId={event.eventId}
+				round={roundDetailRound}
+				isOpen={roundDetailOpen}
+				onClose={() => {
+					setRoundDetailOpen(false);
+					setRoundDetailRound(null);
+				}}
+				onUpdated={onRoundUpdated}
+				onDeleted={onRoundDeleted}
+			/>
+			<EventBoardGroupDetailModal
+				eventId={event.eventId}
+				group={groupDetailGroup}
+				rounds={rounds}
+				isOpen={groupDetailOpen}
+				onClose={() => {
+					setGroupDetailOpen(false);
+					setGroupDetailGroup(null);
+				}}
+				onUpdated={onGroupUpdated}
+				onDeleted={onGroupDeleted}
+			/>
+		</section>
+	);
 }
 
 function eventStatusLabel(status) {
@@ -292,16 +1369,15 @@ function SetupPanelLink({ eventId, focus, children }) {
 	);
 }
 
-function StatItemDeleteButton({ itemLabel, onDelete }) {
+function StatItemDeleteButton({ itemLabel, onDelete, confirmMessage }) {
 	const { showToast } = useToast();
 	const [loading, setLoading] = useState(false);
 
 	const handleClick = async () => {
-		if (
-			!window.confirm(
-				`Xóa "${itemLabel}"? Phân công mentor/judge liên quan cũng sẽ bị gỡ.`
-			)
-		) {
+		const message =
+			confirmMessage ??
+			`Xóa "${itemLabel}"? Phân công mentor/judge liên quan cũng sẽ bị gỡ.`;
+		if (!window.confirm(message)) {
 			return;
 		}
 		setLoading(true);
@@ -453,6 +1529,7 @@ function RoundStatItem({ eventId, round, onUpdated, onDeleted }) {
 	const [form, setForm] = useState({
 		name: round.name || "",
 		roundOrder: "1",
+		winnersPerRound: String(round.winnersPerRound ?? 1),
 		startDate: toDatetimeLocalValue(round.startDate),
 		endDate: toDatetimeLocalValue(round.endDate),
 		submissionDeadline: toDatetimeLocalValue(round.submissionDeadline),
@@ -468,6 +1545,7 @@ function RoundStatItem({ eventId, round, onUpdated, onDeleted }) {
 			setForm({
 				name: d.name || "",
 				roundOrder: d.roundOrder || "1",
+				winnersPerRound: String(d.winnersPerRound ?? 1),
 				startDate: toDatetimeLocalValue(d.startDate),
 				endDate: toDatetimeLocalValue(d.endDate),
 				submissionDeadline: toDatetimeLocalValue(d.submissionDeadline),
@@ -496,6 +1574,7 @@ function RoundStatItem({ eventId, round, onUpdated, onDeleted }) {
 				roundId: round.roundId,
 				name: form.name,
 				roundOrder: form.roundOrder,
+				winnersPerRound: form.winnersPerRound,
 				startDate: form.startDate,
 				endDate: form.endDate,
 				submissionDeadline: form.submissionDeadline,
@@ -522,6 +1601,9 @@ function RoundStatItem({ eventId, round, onUpdated, onDeleted }) {
 					</div>
 					<div style={{ fontSize: 11, color: "var(--text-mute)" }}>
 						Deadline nộp bài: {formatEventDateTime(round.submissionDeadline)}
+					</div>
+					<div style={{ fontSize: 11, color: "var(--text-mute)" }}>
+						Winner/vòng: {round.winnerCount ?? 0}/{round.winnersPerRound ?? 1}
 					</div>
 				</span>
 				<div className="event-stat-item-actions">
@@ -568,6 +1650,18 @@ function RoundStatItem({ eventId, round, onUpdated, onDeleted }) {
 									min={1}
 									step={1}
 									value={form.roundOrder}
+									onChange={handleChange}
+									disabled={saving}
+									required
+								/>
+							</FormField>
+							<FormField label="Winner mỗi vòng *">
+								<input
+									type="number"
+									name="winnersPerRound"
+									min={1}
+									step={1}
+									value={form.winnersPerRound}
 									onChange={handleChange}
 									disabled={saving}
 									required
@@ -1163,6 +2257,7 @@ function buildEventInfoForm(event) {
 
 function EventDetailInfoPanel({ event, onUpdated }) {
 	const { showToast } = useToast();
+	const [detailOpen, setDetailOpen] = useState(false);
 	const [editOpen, setEditOpen] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [form, setForm] = useState(() => buildEventInfoForm(event));
@@ -1178,6 +2273,12 @@ function EventDetailInfoPanel({ event, onUpdated }) {
 	const handleCancel = () => {
 		setForm(buildEventInfoForm(event));
 		setEditOpen(false);
+	};
+
+	const handleCloseDetail = () => {
+		setForm(buildEventInfoForm(event));
+		setEditOpen(false);
+		setDetailOpen(false);
 	};
 
 	const handleConfirm = async (e) => {
@@ -1209,211 +2310,449 @@ function EventDetailInfoPanel({ event, onUpdated }) {
 
 	const editFormId = `event-info-edit-${event.eventId}`;
 
-	return (
-		<div className="event-detail-info-wrap" style={{ marginTop: 16 }}>
-			<div
-				className={`event-detail-info${editOpen ? " is-edit-open" : ""}`}
-			>
-				<div className="event-detail-info-head">
-					<span className="event-detail-info-title">Thông tin sự kiện</span>
+	const detailBody = !editOpen ? (
+		<div className="kv-list">
+			<div className="kv">
+				<span>Tên sự kiện</span>
+				<span>{event.title || "—"}</span>
+			</div>
+			<div className="kv">
+				<span>Mô tả</span>
+				<span style={{ textAlign: "right", maxWidth: "70%" }}>
+					{event.description || "—"}
+				</span>
+			</div>
+			<div className="kv">
+				<span>Ngày bắt đầu</span>
+				<span>{formatEventDateTime(event.startDate)}</span>
+			</div>
+			<div className="kv">
+				<span>Ngày kết thúc</span>
+				<span>{formatEventDateTime(event.endDate)}</span>
+			</div>
+			<div className="kv">
+				<span>Trạng thái</span>
+				<span>{eventStatusLabel(event.status)}</span>
+			</div>
+			<div className="kv">
+				<span>Số vòng dự kiến</span>
+				<span>{event.numRounds ?? "—"}</span>
+			</div>
+			<div className="kv">
+				<span>Giới hạn đội</span>
+				<span>{formatMaxTeams(event.maxTeams)}</span>
+			</div>
+			<div className="kv">
+				<span>Đội đã đăng ký</span>
+				<span>{event.totalTeams ?? "0"}</span>
+			</div>
+			<div className="kv">
+				<span>Ngày tạo</span>
+				<span>{formatEventDateTime(event.createdAt)}</span>
+			</div>
+		</div>
+	) : (
+		<form
+			id={editFormId}
+			className="event-stat-item-edit event-detail-info-edit"
+			onSubmit={handleConfirm}
+		>
+			<div className="kv-list event-detail-info-readonly">
+				<div className="kv">
+					<span>Ngày tạo</span>
+					<span>{formatEventDateTime(event.createdAt)}</span>
 				</div>
+			</div>
+			<FormField label="Tên sự kiện *">
+				<input
+					name="title"
+					value={form.title}
+					onChange={handleChange}
+					maxLength={200}
+					disabled={saving}
+					required
+				/>
+			</FormField>
+			<FormField label="Mô tả">
+				<textarea
+					name="description"
+					value={form.description}
+					onChange={handleChange}
+					rows={3}
+					disabled={saving}
+				/>
+			</FormField>
+			<FormField label="Ngày bắt đầu">
+				<input
+					type="datetime-local"
+					name="startDate"
+					value={form.startDate}
+					onChange={handleChange}
+					disabled={saving}
+				/>
+			</FormField>
+			<FormField label="Ngày kết thúc">
+				<input
+					type="datetime-local"
+					name="endDate"
+					value={form.endDate}
+					onChange={handleChange}
+					disabled={saving}
+				/>
+			</FormField>
+			<FormField label="Số vòng dự kiến *">
+				<input
+					type="number"
+					name="numRounds"
+					min={1}
+					value={form.numRounds}
+					onChange={handleChange}
+					disabled={saving}
+					required
+				/>
+			</FormField>
+			<FormField label="Giới hạn đội">
+				<input
+					type="number"
+					name="maxTeams"
+					min={1}
+					value={form.maxTeams}
+					onChange={handleChange}
+					disabled={saving}
+					placeholder="Để trống = không giới hạn"
+				/>
+			</FormField>
+			<FormField label="Trạng thái *">
+				<select
+					name="status"
+					value={form.status}
+					onChange={handleChange}
+					disabled={saving || statusLocked}
+					required
+				>
+					{EVENT_STATUSES.map((s) => (
+						<option key={s} value={s}>
+							{s}
+						</option>
+					))}
+				</select>
+				{statusLocked ? (
+					<p className="event-stat-edit-hint" style={{ marginTop: 6 }}>
+						Sự kiện COMPLETED — không đổi trạng thái (theo ràng buộc DB).
+					</p>
+				) : null}
+			</FormField>
+		</form>
+	);
 
-				{!editOpen ? (
-					<div className="kv-list">
-						<div className="kv">
-							<span>Tên sự kiện</span>
-							<span>{event.title || "—"}</span>
-						</div>
-						<div className="kv">
-							<span>Mô tả</span>
-							<span style={{ textAlign: "right", maxWidth: "70%" }}>
-								{event.description || "—"}
-							</span>
-						</div>
-						<div className="kv">
-							<span>Ngày bắt đầu</span>
-							<span>{formatEventDateTime(event.startDate)}</span>
-						</div>
-						<div className="kv">
-							<span>Ngày kết thúc</span>
-							<span>{formatEventDateTime(event.endDate)}</span>
-						</div>
-						<div className="kv">
-							<span>Trạng thái</span>
-							<span>{eventStatusLabel(event.status)}</span>
-						</div>
-						<div className="kv">
-							<span>Số vòng dự kiến</span>
-							<span>{event.numRounds ?? "—"}</span>
-						</div>
-						<div className="kv">
-							<span>Giới hạn đội</span>
-							<span>{formatMaxTeams(event.maxTeams)}</span>
-						</div>
-						<div className="kv">
-							<span>Đội đã đăng ký</span>
-							<span>{event.totalTeams ?? "0"}</span>
-						</div>
-						<div className="kv">
-							<span>Ngày tạo</span>
-							<span>{formatEventDateTime(event.createdAt)}</span>
-						</div>
-					</div>
-				) : (
-					<form
-						id={editFormId}
-						className="event-stat-item-edit event-detail-info-edit"
-						onSubmit={handleConfirm}
-					>
-						<div className="kv-list event-detail-info-readonly">
-							<div className="kv">
-								<span>Ngày tạo</span>
-								<span>{formatEventDateTime(event.createdAt)}</span>
-							</div>
-						</div>
-						<FormField label="Tên sự kiện *">
-							<input
-								name="title"
-								value={form.title}
-								onChange={handleChange}
-								maxLength={200}
-								disabled={saving}
-								required
-							/>
-						</FormField>
-						<FormField label="Mô tả">
-							<textarea
-								name="description"
-								value={form.description}
-								onChange={handleChange}
-								rows={3}
-								disabled={saving}
-							/>
-						</FormField>
-						<FormField label="Ngày bắt đầu">
-							<input
-								type="datetime-local"
-								name="startDate"
-								value={form.startDate}
-								onChange={handleChange}
-								disabled={saving}
-							/>
-						</FormField>
-						<FormField label="Ngày kết thúc">
-							<input
-								type="datetime-local"
-								name="endDate"
-								value={form.endDate}
-								onChange={handleChange}
-								disabled={saving}
-							/>
-						</FormField>
-						<FormField label="Số vòng dự kiến *">
-							<input
-								type="number"
-								name="numRounds"
-								min={1}
-								value={form.numRounds}
-								onChange={handleChange}
-								disabled={saving}
-								required
-							/>
-						</FormField>
-						<FormField label="Giới hạn đội">
-							<input
-								type="number"
-								name="maxTeams"
-								min={1}
-								value={form.maxTeams}
-								onChange={handleChange}
-								disabled={saving}
-								placeholder="Để trống = không giới hạn"
-							/>
-						</FormField>
-						<FormField label="Trạng thái *">
-							<select
-								name="status"
-								value={form.status}
-								onChange={handleChange}
-								disabled={saving || statusLocked}
-								required
-							>
-								{EVENT_STATUSES.map((s) => (
-									<option key={s} value={s}>
-										{s}
-									</option>
-								))}
-							</select>
-							{statusLocked ? (
-								<p
-									className="event-stat-edit-hint"
-									style={{ marginTop: 6 }}
-								>
-									Sự kiện COMPLETED — không đổi trạng thái (theo ràng
-									buộc DB).
-								</p>
-							) : null}
-						</FormField>
-					</form>
-				)}
+	return (
+		<>
+			<div className="event-detail-info-wrap" style={{ marginTop: 16 }}>
+				<button
+					type="button"
+					className="event-detail-info-compact"
+					onClick={() => setDetailOpen(true)}
+					aria-haspopup="dialog"
+				>
+					<span className="event-detail-info-compact-main">
+						<span className="event-detail-info-compact-label">
+							Thông tin sự kiện
+						</span>
+						<span className="event-detail-info-compact-meta">
+							{formatEventDateTime(event.startDate)} →{" "}
+							{formatEventDateTime(event.endDate)} ·{" "}
+							{eventStatusLabel(event.status)} · {event.totalTeams ?? 0} đội
+						</span>
+					</span>
+					<span className="event-detail-info-compact-chevron" aria-hidden>
+						›
+					</span>
+				</button>
 			</div>
 
-			<div className="event-detail-info-actions-outside">
-				{!editOpen ? (
-					<button
-						type="button"
-						className="btn btn-outline"
-						onClick={handleStartEdit}
-					>
-						Sửa
-					</button>
-				) : (
-					<>
-						<LoadingButton
-							loading={saving}
-							type="submit"
-							form={editFormId}
-							className="btn btn-primary"
-						>
-							Xác nhận
-						</LoadingButton>
+			<Modal
+				isOpen={detailOpen}
+				onClose={handleCloseDetail}
+				title="Thông tin sự kiện"
+				subtitle={event.title || undefined}
+				className="modal-wide"
+			>
+				<div
+					className={`event-detail-info${editOpen ? " is-edit-open" : ""}`}
+				>
+					{detailBody}
+				</div>
+				<div
+					className="event-detail-info-actions-outside"
+					style={{ marginTop: 16 }}
+				>
+					{!editOpen ? (
 						<button
 							type="button"
 							className="btn btn-outline"
-							onClick={handleCancel}
+							onClick={handleStartEdit}
+						>
+							Sửa
+						</button>
+					) : (
+						<>
+							<LoadingButton
+								loading={saving}
+								type="submit"
+								form={editFormId}
+								className="btn btn-primary"
+							>
+								Xác nhận
+							</LoadingButton>
+							<button
+								type="button"
+								className="btn btn-outline"
+								onClick={handleCancel}
+								disabled={saving}
+							>
+								Hủy
+							</button>
+						</>
+					)}
+				</div>
+			</Modal>
+		</>
+	);
+}
+
+function AwardStatItem({ eventId, award, onUpdated, onDeleted }) {
+	const { showToast } = useToast();
+	const [editOpen, setEditOpen] = useState(false);
+	const [saving, setSaving] = useState(false);
+	const [form, setForm] = useState({
+		title: award.title || "",
+		rank: award.rank == null ? "" : String(award.rank),
+	});
+
+	useEffect(() => {
+		if (!editOpen) {
+			setForm({
+				title: award.title || "",
+				rank: award.rank == null ? "" : String(award.rank),
+			});
+		}
+	}, [award.title, award.rank, editOpen]);
+
+	const handleChange = (e) =>
+		setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+	const handleSave = async (e) => {
+		e.preventDefault();
+		setSaving(true);
+		try {
+			const updated = await updateEventAward({
+				eventId,
+				awardId: award.awardId,
+				title: form.title,
+				rank: form.rank,
+			});
+			onUpdated?.(updated);
+			showToast("Đã cập nhật giải thưởng", "success");
+			setEditOpen(false);
+		} catch (err) {
+			showToast(localizeError(err.message), "error");
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	return (
+		<div className={`event-stat-item-card${editOpen ? " is-edit-open" : ""}`}>
+			<div className="kv event-stat-item">
+				<span style={{ minWidth: 0, flex: 1, textAlign: "left" }}>
+					<div style={{ fontWeight: 600 }}>{award.title || "—"}</div>
+					{award.rank != null ? (
+						<div style={{ fontSize: 11, color: "var(--text-mute)" }}>
+							Hạng #{award.rank}
+						</div>
+					) : null}
+				</span>
+				<div className="event-stat-item-actions">
+					<button
+						type="button"
+						className="btn btn-outline btn-sm"
+						onClick={() => setEditOpen((v) => !v)}
+						aria-expanded={editOpen}
+					>
+						{editOpen ? "Thu gọn" : "Sửa"}
+					</button>
+					<StatItemDeleteButton
+						itemLabel={award.title || "giải thưởng"}
+						confirmMessage={`Xóa giải thưởng "${award.title || "này"}"?`}
+						onDelete={async () => {
+							await deleteEventAward({
+								eventId,
+								awardId: award.awardId,
+							});
+							onDeleted?.(award.awardId);
+						}}
+					/>
+				</div>
+			</div>
+			{editOpen ? (
+				<form className="event-stat-item-edit" onSubmit={handleSave}>
+					<FormField label="Tên giải thưởng *">
+						<input
+							name="title"
+							value={form.title}
+							onChange={handleChange}
+							maxLength={100}
+							disabled={saving}
+							required
+						/>
+					</FormField>
+					<FormField label="Hạng">
+						<input
+							type="number"
+							name="rank"
+							value={form.rank}
+							onChange={handleChange}
+							min={1}
+							disabled={saving}
+							placeholder="Để trống nếu không có hạng"
+						/>
+					</FormField>
+					<div className="event-stat-item-edit-foot">
+						<LoadingButton
+							type="submit"
+							className="btn btn-primary btn-sm"
+							loading={saving}
+						>
+							Lưu
+						</LoadingButton>
+						<button
+							type="button"
+							className="btn btn-ghost btn-sm"
+							onClick={() => setEditOpen(false)}
 							disabled={saving}
 						>
 							Hủy
 						</button>
-					</>
-				)}
-			</div>
+					</div>
+				</form>
+			) : null}
 		</div>
 	);
 }
 
-function AwardsDropdownContent({ awards }) {
-	if (!awards.length) {
-		return (
-			<div className="event-stat-dropdown-empty">Chưa có giải thưởng nào.</div>
-		);
-	}
+function AwardsDropdownContent({
+	eventId,
+	awards = [],
+	onAwardCreated,
+	onAwardUpdated,
+	onAwardDeleted,
+}) {
+	const { showToast } = useToast();
+	const [createOpen, setCreateOpen] = useState(false);
+	const [saving, setSaving] = useState(false);
+	const [form, setForm] = useState({ title: "", rank: "" });
+
+	const handleChange = (e) =>
+		setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+	const handleCreate = async (e) => {
+		e.preventDefault();
+		setSaving(true);
+		try {
+			const created = await createEventAward({
+				eventId,
+				title: form.title,
+				rank: form.rank,
+			});
+			onAwardCreated?.(created);
+			showToast("Đã thêm giải thưởng", "success");
+			setForm({ title: "", rank: "" });
+			setCreateOpen(false);
+		} catch (err) {
+			showToast(localizeError(err.message), "error");
+		} finally {
+			setSaving(false);
+		}
+	};
+
 	return (
-		<div className="kv-list">
-			{awards.map((award) => (
-				<div className="kv" key={award.awardId}>
-					<span style={{ minWidth: 0, flex: 1, textAlign: "left" }}>
-						<div style={{ fontWeight: 600 }}>{award.title || "—"}</div>
-						<div style={{ fontSize: 11, color: "var(--text-dim)" }}>
-							{award.teamName || "—"}
-						</div>
-						<div style={{ fontSize: 11, color: "var(--text-mute)" }}>
-							Hạng #{award.rank || "—"}
-						</div>
-					</span>
+		<>
+			{!awards.length ? (
+				<div className="event-stat-dropdown-empty">
+					Chưa có giải thưởng nào.
 				</div>
-			))}
-		</div>
+			) : (
+				<div className="kv-list">
+					{awards.map((award) => (
+						<AwardStatItem
+							key={award.awardId}
+							eventId={eventId}
+							award={award}
+							onUpdated={onAwardUpdated}
+							onDeleted={onAwardDeleted}
+						/>
+					))}
+				</div>
+			)}
+			{createOpen ? (
+				<form
+					className="event-stat-item-edit"
+					style={{ marginTop: 12 }}
+					onSubmit={handleCreate}
+				>
+					<FormField label="Tên giải thưởng *">
+						<input
+							name="title"
+							value={form.title}
+							onChange={handleChange}
+							maxLength={100}
+							disabled={saving}
+							required
+						/>
+					</FormField>
+					<FormField label="Hạng">
+						<input
+							type="number"
+							name="rank"
+							value={form.rank}
+							onChange={handleChange}
+							min={1}
+							disabled={saving}
+							placeholder="Để trống nếu không có hạng"
+						/>
+					</FormField>
+					<div className="event-stat-item-edit-foot">
+						<LoadingButton
+							type="submit"
+							className="btn btn-primary btn-sm"
+							loading={saving}
+						>
+							Thêm
+						</LoadingButton>
+						<button
+							type="button"
+							className="btn btn-ghost btn-sm"
+							onClick={() => {
+								setCreateOpen(false);
+								setForm({ title: "", rank: "" });
+							}}
+							disabled={saving}
+						>
+							Hủy
+						</button>
+					</div>
+				</form>
+			) : (
+				<button
+					type="button"
+					className="btn btn-ghost btn-sm"
+					style={{ marginTop: 12 }}
+					onClick={() => setCreateOpen(true)}
+				>
+					+ Thêm giải thưởng
+				</button>
+			)}
+		</>
 	);
 }
 
@@ -1482,8 +2821,15 @@ export default function EventDetailsPage() {
 					g.groupId === updated.groupId
 						? {
 								...g,
-								name: updated.name,
-								maxTeams: updated.maxTeams ?? null,
+								name: updated.name ?? g.name,
+								maxTeams:
+									updated.maxTeams !== undefined
+										? updated.maxTeams ?? null
+										: g.maxTeams,
+								teamCount:
+									updated.teamCount !== undefined
+										? updated.teamCount
+										: g.teamCount,
 								roundName: updated.roundName ?? g.roundName,
 							}
 						: g
@@ -1515,6 +2861,7 @@ export default function EventDetailsPage() {
 								endDate: updated.endDate,
 								submissionDeadline: updated.submissionDeadline,
 								roundOrder: updated.roundOrder,
+								winnersPerRound: updated.winnersPerRound,
 							}
 						: r
 				)
@@ -1614,6 +2961,54 @@ export default function EventDetailsPage() {
 		});
 	};
 
+	const handleRoundCreated = (created) => {
+		setEvent((prev) => {
+			if (!prev) return prev;
+			const nextRounds = [
+				...prev.rounds,
+				{
+					roundId: created.roundId,
+					name: created.name,
+					roundOrder: created.roundOrder,
+					startDate: created.startDate,
+					endDate: created.endDate,
+					submissionDeadline: created.submissionDeadline,
+					winnersPerRound: created.winnersPerRound ?? 1,
+					winnerCount: 0,
+				},
+			].sort(
+				(a, b) => Number(a.roundOrder ?? 0) - Number(b.roundOrder ?? 0),
+			);
+			return {
+				...prev,
+				rounds: nextRounds,
+				totalRounds: String(nextRounds.length),
+			};
+		});
+	};
+
+	const handleGroupCreated = (created) => {
+		setEvent((prev) => {
+			if (!prev) return prev;
+			const nextGroups = [
+				...prev.groups,
+				{
+					groupId: created.groupId,
+					roundId: created.roundId,
+					roundName: created.roundName ?? "",
+					name: created.name,
+					maxTeams: created.maxTeams ?? null,
+					teamCount: 0,
+				},
+			];
+			return {
+				...prev,
+				groups: nextGroups,
+				totalGroups: String(nextGroups.length),
+			};
+		});
+	};
+
 	const handleRoundDeleted = (roundId) => {
 		setEvent((prev) => {
 			if (!prev) return prev;
@@ -1625,6 +3020,54 @@ export default function EventDetailsPage() {
 				assignedJudges: (prev.assignedJudges ?? []).filter(
 					(j) => j.roundId !== roundId
 				),
+			};
+		});
+	};
+
+	const handleAwardCreated = (created) => {
+		setEvent((prev) => {
+			if (!prev) return prev;
+			const nextAwards = [...(prev.awards ?? []), created].sort(
+				(a, b) =>
+					(a.rank ?? 999999) - (b.rank ?? 999999) ||
+					String(a.title ?? "").localeCompare(String(b.title ?? ""), "vi")
+			);
+			return {
+				...prev,
+				awards: nextAwards,
+				totalAwards: String(nextAwards.length),
+			};
+		});
+	};
+
+	const handleAwardUpdated = (updated) => {
+		setEvent((prev) => {
+			if (!prev) return prev;
+			const nextAwards = (prev.awards ?? [])
+				.map((a) =>
+					a.awardId === updated.awardId
+						? { ...a, title: updated.title, rank: updated.rank ?? null }
+						: a
+				)
+				.sort(
+					(a, b) =>
+						(a.rank ?? 999999) - (b.rank ?? 999999) ||
+						String(a.title ?? "").localeCompare(String(b.title ?? ""), "vi")
+				);
+			return { ...prev, awards: nextAwards };
+		});
+	};
+
+	const handleAwardDeleted = (awardId) => {
+		setEvent((prev) => {
+			if (!prev) return prev;
+			const nextAwards = (prev.awards ?? []).filter(
+				(a) => a.awardId !== awardId
+			);
+			return {
+				...prev,
+				awards: nextAwards,
+				totalAwards: String(nextAwards.length),
 			};
 		});
 	};
@@ -1712,7 +3155,15 @@ export default function EventDetailsPage() {
 					/>
 				);
 			case "awards":
-				return <AwardsDropdownContent awards={event.awards} />;
+				return (
+					<AwardsDropdownContent
+						eventId={event.eventId}
+						awards={event.awards}
+						onAwardCreated={handleAwardCreated}
+						onAwardUpdated={handleAwardUpdated}
+						onAwardDeleted={handleAwardDeleted}
+					/>
+				);
 			default:
 				return null;
 		}
@@ -1764,63 +3215,19 @@ export default function EventDetailsPage() {
 						</p>
 					) : null}
 
-					<div className="event-stat-grid">
-						<StatRow
-							label="Đội tham gia"
-							count={event.totalTeams}
-							badgeCount={pendingTeamsCount}
-							onOpen={() => setStatPopup("teams")}
-						/>
-						<StatRow
-							label="Bảng thi"
-							count={event.totalGroups}
-							setupWarning={setupWarnings.groups}
-							onOpen={() => setStatPopup("groups")}
-						/>
-						<StatRow
-							label="Vòng thi"
-							count={event.totalRounds}
-							setupWarning={setupWarnings.rounds}
-							onOpen={() => setStatPopup("rounds")}
-						/>
-						<StatRow
-							label="Mentor"
-							count={String(event.assignedMentors?.length ?? 0)}
-							setupWarning={setupWarnings.mentors}
-							onOpen={() => setStatPopup("mentors")}
-						/>
-						<StatRow
-							label="Judge"
-							count={String(event.assignedJudges?.length ?? 0)}
-							setupWarning={setupWarnings.judges}
-							onOpen={() => setStatPopup("judges")}
-						/>
-						<StatRow
-							label="Giải thưởng"
-							count={event.totalAwards}
-							onOpen={() => setStatPopup("awards")}
-						/>
-					</div>
-
-					<Modal
-						isOpen={!!statPopup}
-						onClose={() => setStatPopup(null)}
-						title={activeStat?.title ?? ""}
-						subtitle={
-							activeStat
-								? `Tổng: ${activeStat.count ?? "0"}`
-								: undefined
-						}
-						className="event-stat-modal"
-					>
-						<div className="event-stat-modal-body">
-							{renderStatPopupBody()}
-						</div>
-					</Modal>
-
 					<EventDetailInfoPanel
 						event={event}
 						onUpdated={handleEventUpdated}
+					/>
+
+					<EventBoardSection
+						event={event}
+						onRoundCreated={handleRoundCreated}
+						onGroupCreated={handleGroupCreated}
+						onRoundUpdated={handleRoundUpdated}
+						onRoundDeleted={handleRoundDeleted}
+						onGroupUpdated={handleGroupUpdated}
+						onGroupDeleted={handleGroupDeleted}
 					/>
 				</div>
 			)}

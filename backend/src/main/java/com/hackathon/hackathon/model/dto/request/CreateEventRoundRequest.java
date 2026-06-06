@@ -9,4 +9,6 @@ public class CreateEventRoundRequest {
     private String startDate;
     private String endDate;
     private String submissionDeadline;
+
+    private Integer winnersPerRound;
 }

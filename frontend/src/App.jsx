@@ -8,9 +8,9 @@ import StaffLayout from './pages/dashboards/staff/StaffLayout'
 import StaffOverviewPage from './pages/dashboards/staff/StaffOverviewPage'
 import StaffAccountsPage from './pages/dashboards/staff/StaffAccountsPage'
 import StaffAnnouncementsPage from './pages/dashboards/staff/StaffAnnouncementsPage'
+import StaffUniversitiesPage from './pages/dashboards/staff/StaffUniversitiesPage'
 import StaffEventsPage from './pages/dashboards/staff/StaffEventsPage'
 import StaffAssignPage from './pages/dashboards/staff/StaffAssignPage'
-import EventSetupPage from './pages/dashboards/staff/EventSetupPage'
 import MentorDashboard from './pages/dashboards/MentorDashboard'
 import JudgeDashboard from './pages/dashboards/JudgeDashboard'
 import EventDetailsPage from './pages/dashboards/EventDetailsPage'
@@ -44,8 +44,8 @@ export default function App() {
             <Route path='accounts' element={<StaffAccountsPage />} />
             <Route path='events' element={<StaffEventsPage />} />
             <Route path='assign' element={<StaffAssignPage />} />
-            <Route path='setup' element={<EventSetupPage />} />
             <Route path='announcements' element={<StaffAnnouncementsPage />} />
+            <Route path='universities' element={<StaffUniversitiesPage />} />
           </Route>
 
           {/* Event detail is a standalone full page (own shell) */}

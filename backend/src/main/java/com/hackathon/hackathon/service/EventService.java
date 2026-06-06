@@ -8,6 +8,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -19,23 +20,31 @@ import org.springframework.stereotype.Service;
 
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
+import com.hackathon.hackathon.model.dto.request.AssignGroupTeamRequest;
 import com.hackathon.hackathon.model.dto.request.ChangeEventStatusRequest;
+import com.hackathon.hackathon.model.dto.request.CreateAwardRequest;
 import com.hackathon.hackathon.model.dto.request.CreateEventGroupRequest;
 import com.hackathon.hackathon.model.dto.request.CreateEventRequest;
 import com.hackathon.hackathon.model.dto.request.CreateEventRoundRequest;
+import com.hackathon.hackathon.model.dto.request.UpdateAwardRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventGroupRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventRoundRequest;
 import com.hackathon.hackathon.model.dto.response.CreateEventGroupResponse;
 import com.hackathon.hackathon.model.dto.response.CreateEventResponse;
 import com.hackathon.hackathon.model.dto.response.CreateEventRoundResponse;
+import com.hackathon.hackathon.model.dto.response.EventAwardResponse;
 import com.hackathon.hackathon.model.dto.response.EventDetailResponse;
 import com.hackathon.hackathon.model.dto.response.EventRoundSetupResponse;
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
+import com.hackathon.hackathon.model.dto.response.EventTeamResponse;
 import com.hackathon.hackathon.model.dto.response.EventUpdateResponse;
+import com.hackathon.hackathon.model.dto.response.GroupTeamsResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.entity.Event;
+import com.hackathon.hackathon.model.entity.TeamRegistration;
 import com.hackathon.hackathon.model.mapper.EventMapper;
+import com.hackathon.hackathon.repository.AwardRepository;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.EventSetupRepository;
 import com.hackathon.hackathon.repository.EventSetupRepository.EventRoundSetupRow;
@@ -52,6 +61,9 @@ public class EventService {
 
     @Autowired
     private EventSetupRepository eventSetupRepository;
+
+    @Autowired
+    private AwardRepository awardRepository;
 
     @Autowired
     private EventMapper eventMapper;
@@ -449,6 +461,105 @@ public class EventService {
         return new MessageResponse("Group deleted successfully");
     }
 
+    public GroupTeamsResponse getGroupTeams(String authHeader, String eventId, String roundId, String groupId) {
+        authService.validateRole(authHeader, "COORDINATOR");
+        validateGroupTeamContext(eventId, roundId, groupId);
+        return buildGroupTeamsResponse(trim(groupId), trim(eventId), trim(roundId));
+    }
+
+    public GroupTeamsResponse assignTeamToGroup(String authHeader, AssignGroupTeamRequest request) {
+        authService.validateRole(authHeader, "COORDINATOR");
+
+        String eventId = trim(request.getEventId());
+        String roundId = trim(request.getRoundId());
+        String groupId = trim(request.getGroupId());
+        String teamId = trim(request.getTeamId());
+        validateGroupTeamContext(eventId, roundId, groupId);
+
+        if (teamId.isEmpty()) {
+            throw new BadRequestException("Team ID is required.");
+        }
+        if (!eventSetupRepository.isTeamApprovedForEvent(eventId, teamId)) {
+            throw new BadRequestException("Team is not approved for this event.");
+        }
+        if (eventSetupRepository.isTeamInRound(roundId, teamId)) {
+            throw new ConflictException("Team is already assigned to a group in this round.");
+        }
+
+        Optional<Integer> maxTeams = eventSetupRepository.findGroupMaxTeams(groupId);
+        if (maxTeams.isPresent()) {
+            int current = eventSetupRepository.countApprovedTeamsInGroup(groupId, eventId);
+            if (current >= maxTeams.get()) {
+                throw new ConflictException("Group has reached its maximum team capacity.");
+            }
+        }
+
+        if (!eventSetupRepository.insertGroupTeam(groupId, roundId, teamId)) {
+            throw new BadRequestException("Failed to assign team to group.");
+        }
+
+        return buildGroupTeamsResponse(groupId, eventId, roundId);
+    }
+
+    public GroupTeamsResponse removeTeamFromGroup(
+            String authHeader, String eventId, String roundId, String groupId, String teamId) {
+        authService.validateRole(authHeader, "COORDINATOR");
+
+        String eid = trim(eventId);
+        String rid = trim(roundId);
+        String gid = trim(groupId);
+        String tid = trim(teamId);
+        validateGroupTeamContext(eid, rid, gid);
+
+        if (tid.isEmpty()) {
+            throw new BadRequestException("Team ID is required.");
+        }
+        if (!eventSetupRepository.deleteGroupTeam(gid, tid)) {
+            throw new BadRequestException("Team is not assigned to this group.");
+        }
+
+        return buildGroupTeamsResponse(gid, eid, rid);
+    }
+
+    private void validateGroupTeamContext(String eventId, String roundId, String groupId) {
+        String eid = trim(eventId);
+        String rid = trim(roundId);
+        String gid = trim(groupId);
+        if (eid.isEmpty() || rid.isEmpty() || gid.isEmpty()) {
+            throw new BadRequestException("Event ID, Round ID and Group ID are required.");
+        }
+        if (!eventRepository.existsById(eid)) {
+            throw new BadRequestException("Event not found.");
+        }
+        if (!eventRepository.groupBelongsToEvent(gid, eid)) {
+            throw new BadRequestException("Group does not belong to this event.");
+        }
+        if (!eventRepository.roundBelongsToEvent(rid, eid)) {
+            throw new BadRequestException("Round does not belong to this event.");
+        }
+        if (!eventSetupRepository.groupBelongsToRound(gid, rid)) {
+            throw new BadRequestException("Group does not belong to this round.");
+        }
+    }
+
+    private GroupTeamsResponse buildGroupTeamsResponse(String groupId, String eventId, String roundId) {
+        List<EventTeamResponse> assigned = new ArrayList<>();
+        for (TeamRegistration registration : eventRepository.findAssignedTeamsInGroup(groupId, eventId)) {
+            assigned.add(eventMapper.toTeamResponse(registration));
+        }
+        List<EventTeamResponse> available = new ArrayList<>();
+        for (TeamRegistration registration : eventRepository.findAvailableTeamsForRound(eventId, roundId)) {
+            available.add(eventMapper.toTeamResponse(registration));
+        }
+
+        GroupTeamsResponse response = new GroupTeamsResponse();
+        response.setGroupId(groupId);
+        response.setTeamCount(eventSetupRepository.countApprovedTeamsInGroup(groupId, eventId));
+        response.setAssigned(assigned);
+        response.setAvailable(available);
+        return response;
+    }
+
     // endregion
 
     // region ROUND SETUP
@@ -484,8 +595,9 @@ public class EventService {
         }
 
         int roundOrder = eventSetupRepository.findNextRoundOrder(eventId);
+        int winnersPerRound = resolveWinnersPerRound(request.getWinnersPerRound());
         String roundId = eventSetupRepository.insertRound(
-                eventId, name, roundOrder, startDate, endDate, submissionDeadline);
+                eventId, name, roundOrder, startDate, endDate, submissionDeadline, winnersPerRound);
         if (roundId == null || roundId.isBlank()) {
             throw new BadRequestException("Failed to create round.");
         }
@@ -498,6 +610,7 @@ public class EventService {
         response.setStartDate(request.getStartDate());
         response.setEndDate(request.getEndDate());
         response.setSubmissionDeadline(request.getSubmissionDeadline());
+        response.setWinnersPerRound(winnersPerRound);
         return response;
     }
 
@@ -562,8 +675,10 @@ public class EventService {
             });
         }
 
+        int winnersPerRound = resolveWinnersPerRound(request.getWinnersPerRound());
+
         if (!eventSetupRepository.updateRound(
-                eventId, roundId, name, roundOrder, startDate, endDate, submissionDeadline)) {
+                eventId, roundId, name, roundOrder, startDate, endDate, submissionDeadline, winnersPerRound)) {
             throw new BadRequestException("Failed to update round.");
         }
 
@@ -575,6 +690,7 @@ public class EventService {
         response.setStartDate(request.getStartDate());
         response.setEndDate(request.getEndDate());
         response.setSubmissionDeadline(request.getSubmissionDeadline());
+        response.setWinnersPerRound(winnersPerRound);
         return response;
     }
 
@@ -626,6 +742,120 @@ public class EventService {
         response.setStartDate(timestampToIso(row.startDate));
         response.setEndDate(timestampToIso(row.endDate));
         response.setSubmissionDeadline(timestampToIso(row.submissionDeadline));
+        response.setWinnersPerRound(row.winnersPerRound);
+        return response;
+    }
+
+    // endregion
+
+    // region AWARD SETUP (giải thưởng)
+
+    public EventAwardResponse createAward(String authHeader, CreateAwardRequest request) {
+        authService.validateRole(authHeader, "COORDINATOR");
+
+        String eventId = trim(request.getEventId());
+        String title = trim(request.getTitle());
+        Integer rank = request.getRank();
+
+        if (eventId.isEmpty()) {
+            throw new BadRequestException("Event ID is required.");
+        }
+        if (title.isEmpty()) {
+            throw new BadRequestException("Award title is required.");
+        }
+        if (title.length() > 100) {
+            throw new BadRequestException("Award title must be at most 100 characters.");
+        }
+        if (!eventRepository.existsById(eventId)) {
+            throw new BadRequestException("Event not found.");
+        }
+        if (rank != null && rank < 1) {
+            throw new BadRequestException("Rank must be at least 1.");
+        }
+
+        String awardId;
+        try {
+            awardId = awardRepository.insert(eventId, title, rank);
+        } catch (RuntimeException e) {
+            String detail = e.getMessage() == null ? "" : e.getMessage();
+            if (detail.contains("cannot be null") || detail.contains("Column 'team_id'")) {
+                throw new BadRequestException(
+                        "Cannot create award: team_id column must allow NULL. Run: ALTER TABLE awards MODIFY team_id VARCHAR(36) NULL;");
+            }
+            throw new BadRequestException("Failed to create award. " + detail);
+        }
+        if (awardId == null || awardId.isBlank()) {
+            throw new BadRequestException("Failed to create award.");
+        }
+
+        return buildAwardResponse(awardId, eventId, title, rank);
+    }
+
+    public EventAwardResponse updateAward(String authHeader, UpdateAwardRequest request) {
+        authService.validateRole(authHeader, "COORDINATOR");
+
+        String eventId = trim(request.getEventId());
+        String awardId = trim(request.getAwardId());
+        String title = trim(request.getTitle());
+        Integer rank = request.getRank();
+
+        if (eventId.isEmpty() || awardId.isEmpty()) {
+            throw new BadRequestException("Event ID and Award ID are required.");
+        }
+        if (title.isEmpty()) {
+            throw new BadRequestException("Award title is required.");
+        }
+        if (title.length() > 100) {
+            throw new BadRequestException("Award title must be at most 100 characters.");
+        }
+        if (!eventRepository.existsById(eventId)) {
+            throw new BadRequestException("Event not found.");
+        }
+        if (!awardRepository.belongsToEvent(awardId, eventId)) {
+            throw new BadRequestException("Award does not belong to this event.");
+        }
+        if (rank != null && rank < 1) {
+            throw new BadRequestException("Rank must be at least 1.");
+        }
+
+        if (!awardRepository.update(awardId, title, rank)) {
+            throw new BadRequestException("Failed to update award.");
+        }
+
+        return buildAwardResponse(awardId, eventId, title, rank);
+    }
+
+    public MessageResponse deleteAward(String authHeader, String eventId, String awardId) {
+        authService.validateRole(authHeader, "COORDINATOR");
+
+        String eid = trim(eventId);
+        String aid = trim(awardId);
+        if (eid.isEmpty() || aid.isEmpty()) {
+            throw new BadRequestException("Event ID and Award ID are required.");
+        }
+        if (!eventRepository.existsById(eid)) {
+            throw new BadRequestException("Event not found.");
+        }
+        if (!awardRepository.belongsToEvent(aid, eid)) {
+            throw new BadRequestException("Award does not belong to this event.");
+        }
+        if (!awardRepository.deleteById(aid)) {
+            throw new BadRequestException("Failed to delete award.");
+        }
+        return new MessageResponse("Award deleted successfully");
+    }
+
+    private static EventAwardResponse buildAwardResponse(
+            String awardId,
+            String eventId,
+            String title,
+            Integer rank) {
+        EventAwardResponse response = new EventAwardResponse();
+        response.setAwardId(awardId);
+        response.setEventId(eventId);
+        response.setTitle(title);
+        response.setRank(rank == null ? null : String.valueOf(rank));
+        response.setTeamName(null);
         return response;
     }
 
@@ -660,6 +890,16 @@ public class EventService {
 
     private static String trim(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private static int resolveWinnersPerRound(Integer value) {
+        if (value == null) {
+            return 1;
+        }
+        if (value < 1) {
+            throw new BadRequestException("Winners per round must be at least 1.");
+        }
+        return value;
     }
 
     private static Timestamp parseDateTime(String raw, String fieldLabel) {

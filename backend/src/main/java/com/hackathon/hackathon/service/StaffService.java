@@ -15,6 +15,8 @@ import com.hackathon.hackathon.model.dto.request.ChangeTeamRegistrationStatusReq
 import com.hackathon.hackathon.model.dto.request.CreateStaffAccountRequest;
 import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
 import com.hackathon.hackathon.model.dto.request.AssignMentorGroupRequest;
+import com.hackathon.hackathon.model.dto.request.UpdateJudgeAssignmentRequest;
+import com.hackathon.hackathon.model.dto.request.UpdateMentorAssignmentRequest;
 import com.hackathon.hackathon.model.entity.User;
 import com.hackathon.hackathon.model.mapper.UserMapper;
 import com.hackathon.hackathon.repository.EventRepository;
@@ -25,10 +27,23 @@ import com.hackathon.hackathon.repository.UserRepository;
 import java.util.Arrays;
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
+import com.hackathon.hackathon.model.dto.request.CreateUniversityRequest;
+import com.hackathon.hackathon.model.dto.request.DeleteUniversityRequest;
 import com.hackathon.hackathon.model.dto.request.SendAllAnnouncementRequest;
 import com.hackathon.hackathon.model.dto.request.SendParticipantAnnouncementRequest;
+import com.hackathon.hackathon.model.dto.request.UpdateUniversityRequest;
 import com.hackathon.hackathon.model.dto.response.AnnouncementResponse;
+import com.hackathon.hackathon.model.dto.response.DeleteUniversityPreviewResponse;
+import com.hackathon.hackathon.model.dto.response.StaffUniversityItemResponse;
+import com.hackathon.hackathon.model.dto.response.UniversityResponse;
+import com.hackathon.hackathon.model.entity.University;
+import com.hackathon.hackathon.model.dto.response.EventAssignedJudgeResponse;
+import com.hackathon.hackathon.model.dto.response.EventAssignedMentorResponse;
+import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.repository.AnnouncementRepository;
+import com.hackathon.hackathon.repository.StaffAssignmentRepository;
+import com.hackathon.hackathon.repository.StudentProfileRepository;
+import com.hackathon.hackathon.repository.UniversityRepository;
 
 @Service
 public class StaffService {
@@ -61,6 +76,15 @@ public class StaffService {
 
     @Autowired
     private AnnouncementRepository announcementRepository;
+
+    @Autowired
+    private StaffAssignmentRepository staffAssignmentRepository;
+
+    @Autowired
+    private UniversityRepository universityRepository;
+
+    @Autowired
+    private StudentProfileRepository studentProfileRepository;
 
     // region REGIS ACCOUNT FOR ADS
     public String registerAccount(String authHeader, CreateStaffAccountRequest request) {
@@ -270,12 +294,6 @@ public class StaffService {
         if (roles == null || roles.isEmpty())
             throw new BadRequestException("Roles cannot be empty.");
 
-        try {
-            Long.parseLong(eventId);
-        } catch (NumberFormatException e) {
-            throw new BadRequestException("Invalid event ID format.");
-        }
-
         // MENTOR / JUDGE_INTERNAL = đối tượng nhận thông báo theo bảng phân công, không phải role tài khoản
         List<String> validRoles = Arrays.asList("STUDENT_FPT", "STUDENT_EXTERNAL", "MENTOR",
                 "JUDGE_INTERNAL", "JUDGE");
@@ -353,6 +371,334 @@ public class StaffService {
         }
 
         return "Mentor assigned successfully";
+    }
+
+    public MessageResponse deleteMentorAssignment(
+            String authHeader,
+            String eventId,
+            String roundId,
+            String groupId,
+            String mentorId) {
+        authService.validateRole(authHeader, "COORDINATOR");
+        validateMentorAssignmentKeys(eventId, roundId, groupId, mentorId);
+        assertMentorAssignmentInEvent(eventId, roundId, groupId, mentorId);
+
+        if (!staffAssignmentRepository.deleteMentorAssignment(roundId, groupId, mentorId)) {
+            throw new BadRequestException("Xóa phân công mentor thất bại.");
+        }
+        return new MessageResponse("Mentor assignment deleted successfully");
+    }
+
+    public EventAssignedMentorResponse updateMentorAssignment(
+            String authHeader,
+            UpdateMentorAssignmentRequest request) {
+        authService.validateRole(authHeader, "COORDINATOR");
+
+        String eventId = trim(request.getEventId());
+        String oldRoundId = trim(request.getRoundId());
+        String oldGroupId = trim(request.getGroupId());
+        String oldMentorId = trim(request.getMentorId());
+        String newRoundId = trim(request.getNewRoundId());
+        String newGroupId = trim(request.getNewGroupId());
+        String newMentorId = trim(request.getNewMentorId());
+
+        validateMentorAssignmentKeys(eventId, oldRoundId, oldGroupId, oldMentorId);
+        if (newRoundId.isEmpty() || newGroupId.isEmpty() || newMentorId.isEmpty()) {
+            throw new BadRequestException("New round, group and mentor ID are required.");
+        }
+
+        assertMentorAssignmentInEvent(eventId, oldRoundId, oldGroupId, oldMentorId);
+        if (!eventRepository.roundBelongsToEvent(newRoundId, eventId)) {
+            throw new BadRequestException("Vòng mới không thuộc sự kiện này.");
+        }
+        if (!eventRepository.groupBelongsToEvent(newGroupId, eventId)) {
+            throw new BadRequestException("Bảng mới không thuộc sự kiện này.");
+        }
+
+        if (oldRoundId.equals(newRoundId) && oldGroupId.equals(newGroupId) && oldMentorId.equals(newMentorId)) {
+            throw new BadRequestException("Không có thay đổi nào để cập nhật.");
+        }
+
+        if (assignmentRepository.mentorAssignmentExists(newRoundId, newGroupId, newMentorId)) {
+            throw new ConflictException("Mentor đã được phân công cho bảng này.");
+        }
+
+        if (!staffAssignmentRepository.deleteMentorAssignment(oldRoundId, oldGroupId, oldMentorId)) {
+            throw new BadRequestException("Không tìm thấy phân công mentor để cập nhật.");
+        }
+        if (!assignmentRepository.insertMentorAssignment(newMentorId, newRoundId, newGroupId)) {
+            assignmentRepository.insertMentorAssignment(oldMentorId, oldRoundId, oldGroupId);
+            throw new BadRequestException("Cập nhật phân công mentor thất bại.");
+        }
+
+        return findMentorRow(eventId, newRoundId, newGroupId, newMentorId);
+    }
+
+    public MessageResponse deleteJudgeAssignment(
+            String authHeader,
+            String eventId,
+            String judgeId,
+            String roundId,
+            String groupId) {
+        authService.validateRole(authHeader, "COORDINATOR");
+        validateJudgeAssignmentKeys(eventId, judgeId, roundId, groupId);
+        assertJudgeAssignmentInEvent(eventId, judgeId, roundId, groupId);
+
+        if (!staffAssignmentRepository.deleteJudgeAssignment(judgeId, roundId, groupId)) {
+            throw new BadRequestException("Xóa phân công judge thất bại.");
+        }
+        return new MessageResponse("Judge assignment deleted successfully");
+    }
+
+    public EventAssignedJudgeResponse updateJudgeAssignment(
+            String authHeader,
+            UpdateJudgeAssignmentRequest request) {
+        authService.validateRole(authHeader, "COORDINATOR");
+
+        String eventId = trim(request.getEventId());
+        String oldJudgeId = trim(request.getJudgeId());
+        String oldRoundId = trim(request.getRoundId());
+        String oldGroupId = trim(request.getGroupId());
+        String newJudgeId = trim(request.getNewJudgeId());
+        String newRoundId = trim(request.getNewRoundId());
+        String newGroupId = trim(request.getNewGroupId());
+
+        validateJudgeAssignmentKeys(eventId, oldJudgeId, oldRoundId, oldGroupId);
+        if (newJudgeId.isEmpty() || newRoundId.isEmpty() || newGroupId.isEmpty()) {
+            throw new BadRequestException("New judge, round and group ID are required.");
+        }
+
+        assertJudgeAssignmentInEvent(eventId, oldJudgeId, oldRoundId, oldGroupId);
+        if (!eventRepository.roundBelongsToEvent(newRoundId, eventId)) {
+            throw new BadRequestException("Vòng mới không thuộc sự kiện này.");
+        }
+        if (!eventRepository.groupBelongsToEvent(newGroupId, eventId)) {
+            throw new BadRequestException("Bảng mới không thuộc sự kiện này.");
+        }
+
+        if (oldJudgeId.equals(newJudgeId)
+                && oldRoundId.equals(newRoundId)
+                && oldGroupId.equals(newGroupId)) {
+            throw new BadRequestException("Không có thay đổi nào để cập nhật.");
+        }
+
+        if (assignmentRepository.judgeAssignmentExists(newJudgeId, newRoundId, newGroupId)) {
+            throw new ConflictException("Judge đã được phân công cho vòng/bảng này.");
+        }
+
+        if (!staffAssignmentRepository.deleteJudgeAssignment(oldJudgeId, oldRoundId, oldGroupId)) {
+            throw new BadRequestException("Không tìm thấy phân công judge để cập nhật.");
+        }
+        if (!assignmentRepository.insertJudgeAssignment(newJudgeId, newRoundId, newGroupId)) {
+            assignmentRepository.insertJudgeAssignment(oldJudgeId, oldRoundId, oldGroupId);
+            throw new BadRequestException("Cập nhật phân công judge thất bại.");
+        }
+
+        return findJudgeRow(eventId, newJudgeId, newRoundId, newGroupId);
+    }
+
+    // endregion
+
+    private void validateMentorAssignmentKeys(
+            String eventId, String roundId, String groupId, String mentorId) {
+        if (eventId.isEmpty() || roundId.isEmpty() || groupId.isEmpty() || mentorId.isEmpty()) {
+            throw new BadRequestException("Event ID, Round ID, Group ID and Mentor ID are required.");
+        }
+        if (!eventRepository.existsById(eventId)) {
+            throw new BadRequestException("Event not found.");
+        }
+    }
+
+    private void validateJudgeAssignmentKeys(
+            String eventId, String judgeId, String roundId, String groupId) {
+        if (eventId.isEmpty() || judgeId.isEmpty() || roundId.isEmpty() || groupId.isEmpty()) {
+            throw new BadRequestException("Event ID, Judge ID, Round ID and Group ID are required.");
+        }
+        if (!eventRepository.existsById(eventId)) {
+            throw new BadRequestException("Event not found.");
+        }
+    }
+
+    private void assertMentorAssignmentInEvent(
+            String eventId, String roundId, String groupId, String mentorId) {
+        if (!eventRepository.roundBelongsToEvent(roundId, eventId)) {
+            throw new BadRequestException("Round does not belong to this event.");
+        }
+        if (!eventRepository.groupBelongsToEvent(groupId, eventId)) {
+            throw new BadRequestException("Group does not belong to this event.");
+        }
+        if (!assignmentRepository.mentorAssignmentExists(roundId, groupId, mentorId)) {
+            throw new BadRequestException("Mentor assignment not found.");
+        }
+    }
+
+    private void assertJudgeAssignmentInEvent(
+            String eventId, String judgeId, String roundId, String groupId) {
+        if (!eventRepository.roundBelongsToEvent(roundId, eventId)) {
+            throw new BadRequestException("Round does not belong to this event.");
+        }
+        if (!eventRepository.groupBelongsToEvent(groupId, eventId)) {
+            throw new BadRequestException("Group does not belong to this event.");
+        }
+        if (!assignmentRepository.judgeAssignmentExists(judgeId, roundId, groupId)) {
+            throw new BadRequestException("Judge assignment not found.");
+        }
+    }
+
+    private EventAssignedMentorResponse findMentorRow(
+            String eventId, String roundId, String groupId, String mentorId) {
+        for (EventAssignedMentorResponse row : eventRepository.findAssignedMentorsByEventId(eventId)) {
+            if (roundId.equals(row.getRoundId())
+                    && groupId.equals(row.getGroupId())
+                    && mentorId.equals(row.getMentorId())) {
+                return row;
+            }
+        }
+        throw new BadRequestException("Không tải lại được phân công mentor sau cập nhật.");
+    }
+
+    private EventAssignedJudgeResponse findJudgeRow(
+            String eventId, String judgeId, String roundId, String groupId) {
+        for (EventAssignedJudgeResponse row : eventRepository.findAssignedJudgesByEventId(eventId)) {
+            if (judgeId.equals(row.getJudgeId())
+                    && roundId.equals(row.getRoundId())
+                    && groupId.equals(row.getGroupId())) {
+                return row;
+            }
+        }
+        throw new BadRequestException("Không tải lại được phân công judge sau cập nhật.");
+    }
+
+    // region UNIVERSITY MANAGEMENT
+
+    public List<StaffUniversityItemResponse> getStaffUniversities(String authHeader) {
+        authService.validateRole(authHeader, "COORDINATOR");
+        List<StaffUniversityItemResponse> items = new ArrayList<>();
+        for (University university : universityRepository.findAll()) {
+            int linked = studentProfileRepository.countByUniversityName(university.getUniversityName());
+            items.add(new StaffUniversityItemResponse(
+                    university.getUniversityId(),
+                    university.getUniversityName(),
+                    String.valueOf(linked)));
+        }
+        return items;
+    }
+
+    public UniversityResponse createUniversity(String authHeader, CreateUniversityRequest request) {
+        authService.validateRole(authHeader, "COORDINATOR");
+        String name = trim(request.getUniversityName());
+        validateUniversityName(name);
+        if (universityRepository.existsByName(name)) {
+            throw new ConflictException("University name already exists.");
+        }
+        String universityId = universityRepository.insert(name)
+                .orElseThrow(() -> new BadRequestException("Create university failed."));
+        UniversityResponse response = new UniversityResponse();
+        response.setUniversityId(universityId);
+        response.setUniversityName(name);
+        return response;
+    }
+
+    public MessageResponse updateUniversity(String authHeader, UpdateUniversityRequest request) {
+        authService.validateRole(authHeader, "COORDINATOR");
+        String universityId = trim(request.getUniversityId());
+        String newName = trim(request.getUniversityName());
+        if (universityId.isEmpty()) {
+            throw new BadRequestException("University ID is required.");
+        }
+        validateUniversityName(newName);
+        University university = universityRepository.findById(universityId)
+                .orElseThrow(() -> new BadRequestException("University is not valid."));
+        String oldName = university.getUniversityName();
+        if (!newName.equals(oldName)) {
+            if (universityRepository.existsByNameExcludingId(newName, universityId)) {
+                throw new ConflictException("University name already exists.");
+            }
+            if (!studentProfileRepository.updateUniversityNameByOldName(oldName, newName)) {
+                throw new BadRequestException("Update university failed.");
+            }
+            if (!universityRepository.updateName(universityId, newName)) {
+                studentProfileRepository.updateUniversityNameByOldName(newName, oldName);
+                throw new BadRequestException("Update university failed.");
+            }
+        }
+        return new MessageResponse("University updated successfully.");
+    }
+
+    public DeleteUniversityPreviewResponse getDeleteUniversityPreview(String authHeader, String universityId) {
+        authService.validateRole(authHeader, "COORDINATOR");
+        String id = trim(universityId);
+        if (id.isEmpty()) {
+            throw new BadRequestException("University ID is required.");
+        }
+        University university = universityRepository.findById(id)
+                .orElseThrow(() -> new BadRequestException("University is not valid."));
+        int count = studentProfileRepository.countByUniversityName(university.getUniversityName());
+        String message = count == 0
+                ? "No student profiles are linked to this university. You can delete it directly."
+                : count + " student profile(s) are linked to this university. Choose a replacement university or clear their university.";
+        return new DeleteUniversityPreviewResponse(
+                university.getUniversityId(),
+                university.getUniversityName(),
+                String.valueOf(count),
+                count == 0,
+                count > 0,
+                message);
+    }
+
+    public MessageResponse deleteUniversity(String authHeader, DeleteUniversityRequest request) {
+        authService.validateRole(authHeader, "COORDINATOR");
+        String universityId = trim(request.getUniversityId());
+        if (universityId.isEmpty()) {
+            throw new BadRequestException("University ID is required.");
+        }
+        University university = universityRepository.findById(universityId)
+                .orElseThrow(() -> new BadRequestException("University is not valid."));
+        String oldName = university.getUniversityName();
+        int linkedCount = studentProfileRepository.countByUniversityName(oldName);
+        String replacement = trim(request.getReplacementUniversityName());
+        boolean clearLinked = Boolean.TRUE.equals(request.getClearLinkedUsers());
+
+        if (linkedCount > 0) {
+            if (!replacement.isEmpty()) {
+                if (replacement.equals(oldName)) {
+                    throw new BadRequestException("Replacement university must be different from the university being deleted.");
+                }
+                if (universityRepository.findByName(replacement).isEmpty()) {
+                    throw new BadRequestException("Replacement university is not valid.");
+                }
+                if (!studentProfileRepository.updateUniversityNameByOldName(oldName, replacement)) {
+                    throw new BadRequestException("Delete university failed.");
+                }
+            } else if (clearLinked) {
+                if (!studentProfileRepository.clearUniversityNameByUniversityName(oldName)) {
+                    throw new BadRequestException("Delete university failed.");
+                }
+            } else {
+                throw new BadRequestException(
+                        "This university still has linked students. Provide a replacement university name or confirm clearing.");
+            }
+        }
+
+        if (!universityRepository.deleteById(universityId)) {
+            throw new BadRequestException("Delete university failed.");
+        }
+        return new MessageResponse("University deleted successfully.");
+    }
+
+    private void validateUniversityName(String name) {
+        if (name.isEmpty()) {
+            throw new BadRequestException("University name is required.");
+        }
+        if (name.length() > 255) {
+            throw new BadRequestException("University name must be at most 255 characters.");
+        }
+    }
+
+    // endregion
+
+    private static String trim(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private String resolveStaffAccountRole(String role) {

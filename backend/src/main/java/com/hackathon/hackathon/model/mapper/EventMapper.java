@@ -57,6 +57,8 @@ public class EventMapper {
         response.setName(rs.getString("name"));
         int maxTeams = rs.getInt("max_teams");
         response.setMaxTeams(rs.wasNull() ? null : maxTeams);
+        int teamCount = rs.getInt("team_count");
+        response.setTeamCount(rs.wasNull() ? 0 : teamCount);
         return response;
     }
 
@@ -68,6 +70,10 @@ public class EventMapper {
         round.setStartDate(rs.getString("start_date"));
         round.setEndDate(rs.getString("end_date"));
         round.setSubmissionDeadline(rs.getString("submission_deadline"));
+        int winnersPerRound = rs.getInt("winners_per_round");
+        round.setWinnersPerRound(rs.wasNull() ? 1 : winnersPerRound);
+        int winnerCount = rs.getInt("winner_count");
+        round.setWinnerCount(rs.wasNull() ? 0 : winnerCount);
         return round;
     }
 
@@ -84,7 +90,8 @@ public class EventMapper {
         Award award = new Award();
         award.setAwardId(rs.getString("award_id"));
         award.setTitle(rs.getString("title"));
-        award.setRank(rs.getString("rank"));
+        int rank = rs.getInt("rank");
+        award.setRank(rs.wasNull() ? null : String.valueOf(rank));
         award.setTeamName(rs.getString("team_name"));
         return award;
     }
@@ -153,6 +160,8 @@ public class EventMapper {
         response.setStartDate(round.getStartDate());
         response.setEndDate(round.getEndDate());
         response.setSubmissionDeadline(round.getSubmissionDeadline());
+        response.setWinnersPerRound(round.getWinnersPerRound());
+        response.setWinnerCount(round.getWinnerCount());
         return response;
     }
 
@@ -168,6 +177,7 @@ public class EventMapper {
     public EventAwardResponse toAwardResponse(Award award) {
         EventAwardResponse response = new EventAwardResponse();
         response.setAwardId(award.getAwardId());
+        response.setEventId(award.getEventId());
         response.setTitle(award.getTitle());
         response.setRank(award.getRank());
         response.setTeamName(award.getTeamName());

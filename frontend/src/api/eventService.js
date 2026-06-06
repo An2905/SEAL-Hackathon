@@ -41,7 +41,8 @@ export async function createEventRound({
   name,
   startDate,
   endDate,
-  submissionDeadline
+  submissionDeadline,
+  winnersPerRound
 }) {
   const id = normalizeEventId(eventId)
   if (!id) throw new Error('Sự kiện không hợp lệ')
@@ -52,15 +53,23 @@ export async function createEventRound({
     throw new Error('Vui lòng nhập đầy đủ thời gian vòng thi')
   }
 
+  const winners = mapOptionalInt(winnersPerRound)
+  if (winners != null && winners < 1) {
+    throw new Error('Số winner mỗi vòng phải ≥ 1')
+  }
+
+  const body = {
+    eventId: id,
+    name: n,
+    startDate,
+    endDate,
+    submissionDeadline
+  }
+  if (winners != null) body.winnersPerRound = winners
+
   const text = await apiFetch('/api/staff/events/rounds', {
     method: 'POST',
-    body: {
-      eventId: id,
-      name: n,
-      startDate,
-      endDate,
-      submissionDeadline
-    }
+    body
   })
   const data = parseJson(text)
   return {
@@ -111,6 +120,78 @@ export async function deleteEventRound({ eventId, roundId }) {
   return true
 }
 
+function mapTeamItem(data) {
+  return {
+    teamId: String(data.teamId ?? data.team_id ?? ''),
+    teamName: data.teamName ?? data.team_name ?? '',
+    status: data.status ?? '',
+    registrationId: String(data.registrationId ?? data.registration_id ?? '')
+  }
+}
+
+function mapGroupTeamsResponse(data, fallback = {}) {
+  const teamCountRaw = data.teamCount ?? data.team_count ?? fallback.teamCount
+  const teamCountNum =
+    teamCountRaw == null || teamCountRaw === '' ? 0 : Number(teamCountRaw)
+  const assignedRaw = data.assigned ?? data.Assigned ?? []
+  const availableRaw = data.available ?? data.Available ?? []
+  return {
+    groupId: String(data.groupId ?? data.group_id ?? fallback.groupId ?? ''),
+    teamCount: Number.isFinite(teamCountNum) ? teamCountNum : 0,
+    assigned: Array.isArray(assignedRaw) ? assignedRaw.map(mapTeamItem) : [],
+    available: Array.isArray(availableRaw) ? availableRaw.map(mapTeamItem) : []
+  }
+}
+
+// GET /api/staff/events/groups/teams?eventId=&roundId=&groupId=
+export async function getEventGroupTeams({ eventId, roundId, groupId }) {
+  const eid = normalizeEventId(eventId)
+  const rid = normalizeId(roundId)
+  const gid = normalizeId(groupId)
+  if (!eid || !rid || !gid) throw new Error('Thiếu thông tin bảng thi')
+
+  const params = new URLSearchParams({ eventId: eid, roundId: rid, groupId: gid })
+  const text = await apiFetch(`/api/staff/events/groups/teams?${params}`, {
+    method: 'GET'
+  })
+  return mapGroupTeamsResponse(parseJson(text), { groupId: gid })
+}
+
+// POST /api/staff/events/groups/teams
+export async function assignTeamToGroup({ eventId, roundId, groupId, teamId }) {
+  const eid = normalizeEventId(eventId)
+  const rid = normalizeId(roundId)
+  const gid = normalizeId(groupId)
+  const tid = normalizeId(teamId)
+  if (!eid || !rid || !gid || !tid) throw new Error('Thiếu thông tin phân bảng')
+
+  const text = await apiFetch('/api/staff/events/groups/teams', {
+    method: 'POST',
+    body: { eventId: eid, roundId: rid, groupId: gid, teamId: tid }
+  })
+  return mapGroupTeamsResponse(parseJson(text), { groupId: gid })
+}
+
+// DELETE /api/staff/events/groups/teams?eventId=&roundId=&groupId=&teamId=
+export async function removeTeamFromGroup({ eventId, roundId, groupId, teamId }) {
+  const eid = normalizeEventId(eventId)
+  const rid = normalizeId(roundId)
+  const gid = normalizeId(groupId)
+  const tid = normalizeId(teamId)
+  if (!eid || !rid || !gid || !tid) throw new Error('Thiếu thông tin phân bảng')
+
+  const params = new URLSearchParams({
+    eventId: eid,
+    roundId: rid,
+    groupId: gid,
+    teamId: tid
+  })
+  const text = await apiFetch(`/api/staff/events/groups/teams?${params}`, {
+    method: 'DELETE'
+  })
+  return mapGroupTeamsResponse(parseJson(text), { groupId: gid })
+}
+
 function mapGroupResponse(data, fallback = {}) {
   const maxRaw = data.maxTeams ?? data.max_teams ?? fallback.maxTeams
   const maxNum = maxRaw == null || maxRaw === '' ? null : Number(maxRaw)
@@ -126,6 +207,15 @@ function mapGroupResponse(data, fallback = {}) {
 }
 
 function mapRoundResponse(data, fallback = {}) {
+  const winnersPerRoundRaw =
+    data.winnersPerRound ?? data.winners_per_round ?? fallback.winnersPerRound
+  const winnersPerRoundNum =
+    winnersPerRoundRaw == null || winnersPerRoundRaw === ''
+      ? 1
+      : Number(winnersPerRoundRaw)
+  const winnerCountRaw = data.winnerCount ?? data.winner_count ?? fallback.winnerCount
+  const winnerCountNum =
+    winnerCountRaw == null || winnerCountRaw === '' ? 0 : Number(winnerCountRaw)
   return {
     roundId: String(data.roundId ?? data.round_id ?? fallback.roundId ?? ''),
     eventId: String(data.eventId ?? data.event_id ?? fallback.eventId ?? ''),
@@ -134,7 +224,9 @@ function mapRoundResponse(data, fallback = {}) {
     startDate: data.startDate ?? data.start_date ?? fallback.startDate ?? '',
     endDate: data.endDate ?? data.end_date ?? fallback.endDate ?? '',
     submissionDeadline:
-      data.submissionDeadline ?? data.submission_deadline ?? fallback.submissionDeadline ?? ''
+      data.submissionDeadline ?? data.submission_deadline ?? fallback.submissionDeadline ?? '',
+    winnersPerRound: Number.isFinite(winnersPerRoundNum) ? winnersPerRoundNum : 1,
+    winnerCount: Number.isFinite(winnerCountNum) ? winnerCountNum : 0
   }
 }
 
@@ -190,7 +282,8 @@ export async function updateEventRound({
   roundOrder,
   startDate,
   endDate,
-  submissionDeadline
+  submissionDeadline,
+  winnersPerRound
 }) {
   const eid = normalizeEventId(eventId)
   const rid = normalizeId(roundId)
@@ -206,17 +299,25 @@ export async function updateEventRound({
     throw new Error('Vui lòng nhập đầy đủ thời gian vòng thi')
   }
 
+  const winners = mapOptionalInt(winnersPerRound)
+  if (winners != null && winners < 1) {
+    throw new Error('Số winner mỗi vòng phải ≥ 1')
+  }
+
+  const body = {
+    eventId: eid,
+    roundId: rid,
+    name: n,
+    roundOrder: order,
+    startDate,
+    endDate,
+    submissionDeadline
+  }
+  if (winners != null) body.winnersPerRound = winners
+
   const text = await apiFetch('/api/staff/events/rounds', {
     method: 'PUT',
-    body: {
-      eventId: eid,
-      roundId: rid,
-      name: n,
-      roundOrder: order,
-      startDate,
-      endDate,
-      submissionDeadline
-    }
+    body
   })
   return mapRoundResponse(parseJson(text), {
     eventId: eid,
@@ -225,7 +326,8 @@ export async function updateEventRound({
     roundOrder: String(order),
     startDate,
     endDate,
-    submissionDeadline
+    submissionDeadline,
+    winnersPerRound: winners ?? 1
   })
 }
 
@@ -307,4 +409,83 @@ export async function updateEvent({
     maxTeams: max,
     numRounds: rounds
   })
+}
+
+function mapAwardResponse(data, fallback = {}) {
+  const rankRaw = data.rank ?? fallback.rank
+  const rankNum = rankRaw == null || rankRaw === '' ? null : Number(rankRaw)
+  return {
+    awardId: String(data.awardId ?? data.award_id ?? fallback.awardId ?? ''),
+    eventId: String(data.eventId ?? data.event_id ?? fallback.eventId ?? ''),
+    title: data.title ?? fallback.title ?? '',
+    rank: Number.isFinite(rankNum) ? rankNum : null,
+    teamName: data.teamName ?? data.team_name ?? fallback.teamName ?? ''
+  }
+}
+
+// POST /api/staff/events/awards
+export async function createEventAward({ eventId, title, rank }) {
+  const id = normalizeEventId(eventId)
+  if (!id) throw new Error('Sự kiện không hợp lệ')
+
+  const t = String(title ?? '').trim()
+  if (!t) throw new Error('Tên giải thưởng không được để trống')
+
+  const body = { eventId: id, title: t }
+  const r = rank === '' || rank == null ? null : Number(rank)
+  if (r != null) {
+    if (!Number.isFinite(r) || r < 1) throw new Error('Hạng phải là số nguyên ≥ 1')
+    body.rank = r
+  }
+
+  const text = await apiFetch('/api/staff/events/awards', {
+    method: 'POST',
+    body
+  })
+  return mapAwardResponse(parseJson(text), { eventId: id, title: t, rank: r })
+}
+
+// PUT /api/staff/events/awards
+export async function updateEventAward({ eventId, awardId, title, rank }) {
+  const eid = normalizeEventId(eventId)
+  const aid = normalizeId(awardId)
+  if (!eid || !aid) throw new Error('Thiếu thông tin giải thưởng')
+
+  const t = String(title ?? '').trim()
+  if (!t) throw new Error('Tên giải thưởng không được để trống')
+
+  const body = { eventId: eid, awardId: aid, title: t }
+  const r = rank === '' || rank == null ? null : Number(rank)
+  if (r != null) {
+    if (!Number.isFinite(r) || r < 1) throw new Error('Hạng phải là số nguyên ≥ 1')
+    body.rank = r
+  } else {
+    body.rank = null
+  }
+
+  const text = await apiFetch('/api/staff/events/awards', {
+    method: 'PUT',
+    body
+  })
+  return mapAwardResponse(parseJson(text), {
+    eventId: eid,
+    awardId: aid,
+    title: t,
+    rank: r
+  })
+}
+
+// DELETE /api/staff/events/awards?eventId=&awardId=
+export async function deleteEventAward({ eventId, awardId }) {
+  const eid = normalizeEventId(eventId)
+  const aid = normalizeId(awardId)
+  if (!eid || !aid) throw new Error('Thiếu thông tin giải thưởng')
+
+  const params = new URLSearchParams({ eventId: eid, awardId: aid })
+  const text = await apiFetch(`/api/staff/events/awards?${params}`, {
+    method: 'DELETE'
+  })
+  const message = parseMessage(text)
+  if (!/award deleted successfully/i.test(message)) throw new Error(message)
+  return true
 }

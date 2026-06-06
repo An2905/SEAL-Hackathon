@@ -3,7 +3,6 @@ package com.hackathon.hackathon.repository;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.Optional;
 import java.util.UUID;
@@ -83,7 +82,7 @@ public class EventSetupRepository {
     }
 
     public Optional<EventRoundSetupRow> findRoundByEventAndId(String eventId, String roundId) {
-        String sql = "SELECT round_id, event_id, name, round_order, start_date, end_date, submission_deadline "
+        String sql = "SELECT round_id, event_id, name, round_order, start_date, end_date, submission_deadline, winners_per_round "
                 + "FROM rounds WHERE event_id = ? AND round_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
@@ -100,6 +99,8 @@ public class EventSetupRepository {
                     row.startDate = rs.getTimestamp("start_date");
                     row.endDate = rs.getTimestamp("end_date");
                     row.submissionDeadline = rs.getTimestamp("submission_deadline");
+                    int winnersPerRound = rs.getInt("winners_per_round");
+                    row.winnersPerRound = rs.wasNull() ? 1 : winnersPerRound;
                     return Optional.of(row);
                 }
             }
@@ -328,9 +329,10 @@ public class EventSetupRepository {
             int roundOrder,
             Timestamp startDate,
             Timestamp endDate,
-            Timestamp submissionDeadline) {
-        String sql = "UPDATE rounds SET name = ?, round_order = ?, start_date = ?, end_date = ?, submission_deadline = ? "
-                + "WHERE round_id = ? AND event_id = ?";
+            Timestamp submissionDeadline,
+            int winnersPerRound) {
+        String sql = "UPDATE rounds SET name = ?, round_order = ?, start_date = ?, end_date = ?, submission_deadline = ?, "
+                + "winners_per_round = ? WHERE round_id = ? AND event_id = ?";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -339,8 +341,9 @@ public class EventSetupRepository {
             ps.setTimestamp(3, startDate);
             ps.setTimestamp(4, endDate);
             ps.setTimestamp(5, submissionDeadline);
-            ps.setString(6, roundId);
-            ps.setString(7, eventId);
+            ps.setInt(6, winnersPerRound);
+            ps.setString(7, roundId);
+            ps.setString(8, eventId);
             return ps.executeUpdate() > 0;
         } catch (Exception e) {
             return false;
@@ -367,6 +370,7 @@ public class EventSetupRepository {
         public Timestamp startDate;
         public Timestamp endDate;
         public Timestamp submissionDeadline;
+        public int winnersPerRound;
     }
 
     public int findNextRoundOrder(String eventId) {
@@ -415,10 +419,11 @@ public class EventSetupRepository {
             int roundOrder,
             Timestamp startDate,
             Timestamp endDate,
-            Timestamp submissionDeadline) {
+            Timestamp submissionDeadline,
+            int winnersPerRound) {
         String roundId = UUID.randomUUID().toString();
-        String sql = "INSERT INTO rounds (round_id, event_id, name, round_order, start_date, end_date, submission_deadline) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO rounds (round_id, event_id, name, round_order, start_date, end_date, submission_deadline, "
+                + "winners_per_round) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -429,6 +434,7 @@ public class EventSetupRepository {
             ps.setTimestamp(5, startDate);
             ps.setTimestamp(6, endDate);
             ps.setTimestamp(7, submissionDeadline);
+            ps.setInt(8, winnersPerRound);
             if (ps.executeUpdate() > 0) {
                 return roundId;
             }
@@ -441,6 +447,120 @@ public class EventSetupRepository {
     public int countGroupTeams(String groupId) {
         String sql = "SELECT COUNT(*) AS cnt FROM group_teams WHERE group_id = ?";
         return countById(sql, groupId);
+    }
+
+    public int countApprovedTeamsInGroup(String groupId, String eventId) {
+        String sql = "SELECT COUNT(*) AS cnt FROM group_teams gt "
+                + "INNER JOIN team_registrations tr ON tr.team_id = gt.team_id AND tr.event_id = ? "
+                + "WHERE gt.group_id = ? AND tr.status = 'APPROVED'";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, eventId);
+            ps.setString(2, groupId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("cnt");
+                }
+            }
+        } catch (Exception e) {
+            return 0;
+        }
+        return 0;
+    }
+
+    public Optional<Integer> findGroupMaxTeams(String groupId) {
+        String sql = "SELECT max_teams FROM round_groups WHERE group_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, groupId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int max = rs.getInt("max_teams");
+                    if (rs.wasNull()) {
+                        return Optional.empty();
+                    }
+                    return Optional.of(max);
+                }
+            }
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+        return Optional.empty();
+    }
+
+    public boolean groupBelongsToRound(String groupId, String roundId) {
+        String sql = "SELECT 1 FROM round_groups WHERE group_id = ? AND round_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, groupId);
+            ps.setString(2, roundId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean isTeamApprovedForEvent(String eventId, String teamId) {
+        String sql = "SELECT 1 FROM team_registrations WHERE event_id = ? AND team_id = ? AND status = 'APPROVED'";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, eventId);
+            ps.setString(2, teamId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean isTeamInRound(String roundId, String teamId) {
+        String sql = "SELECT 1 FROM group_teams WHERE round_id = ? AND team_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, roundId);
+            ps.setString(2, teamId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean insertGroupTeam(String groupId, String roundId, String teamId) {
+        String sql = "INSERT INTO group_teams (group_id, round_id, team_id, assigned_at) VALUES (?, ?, ?, ?)";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, groupId);
+            ps.setString(2, roundId);
+            ps.setString(3, teamId);
+            ps.setTimestamp(4, new Timestamp(System.currentTimeMillis()));
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean deleteGroupTeam(String groupId, String teamId) {
+        String sql = "DELETE FROM group_teams WHERE group_id = ? AND team_id = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, groupId);
+            ps.setString(2, teamId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public int countSubmissionsByRound(String roundId) {

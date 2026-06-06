@@ -80,4 +80,46 @@ public class StudentProfileRepository {
             return false;
         }
     }
+
+    public int countByUniversityName(String universityName) {
+        String sql = "SELECT COUNT(*) FROM studentprofile WHERE university_name = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, universityName);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (Exception e) {
+            return 0;
+        }
+        return 0;
+    }
+
+    public boolean updateUniversityNameByOldName(String oldName, String newName) {
+        String sql = "UPDATE studentprofile SET university_name = ? WHERE university_name = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, newName);
+            ps.setString(2, oldName);
+            return ps.executeUpdate() >= 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean clearUniversityNameByUniversityName(String universityName) {
+        String sql = "UPDATE studentprofile SET university_name = NULL WHERE university_name = ?";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, universityName);
+            return ps.executeUpdate() >= 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }

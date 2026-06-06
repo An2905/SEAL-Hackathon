@@ -139,7 +139,7 @@ CREATE TABLE `rounds` (
   `round_order`         INT NOT NULL,
   `num_groups`          INT NOT NULL DEFAULT 1,
   `max_teams_per_group` INT NULL,
-  `winners_per_group`   INT NOT NULL DEFAULT 1,
+  `winners_per_round`   INT NOT NULL DEFAULT 1,
   `submission_deadline` DATETIME NULL,
   `start_date`          DATETIME NULL,
   `end_date`            DATETIME NULL,
@@ -415,7 +415,7 @@ CREATE TABLE `announcements` (
 CREATE TABLE `awards` (
   `award_id`   VARCHAR(36) NOT NULL,
   `event_id`   VARCHAR(36) NOT NULL,
-  `team_id`    VARCHAR(36) NOT NULL,
+  `team_id`    VARCHAR(36) NULL,
   `title`      VARCHAR(100) NOT NULL,
   `rank`       INT NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,

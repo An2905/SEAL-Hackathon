@@ -10,4 +10,5 @@ public class EventGroupResponse {
     private String roundOrder;
     private String name;
     private Integer maxTeams;
+    private Integer teamCount;
 }

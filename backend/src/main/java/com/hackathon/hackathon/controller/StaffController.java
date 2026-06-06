@@ -3,6 +3,7 @@ package com.hackathon.hackathon.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -29,6 +30,13 @@ import com.hackathon.hackathon.model.dto.request.SendParticipantAnnouncementRequ
 import com.hackathon.hackathon.model.dto.response.AnnouncementResponse;
 import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
 import com.hackathon.hackathon.model.dto.request.AssignMentorGroupRequest;
+import com.hackathon.hackathon.model.dto.request.CreateUniversityRequest;
+import com.hackathon.hackathon.model.dto.request.DeleteUniversityRequest;
+import com.hackathon.hackathon.model.dto.request.UpdateUniversityRequest;
+import com.hackathon.hackathon.model.dto.response.DeleteUniversityPreviewResponse;
+import com.hackathon.hackathon.model.dto.response.MessageResponse;
+import com.hackathon.hackathon.model.dto.response.StaffUniversityItemResponse;
+import com.hackathon.hackathon.model.dto.response.UniversityResponse;
 import com.hackathon.hackathon.service.EventService;
 import com.hackathon.hackathon.service.StaffService;
 
@@ -137,5 +145,39 @@ public class StaffController {
     public ResponseEntity<byte[]> exportEventsExcel(
             @RequestHeader("Authorization") String authHeader) {
         return eventService.exportEventsExcel(authHeader);
+    }
+
+    @GetMapping("/universities")
+    public ResponseEntity<List<StaffUniversityItemResponse>> getStaffUniversities(
+            @RequestHeader("Authorization") String authHeader) {
+        return ResponseEntity.ok(staffService.getStaffUniversities(authHeader));
+    }
+
+    @PostMapping("/universities")
+    public ResponseEntity<UniversityResponse> createUniversity(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody CreateUniversityRequest request) {
+        return ResponseEntity.ok(staffService.createUniversity(authHeader, request));
+    }
+
+    @PutMapping("/universities")
+    public ResponseEntity<MessageResponse> updateUniversity(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody UpdateUniversityRequest request) {
+        return ResponseEntity.ok(staffService.updateUniversity(authHeader, request));
+    }
+
+    @GetMapping("/universities/delete-preview")
+    public ResponseEntity<DeleteUniversityPreviewResponse> getDeleteUniversityPreview(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam String universityId) {
+        return ResponseEntity.ok(staffService.getDeleteUniversityPreview(authHeader, universityId));
+    }
+
+    @DeleteMapping("/universities")
+    public ResponseEntity<MessageResponse> deleteUniversity(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody DeleteUniversityRequest request) {
+        return ResponseEntity.ok(staffService.deleteUniversity(authHeader, request));
     }
 }

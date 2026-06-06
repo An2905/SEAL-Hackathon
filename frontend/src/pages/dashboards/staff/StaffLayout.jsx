@@ -5,9 +5,9 @@ const STAFF_TABS = [
   { to: '/staff', label: 'Tổng quan', end: true },
   { to: '/staff/accounts', label: 'Tài khoản' },
   { to: '/staff/events', label: 'Sự kiện' },
-  { to: '/staff/setup', label: 'Cấu hình bảng & vòng' },
   { to: '/staff/assign', label: 'Phân công Judge / Mentor' },
-  { to: '/staff/announcements', label: 'Thông báo' }
+  { to: '/staff/announcements', label: 'Thông báo' },
+  { to: '/staff/universities', label: 'Trường ĐH' }
 ]
 
 export default function StaffLayout() {

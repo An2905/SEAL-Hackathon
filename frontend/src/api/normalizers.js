@@ -70,24 +70,37 @@ export function mapEventRow(row) {
 function mapGroupRow(row) {
   const maxRaw = row.maxTeams ?? row.max_teams
   const maxNum = maxRaw == null || maxRaw === '' ? null : Number(maxRaw)
+  const teamCountRaw = row.teamCount ?? row.team_count
+  const teamCountNum = teamCountRaw == null || teamCountRaw === '' ? 0 : Number(teamCountRaw)
   return {
     groupId: normalizeId(row.groupId ?? row.group_id),
     roundId: normalizeId(row.roundId ?? row.round_id),
     roundName: row.roundName ?? row.round_name ?? '',
     roundOrder: String(row.roundOrder ?? row.round_order ?? ''),
     name: row.name ?? '',
-    maxTeams: Number.isFinite(maxNum) ? maxNum : null
+    maxTeams: Number.isFinite(maxNum) ? maxNum : null,
+    teamCount: Number.isFinite(teamCountNum) ? teamCountNum : 0
   }
 }
 
 function mapRoundRow(row) {
+  const winnersPerRoundRaw = row.winnersPerRound ?? row.winners_per_round
+  const winnersPerRoundNum =
+    winnersPerRoundRaw == null || winnersPerRoundRaw === ''
+      ? 1
+      : Number(winnersPerRoundRaw)
+  const winnerCountRaw = row.winnerCount ?? row.winner_count
+  const winnerCountNum =
+    winnerCountRaw == null || winnerCountRaw === '' ? 0 : Number(winnerCountRaw)
   return {
     roundId: normalizeId(row.roundId ?? row.round_id),
     name: row.name ?? '',
     roundOrder: String(row.roundOrder ?? row.round_order ?? ''),
     startDate: row.startDate ?? row.start_date ?? '',
     endDate: row.endDate ?? row.end_date ?? '',
-    submissionDeadline: row.submissionDeadline ?? row.submission_deadline ?? ''
+    submissionDeadline: row.submissionDeadline ?? row.submission_deadline ?? '',
+    winnersPerRound: Number.isFinite(winnersPerRoundNum) ? winnersPerRoundNum : 1,
+    winnerCount: Number.isFinite(winnerCountNum) ? winnerCountNum : 0
   }
 }
 
@@ -133,10 +146,12 @@ function mapAssignedJudgeRow(row) {
 }
 
 function mapAwardRow(row) {
+  const rankRaw = row.rank
+  const rankNum = rankRaw == null || rankRaw === '' ? null : Number(rankRaw)
   return {
     awardId: normalizeId(row.awardId ?? row.award_id),
     title: row.title ?? '',
-    rank: row.rank ?? '',
+    rank: Number.isFinite(rankNum) ? rankNum : null,
     teamName: row.teamName ?? row.team_name ?? ''
   }
 }

@@ -11,4 +11,6 @@ public class Round {
     private String endDate;
     private String submissionDeadline;
     private String roundOrder;
+    private Integer winnersPerRound;
+    private Integer winnerCount;
 }

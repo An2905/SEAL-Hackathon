@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import DashboardShell from './DashboardShell'
 import FormField from '../../components/common/FormField'
 import FormMessage from '../../components/common/FormMessage'
+import Modal from '../../components/common/Modal'
 import PendingTeamsBadge from '../../components/common/PendingTeamsBadge'
 import LoadingButton from '../../components/common/LoadingButton'
 import {
@@ -11,7 +12,8 @@ import {
   changeEventStatus,
   changeAccountStatus,
   getAllAccounts,
-  normalizeAccountUserId
+  normalizeAccountUserId,
+  exportEventsExcel
 } from '../../api/staff'
 import { getAllEvents, attachPendingTeamsToEvents } from '../../api/event'
 import { useToast } from '../../context/ToastContext'
@@ -190,7 +192,7 @@ export function CreateStaffAccountForm({ onSuccess }) {
 }
 
 // ─── Create Event Form ────────────────────────────────────────────────────────
-export function CreateEventForm({ onSuccess }) {
+export function CreateEventForm({ open, onClose, onSuccess }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
@@ -255,6 +257,7 @@ export function CreateEventForm({ onSuccess }) {
         numRounds: '1'
       })
       onSuccess?.(created)
+      onClose?.()
     } catch (err) {
       setMessage({ text: localizeError(err.message), type: 'error' })
     } finally {
@@ -263,14 +266,12 @@ export function CreateEventForm({ onSuccess }) {
   }
 
   return (
-    <div className='card'>
-      <div className='card-head'>
-        <div className='card-title'>Tạo sự kiện mới</div>
-      </div>
-      <p className='card-sub'>
-        Sự kiện mới có trạng thái <strong>BUILDING</strong> — sinh viên chưa đăng ký được. Sau khi tạo, cấu hình
-        bảng/vòng thi rồi chuyển sang <strong>UPCOMING</strong>.
-      </p>
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      title='Tạo sự kiện mới'
+      subtitle='Sự kiện mới có trạng thái BUILDING — sinh viên chưa đăng ký được. Vào chi tiết sự kiện để thêm vòng/bảng, rồi chuyển sang UPCOMING.'
+    >
       <form className='form' onSubmit={handleSubmit}>
         <FormField label='Tên sự kiện *'>
           <input
@@ -345,17 +346,10 @@ export function CreateEventForm({ onSuccess }) {
             >
               Chi tiết sự kiện
             </Link>
-            <Link
-              to={`/staff/setup?eventId=${encodeURIComponent(lastCreated.eventId)}`}
-              className='btn btn-outline'
-              style={{ fontSize: 13 }}
-            >
-              Cấu hình bảng & vòng
-            </Link>
           </div>
         )}
       </form>
-    </div>
+    </Modal>
   )
 }
 
@@ -449,8 +443,29 @@ export function EventsListSection({ refreshKey = 0, onStatusChanged, onPendingTo
   const [status, setStatus] = useState('ALL')
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [error, setError] = useState(null)
   const [loaded, setLoaded] = useState(false)
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const blob = await exportEventsExcel()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'events.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      showToast('Xuất Excel thành công', 'success')
+    } catch (err) {
+      showToast(localizeError(err.message), 'error')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -493,6 +508,15 @@ export function EventsListSection({ refreshKey = 0, onStatusChanged, onPendingTo
     <div className='card'>
       <div className='card-head'>
         <div className='card-title'>Danh sách sự kiện</div>
+        <LoadingButton
+          loading={exporting}
+          className='btn btn-success btn-sm'
+          onClick={handleExport}
+          type='button'
+          style={{ marginLeft: 'auto' }}
+        >
+          Xuất Excel
+        </LoadingButton>
       </div>
       <p className='card-sub'>
         Xem tất cả hackathon trong hệ thống. Nhấn badge trạng thái để đổi — chỉ Staff có quyền thao tác.

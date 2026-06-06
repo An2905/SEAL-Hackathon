@@ -15,4 +15,8 @@ public class EventRoundResponse {
     private String endDate;
 
     private String submissionDeadline;
+
+    private Integer winnersPerRound;
+
+    private Integer winnerCount;
 }

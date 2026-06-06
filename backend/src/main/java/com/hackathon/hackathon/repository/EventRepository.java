@@ -152,6 +152,9 @@ public class EventRepository {
     public List<EventGroupResponse> findGroupsByEventId(String eventId) {
         List<EventGroupResponse> groups = new ArrayList<>();
         String sql = "SELECT rg.group_id, rg.round_id, rg.name, rg.max_teams, "
+                + "(SELECT COUNT(*) FROM group_teams gt "
+                + "INNER JOIN team_registrations tr ON tr.team_id = gt.team_id AND tr.event_id = r.event_id "
+                + "WHERE gt.group_id = rg.group_id AND tr.status = 'APPROVED') AS team_count, "
                 + "r.name AS round_name, r.round_order "
                 + "FROM round_groups rg "
                 + "INNER JOIN rounds r ON rg.round_id = r.round_id "
@@ -174,7 +177,9 @@ public class EventRepository {
 
     public List<Round> findRoundsByEventId(String eventId) {
         List<Round> rounds = new ArrayList<>();
-        String sql = "SELECT round_id, name, round_order, start_date, end_date, submission_deadline "
+        String sql = "SELECT round_id, name, round_order, start_date, end_date, submission_deadline, "
+                + "winners_per_round, "
+                + "(SELECT COUNT(*) FROM round_winners rw WHERE rw.round_id = rounds.round_id) AS winner_count "
                 + "FROM rounds WHERE event_id = ? ORDER BY round_order";
         try (
                 Connection conn = dataSource.getConnection();
@@ -210,10 +215,63 @@ public class EventRepository {
         return registrations;
     }
 
+    public List<TeamRegistration> findAssignedTeamsInGroup(String groupId, String eventId) {
+        List<TeamRegistration> registrations = new ArrayList<>();
+        String sql = "SELECT tr.registration_id, gt.team_id, t.team_name, tr.status "
+                + "FROM group_teams gt "
+                + "INNER JOIN teams t ON gt.team_id = t.team_id "
+                + "INNER JOIN team_registrations tr ON tr.team_id = gt.team_id AND tr.event_id = ? "
+                + "WHERE gt.group_id = ? AND tr.status = 'APPROVED' "
+                + "ORDER BY t.team_name ASC";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, eventId);
+            ps.setString(2, groupId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    registrations.add(eventMapper.teamRegistrationFromResultSet(rs));
+                }
+            }
+        } catch (Exception e) {
+            return registrations;
+        }
+        return registrations;
+    }
+
+    public List<TeamRegistration> findAvailableTeamsForRound(String eventId, String roundId) {
+        List<TeamRegistration> registrations = new ArrayList<>();
+        String sql = "SELECT tr.registration_id, tr.team_id, t.team_name, tr.status "
+                + "FROM team_registrations tr "
+                + "JOIN teams t ON tr.team_id = t.team_id "
+                + "WHERE tr.event_id = ? AND tr.status = 'APPROVED' "
+                + "AND NOT EXISTS ("
+                + "SELECT 1 FROM group_teams gt WHERE gt.team_id = tr.team_id AND gt.round_id = ?"
+                + ") "
+                + "ORDER BY t.team_name ASC";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, eventId);
+            ps.setString(2, roundId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    registrations.add(eventMapper.teamRegistrationFromResultSet(rs));
+                }
+            }
+        } catch (Exception e) {
+            return registrations;
+        }
+        return registrations;
+    }
+
     public List<Award> findAwardsByEventId(String eventId) {
         List<Award> awards = new ArrayList<>();
-        String sql = "SELECT a.award_id, a.title, a.rank, t.team_name "
-                + "FROM awards a JOIN teams t ON a.team_id = t.team_id WHERE a.event_id = ?";
+        String sql = "SELECT a.award_id, a.title, a.`rank`, t.team_name "
+                + "FROM awards a "
+                + "LEFT JOIN teams t ON a.team_id = t.team_id "
+                + "WHERE a.event_id = ? "
+                + "ORDER BY COALESCE(a.`rank`, 999999) ASC, a.title ASC";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
