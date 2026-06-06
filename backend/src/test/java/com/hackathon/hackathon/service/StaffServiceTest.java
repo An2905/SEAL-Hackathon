@@ -1,15 +1,23 @@
 package com.hackathon.hackathon.service;
 
 import com.hackathon.hackathon.exception.BadRequestException;
+import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.model.dto.request.SendAllAnnouncementRequest;
 import com.hackathon.hackathon.model.dto.request.SendParticipantAnnouncementRequest;
+import com.hackathon.hackathon.model.dto.request.CreateUniversityRequest;
+import com.hackathon.hackathon.model.dto.request.UpdateUniversityRequest;
+import com.hackathon.hackathon.model.dto.request.DeleteUniversityRequest;
 import com.hackathon.hackathon.model.dto.response.AnnouncementResponse;
+import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.entity.User;
+import com.hackathon.hackathon.model.entity.University;
 import com.hackathon.hackathon.repository.AnnouncementRepository;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.repository.UserRepository;
 import com.hackathon.hackathon.repository.AssignmentRepository;
+import com.hackathon.hackathon.repository.UniversityRepository;
+import com.hackathon.hackathon.repository.StudentProfileRepository;
 import com.hackathon.hackathon.model.mapper.EventMapper;
 import com.hackathon.hackathon.model.mapper.UserMapper;
 import mockit.Injectable;
@@ -60,6 +68,12 @@ public class StaffServiceTest {
 
     @Injectable
     private AssignmentRepository assignmentRepository;
+
+    @Injectable
+    private UniversityRepository universityRepository;
+
+    @Injectable
+    private StudentProfileRepository studentProfileRepository;
 
     private final String authHeader = "Bearer mock_coordinator_token";
 
@@ -323,5 +337,171 @@ public class StaffServiceTest {
 
         assertEquals("Failed to create announcement.", exception.getMessage());
         System.out.println("✓ Test Service: sendAnnouncementToParticipants DB insert failed");
+    }
+
+    // ==========================================
+    // STAFF UNIVERSITIES TESTS
+    // ==========================================
+
+    @Test
+    public void testCreateUniversitySuccess() {
+        CreateUniversityRequest request = new CreateUniversityRequest();
+        request.setUniversityName("FPT University");
+
+        new Expectations() {
+            {
+                authService.validateRole(authHeader, "COORDINATOR");
+                universityRepository.existsByName("FPT University"); result = false;
+                universityRepository.insert("FPT University"); result = true;
+            }
+        };
+
+        MessageResponse response = staffService.createUniversity(authHeader, request);
+        assertEquals("University created successfully", response.getMessage());
+        System.out.println("✓ Test Service: createUniversity success");
+    }
+
+    @Test
+    public void testCreateUniversityNameExists() {
+        CreateUniversityRequest request = new CreateUniversityRequest();
+        request.setUniversityName("FPT University");
+
+        new Expectations() {
+            {
+                authService.validateRole(authHeader, "COORDINATOR");
+                universityRepository.existsByName("FPT University"); result = true;
+            }
+        };
+
+        assertThrows(ConflictException.class, () -> {
+            staffService.createUniversity(authHeader, request);
+        });
+        System.out.println("✓ Test Service: createUniversity name conflict");
+    }
+
+    @Test
+    public void testUpdateUniversitySuccess() {
+        UpdateUniversityRequest request = new UpdateUniversityRequest();
+        request.setUniversityId("1");
+        request.setUniversityName("FPT University New");
+
+        University oldUni = new University();
+        oldUni.setUniversityId("1");
+        oldUni.setUniversityName("FPT University Old");
+
+        new Expectations() {
+            {
+                authService.validateRole(authHeader, "COORDINATOR");
+                universityRepository.findById("1"); result = java.util.Optional.of(oldUni);
+                universityRepository.existsByNameExcludingId("FPT University New", "1"); result = false;
+                studentProfileRepository.updateUniversityNameByOldName("FPT University Old", "FPT University New"); result = true;
+                universityRepository.updateName("1", "FPT University New"); result = true;
+            }
+        };
+
+        MessageResponse response = staffService.updateUniversity(authHeader, request);
+        assertEquals("University updated successfully", response.getMessage());
+        System.out.println("✓ Test Service: updateUniversity success");
+    }
+
+    @Test
+    public void testDeleteUniversityNoLinkedUsers() {
+        DeleteUniversityRequest request = new DeleteUniversityRequest();
+        request.setUniversityId("1");
+
+        University uni = new University();
+        uni.setUniversityId("1");
+        uni.setUniversityName("FPT University");
+
+        new Expectations() {
+            {
+                authService.validateRole(authHeader, "COORDINATOR");
+                universityRepository.findById("1"); result = java.util.Optional.of(uni);
+                studentProfileRepository.countByUniversityName("FPT University"); result = 0;
+                universityRepository.deleteById("1"); result = true;
+            }
+        };
+
+        MessageResponse response = staffService.deleteUniversity(authHeader, request);
+        assertEquals("University deleted successfully", response.getMessage());
+        System.out.println("✓ Test Service: deleteUniversity no linked users");
+    }
+
+    @Test
+    public void testDeleteUniversityReassign() {
+        DeleteUniversityRequest request = new DeleteUniversityRequest();
+        request.setUniversityId("1");
+        request.setReplacementUniversityName("Greenwich University");
+
+        University uni = new University();
+        uni.setUniversityId("1");
+        uni.setUniversityName("FPT University");
+
+        University repUni = new University();
+        repUni.setUniversityId("2");
+        repUni.setUniversityName("Greenwich University");
+
+        new Expectations() {
+            {
+                authService.validateRole(authHeader, "COORDINATOR");
+                universityRepository.findById("1"); result = java.util.Optional.of(uni);
+                studentProfileRepository.countByUniversityName("FPT University"); result = 5;
+                universityRepository.findByName("Greenwich University"); result = java.util.Optional.of(repUni);
+                studentProfileRepository.updateUniversityNameByOldName("FPT University", "Greenwich University"); result = true;
+                universityRepository.deleteById("1"); result = true;
+            }
+        };
+
+        MessageResponse response = staffService.deleteUniversity(authHeader, request);
+        assertEquals("University deleted successfully", response.getMessage());
+        System.out.println("✓ Test Service: deleteUniversity with reassignment");
+    }
+
+    @Test
+    public void testDeleteUniversityClear() {
+        DeleteUniversityRequest request = new DeleteUniversityRequest();
+        request.setUniversityId("1");
+        request.setClearLinkedUsers(true);
+
+        University uni = new University();
+        uni.setUniversityId("1");
+        uni.setUniversityName("FPT University");
+
+        new Expectations() {
+            {
+                authService.validateRole(authHeader, "COORDINATOR");
+                universityRepository.findById("1"); result = java.util.Optional.of(uni);
+                studentProfileRepository.countByUniversityName("FPT University"); result = 5;
+                studentProfileRepository.clearUniversityNameByUniversityName("FPT University"); result = true;
+                universityRepository.deleteById("1"); result = true;
+            }
+        };
+
+        MessageResponse response = staffService.deleteUniversity(authHeader, request);
+        assertEquals("University deleted successfully", response.getMessage());
+        System.out.println("✓ Test Service: deleteUniversity with clear linked users");
+    }
+
+    @Test
+    public void testDeleteUniversityErrorNoHandling() {
+        DeleteUniversityRequest request = new DeleteUniversityRequest();
+        request.setUniversityId("1");
+
+        University uni = new University();
+        uni.setUniversityId("1");
+        uni.setUniversityName("FPT University");
+
+        new Expectations() {
+            {
+                authService.validateRole(authHeader, "COORDINATOR");
+                universityRepository.findById("1"); result = java.util.Optional.of(uni);
+                studentProfileRepository.countByUniversityName("FPT University"); result = 5;
+            }
+        };
+
+        assertThrows(BadRequestException.class, () -> {
+            staffService.deleteUniversity(authHeader, request);
+        });
+        System.out.println("✓ Test Service: deleteUniversity failed due to missing choice");
     }
 }
