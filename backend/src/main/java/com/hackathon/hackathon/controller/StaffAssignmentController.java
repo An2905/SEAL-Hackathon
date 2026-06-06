@@ -17,7 +17,7 @@ import com.hackathon.hackathon.model.dto.request.UpdateMentorAssignmentRequest;
 import com.hackathon.hackathon.model.dto.response.EventAssignedJudgeResponse;
 import com.hackathon.hackathon.model.dto.response.EventAssignedMentorResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
-import com.hackathon.hackathon.service.StaffAssignmentService;
+import com.hackathon.hackathon.service.StaffService;
 
 @RestController
 @RequestMapping(value = "/api/staff/assign", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
@@ -25,13 +25,13 @@ import com.hackathon.hackathon.service.StaffAssignmentService;
 public class StaffAssignmentController {
 
     @Autowired
-    private StaffAssignmentService staffAssignmentService;
+    private StaffService staffService;
 
     @PutMapping("/mentor")
     public ResponseEntity<EventAssignedMentorResponse> updateMentorAssignment(
             @RequestHeader("Authorization") String authHeader,
             @RequestBody UpdateMentorAssignmentRequest request) {
-        return ResponseEntity.ok(staffAssignmentService.updateMentorAssignment(authHeader, request));
+        return ResponseEntity.ok(staffService.updateMentorAssignment(authHeader, request));
     }
 
     @DeleteMapping("/mentor")
@@ -42,14 +42,14 @@ public class StaffAssignmentController {
             @RequestParam String groupId,
             @RequestParam String mentorId) {
         return ResponseEntity.ok(
-                staffAssignmentService.deleteMentorAssignment(authHeader, eventId, roundId, groupId, mentorId));
+                staffService.deleteMentorAssignment(authHeader, eventId, roundId, groupId, mentorId));
     }
 
     @PutMapping("/judge")
     public ResponseEntity<EventAssignedJudgeResponse> updateJudgeAssignment(
             @RequestHeader("Authorization") String authHeader,
             @RequestBody UpdateJudgeAssignmentRequest request) {
-        return ResponseEntity.ok(staffAssignmentService.updateJudgeAssignment(authHeader, request));
+        return ResponseEntity.ok(staffService.updateJudgeAssignment(authHeader, request));
     }
 
     @DeleteMapping("/judge")
@@ -59,7 +59,7 @@ public class StaffAssignmentController {
             @RequestParam String judgeId,
             @RequestParam String roundId,
             @RequestParam String groupId) {
-        return ResponseEntity.ok(staffAssignmentService.deleteJudgeAssignment(
+        return ResponseEntity.ok(staffService.deleteJudgeAssignment(
                 authHeader, eventId, judgeId, roundId, groupId));
     }
 }
