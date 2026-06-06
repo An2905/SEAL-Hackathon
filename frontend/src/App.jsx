@@ -11,6 +11,7 @@ import StaffAnnouncementsPage from './pages/dashboards/staff/StaffAnnouncementsP
 import StaffEventsPage from './pages/dashboards/staff/StaffEventsPage'
 import StaffAssignPage from './pages/dashboards/staff/StaffAssignPage'
 import StaffEventSetupPage from './pages/dashboards/staff/StaffEventSetupPage'
+import StaffUniversitiesPage from './pages/dashboards/staff/StaffUniversitiesPage'
 import MentorDashboard from './pages/dashboards/MentorDashboard'
 import JudgeDashboard from './pages/dashboards/JudgeDashboard'
 import EventDetailsPage from './pages/dashboards/EventDetailsPage'
@@ -45,6 +46,7 @@ export default function App() {
             <Route path='events' element={<StaffEventsPage />} />
             <Route path='assign' element={<StaffAssignPage />} />
             <Route path='setup' element={<StaffEventSetupPage />} />
+            <Route path='universities' element={<StaffUniversitiesPage />} />
             <Route path='announcements' element={<StaffAnnouncementsPage />} />
           </Route>
 
