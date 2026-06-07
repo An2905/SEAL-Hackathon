@@ -1,27 +1,27 @@
 package com.hackathon.hackathon.model.dto.request;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
+
+@Data
 public class CriteriaRequest {
 
+    @NotBlank(message = "Event ID is required.")
     private String eventId;
+
+    @NotBlank(message = "Criterion name is required.")
+    @Size(max = 100, message = "Criterion name must be at most 100 characters.")
     private String criterionName;
+
+    @DecimalMin(value = "0.01", message = "Weight must be greater than 0.")
+    @DecimalMax(value = "100.0", message = "Weight must not exceed 100.")
     private double weight;
+
+    @DecimalMin(value = "0.01", message = "Max score must be greater than 0.")
     private double maxScore;
+
     private String description;
-
-    public CriteriaRequest() {}
-
-    public String getEventId() { return eventId; }
-    public void setEventId(String eventId) { this.eventId = eventId; }
-
-    public String getCriterionName() { return criterionName; }
-    public void setCriterionName(String criterionName) { this.criterionName = criterionName; }
-
-    public double getWeight() { return weight; }
-    public void setWeight(double weight) { this.weight = weight; }
-
-    public double getMaxScore() { return maxScore; }
-    public void setMaxScore(double maxScore) { this.maxScore = maxScore; }
-
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
 }

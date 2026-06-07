@@ -1,9 +1,9 @@
-package com.hackathon.hackathon.model.entity;
+package com.hackathon.hackathon.model.dto.response;
 
 import lombok.Data;
 
 @Data
-public class EventCriterion {
+public class CriteriaResponse {
     private String criteriaId;
     private String eventId;
     private String criterionName;

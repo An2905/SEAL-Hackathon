@@ -11,6 +11,11 @@ import java.util.ArrayList;
 
 import com.hackathon.hackathon.model.dto.request.CriteriaRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateCriteriaRequest;
+import com.hackathon.hackathon.model.dto.response.CriteriaResponse;
+import com.hackathon.hackathon.model.dto.response.EventCriteriaResponse;
+import com.hackathon.hackathon.model.entity.EventCriterion;
+import com.hackathon.hackathon.repository.CriteriaRepository;
+import com.hackathon.hackathon.model.mapper.CriteriaMapper;
 import com.hackathon.hackathon.model.dto.response.AccountResponse;
 import com.hackathon.hackathon.model.dto.request.ChangeAccountStatusRequest;
 import com.hackathon.hackathon.model.dto.request.ChangeTeamRegistrationStatusRequest;
@@ -66,6 +71,12 @@ public class StaffService {
 
     @Autowired
     private EventRepository eventRepository;
+
+    @Autowired
+    private CriteriaRepository criteriaRepository;
+
+    @Autowired
+    private CriteriaMapper criteriaMapper;
 
     @Autowired
     private TeamRegistrationRepository teamRegistrationRepository;
@@ -720,172 +731,155 @@ public class StaffService {
         throw new BadRequestException("Role must be EXPERT_INTERNAL or EXPERT_EXTERNAL.");
     }
 
-       // ── COORDINATOR: Tạo tiêu chí mới ───────────────────────────────────────
-    public String createCriteria(String authHeader, CriteriaRequest request) {
+    // ── COORDINATOR: Tạo tiêu chí mới ───────────────────────────────────────
+    public CriteriaResponse createCriteria(String authHeader, CriteriaRequest request) {
         authService.validateRole(authHeader, "COORDINATOR");
- 
+
         String eventId = trim(request.getEventId());
         String criterionName = trim(request.getCriterionName());
         double weight = request.getWeight();
         double maxScore = request.getMaxScore();
         String description = request.getDescription() == null ? null : request.getDescription().trim();
- 
+
         if (eventId.isEmpty()) {
-            throw new BadRequestException("Event ID là bắt buộc.");
+            throw new BadRequestException("Event ID is required.");
         }
         if (!eventRepository.existsById(eventId)) {
-            throw new BadRequestException("Event không tồn tại.");
+            throw new BadRequestException("Event does not exist.");
         }
         if (criterionName.isEmpty()) {
-            throw new BadRequestException("Tên tiêu chí là bắt buộc.");
+            throw new BadRequestException("Criterion name is required.");
         }
         if (criterionName.length() > 100) {
-            throw new BadRequestException("Tên tiêu chí tối đa 100 ký tự.");
+            throw new BadRequestException("Criterion name must be at most 100 characters.");
         }
         if (weight <= 0 || weight > 100) {
-            throw new BadRequestException("Trọng số phải lớn hơn 0 và không quá 100.");
+            throw new BadRequestException("Weight must be greater than 0 and at most 100.");
         }
         if (maxScore <= 0) {
-            throw new BadRequestException("Điểm tối đa phải lớn hơn 0.");
+            throw new BadRequestException("Max score must be greater than 0.");
         }
- 
-        double currentTotal = eventRepository.sumWeightByEvent(eventId, null);
+
+        double currentTotal = criteriaRepository.sumWeightByEvent(eventId, null);
         if (currentTotal + weight > 100) {
             throw new BadRequestException(
-                    "Tổng trọng số vượt 100%. Hiện tại: " + currentTotal + "%, muốn thêm: " + weight + "%.");
+                    "Total weight exceeds 100%. Current total: " + currentTotal + "%, trying to add: " + weight + "%.");
         }
- 
-        String criteriaId = eventRepository.insertCriteria(
+
+        String criteriaId = criteriaRepository.insertCriteria(
                 eventId, criterionName, weight, maxScore,
                 (description == null || description.isEmpty()) ? null : description);
         if (criteriaId == null) {
-            throw new BadRequestException("Tạo tiêu chí thất bại.");
+            throw new BadRequestException("Failed to create criterion.");
         }
- 
-        String json = eventRepository.findCriteriaJsonById(criteriaId);
-        return json != null ? json : "{\"message\":\"Tạo tiêu chí thành công\",\"criteriaId\":\"" + criteriaId + "\"}";
+
+        EventCriterion entity = criteriaRepository.findCriteriaById(criteriaId)
+                .orElseThrow(() -> new BadRequestException("Failed to create criterion."));
+        return criteriaMapper.toResponse(entity);
     }
- 
+
     // ── COORDINATOR: Lấy danh sách tiêu chí của event ───────────────────────
-    public String getCriteriaByEvent(String authHeader, String eventId) {
+    public EventCriteriaResponse getCriteriaByEvent(String authHeader, String eventId) {
         authService.validateRole(authHeader, "COORDINATOR");
- 
+
         String cleanEventId = trim(eventId);
         if (cleanEventId.isEmpty()) {
-            throw new BadRequestException("Event ID là bắt buộc.");
+            throw new BadRequestException("Event ID is required.");
         }
         if (!eventRepository.existsById(cleanEventId)) {
-            throw new BadRequestException("Event không tồn tại.");
+            throw new BadRequestException("Event does not exist.");
         }
- 
-        String criteriaJson = eventRepository.findCriteriaJsonByEventId(cleanEventId);
-        double totalWeight = eventRepository.sumWeightByEvent(cleanEventId, null);
- 
-        return "{\"eventId\":\"" + cleanEventId + "\","
-                + "\"totalWeight\":" + totalWeight + ","
-                + "\"criteria\":" + criteriaJson + "}";
+
+        List<EventCriterion> criteriaList = criteriaRepository.findCriteriaByEventId(cleanEventId);
+        double totalWeight = criteriaRepository.sumWeightByEvent(cleanEventId, null);
+
+        EventCriteriaResponse response = new EventCriteriaResponse();
+        response.setEventId(cleanEventId);
+        response.setTotalWeight(totalWeight);
+        response.setCriteria(criteriaMapper.toResponseList(criteriaList));
+        return response;
     }
- 
+
     // ── COORDINATOR: Xem chi tiết 1 tiêu chí ────────────────────────────────
-    public String getCriteriaDetail(String authHeader, String criteriaId) {
+    public CriteriaResponse getCriteriaDetail(String authHeader, String criteriaId) {
         authService.validateRole(authHeader, "COORDINATOR");
- 
+
         String cleanId = trim(criteriaId);
         if (cleanId.isEmpty()) {
-            throw new BadRequestException("Criteria ID là bắt buộc.");
+            throw new BadRequestException("Criteria ID is required.");
         }
- 
-        String json = eventRepository.findCriteriaJsonById(cleanId);
-        if (json == null) {
-            throw new BadRequestException("Tiêu chí không tồn tại.");
-        }
-        return json;
+
+        EventCriterion entity = criteriaRepository.findCriteriaById(cleanId)
+                .orElseThrow(() -> new BadRequestException("Criterion does not exist."));
+        return criteriaMapper.toResponse(entity);
     }
- 
+
     // ── COORDINATOR: Cập nhật tiêu chí ──────────────────────────────────────
-    public String updateCriteria(String authHeader, String criteriaId, UpdateCriteriaRequest request) {
+    public CriteriaResponse updateCriteria(String authHeader, String criteriaId, UpdateCriteriaRequest request) {
         authService.validateRole(authHeader, "COORDINATOR");
- 
+
         String cleanId = trim(criteriaId);
         String criterionName = trim(request.getCriterionName());
         double weight = request.getWeight();
         double maxScore = request.getMaxScore();
         String description = request.getDescription() == null ? null : request.getDescription().trim();
- 
+
         if (cleanId.isEmpty()) {
-            throw new BadRequestException("Criteria ID là bắt buộc.");
+            throw new BadRequestException("Criteria ID is required.");
         }
-        if (!eventRepository.criteriaExistsById(cleanId)) {
-            throw new BadRequestException("Tiêu chí không tồn tại.");
+        if (!criteriaRepository.criteriaExistsById(cleanId)) {
+            throw new BadRequestException("Criterion does not exist.");
         }
-        if (eventRepository.criteriaUsedInScores(cleanId)) {
-            throw new BadRequestException("Không thể sửa tiêu chí đã được dùng để chấm điểm.");
+        if (criteriaRepository.criteriaUsedInScores(cleanId)) {
+            throw new BadRequestException("Cannot edit criterion that has already been used for scoring.");
         }
         if (criterionName.isEmpty()) {
-            throw new BadRequestException("Tên tiêu chí là bắt buộc.");
+            throw new BadRequestException("Criterion name is required.");
         }
         if (criterionName.length() > 100) {
-            throw new BadRequestException("Tên tiêu chí tối đa 100 ký tự.");
+            throw new BadRequestException("Criterion name must be at most 100 characters.");
         }
         if (weight <= 0 || weight > 100) {
-            throw new BadRequestException("Trọng số phải lớn hơn 0 và không quá 100.");
+            throw new BadRequestException("Weight must be greater than 0 and at most 100.");
         }
         if (maxScore <= 0) {
-            throw new BadRequestException("Điểm tối đa phải lớn hơn 0.");
+            throw new BadRequestException("Max score must be greater than 0.");
         }
- 
-        String eventId = eventRepository.findEventIdByCriteriaId(cleanId);
-        double currentTotal = eventRepository.sumWeightByEvent(eventId, cleanId);
+
+        String eventId = criteriaRepository.findEventIdByCriteriaId(cleanId);
+        double currentTotal = criteriaRepository.sumWeightByEvent(eventId, cleanId);
         if (currentTotal + weight > 100) {
             throw new BadRequestException(
-                    "Tổng trọng số vượt 100%. Các tiêu chí còn lại: " + currentTotal + "%, muốn đặt: " + weight + "%.");
+                    "Total weight exceeds 100%. Remaining criteria: " + currentTotal + "%, trying to set: " + weight + "%.");
         }
- 
-        if (!eventRepository.updateCriteria(cleanId, criterionName, weight, maxScore,
+
+        if (!criteriaRepository.updateCriteria(cleanId, criterionName, weight, maxScore,
                 (description == null || description.isEmpty()) ? null : description)) {
-            throw new BadRequestException("Cập nhật tiêu chí thất bại.");
+            throw new BadRequestException("Failed to update criterion.");
         }
- 
-        String json = eventRepository.findCriteriaJsonById(cleanId);
-        return json != null ? json : "{\"message\":\"Cập nhật thành công\"}";
+
+        EventCriterion entity = criteriaRepository.findCriteriaById(cleanId)
+                .orElseThrow(() -> new BadRequestException("Failed to update criterion."));
+        return criteriaMapper.toResponse(entity);
     }
- 
+
     // ── COORDINATOR: Xóa tiêu chí ────────────────────────────────────────────
     public String deleteCriteria(String authHeader, String criteriaId) {
         authService.validateRole(authHeader, "COORDINATOR");
- 
+
         String cleanId = trim(criteriaId);
         if (cleanId.isEmpty()) {
-            throw new BadRequestException("Criteria ID là bắt buộc.");
+            throw new BadRequestException("Criteria ID is required.");
         }
-        if (!eventRepository.criteriaExistsById(cleanId)) {
-            throw new BadRequestException("Tiêu chí không tồn tại.");
+        if (!criteriaRepository.criteriaExistsById(cleanId)) {
+            throw new BadRequestException("Criterion does not exist.");
         }
-        if (eventRepository.criteriaUsedInScores(cleanId)) {
-            throw new BadRequestException("Không thể xóa tiêu chí đã được dùng để chấm điểm.");
+        if (criteriaRepository.criteriaUsedInScores(cleanId)) {
+            throw new BadRequestException("Cannot delete criterion that has already been used for scoring.");
         }
-        if (!eventRepository.deleteCriteria(cleanId)) {
-            throw new BadRequestException("Xóa tiêu chí thất bại.");
+        if (!criteriaRepository.deleteCriteria(cleanId)) {
+            throw new BadRequestException("Failed to delete criterion.");
         }
-        return "Xóa tiêu chí thành công.";
-    }
- 
-    // ── JUDGE: Xem tiêu chí của round được assign ────────────────────────────
-    public String getCriteriaForJudge(String authHeader, String roundId) {
-        io.jsonwebtoken.Claims claims = authService.validateRole(authHeader,
-                "EXPERT_INTERNAL", "EXPERT_EXTERNAL");
-        String judgeId = claims.get("userId", String.class);
- 
-        String cleanRoundId = trim(roundId);
-        if (cleanRoundId.isEmpty()) {
-            throw new BadRequestException("Round ID là bắt buộc.");
-        }
- 
-        String criteriaJson = eventRepository.findCriteriaJsonForJudge(cleanRoundId, judgeId);
-        if (criteriaJson == null) {
-            throw new com.hackathon.hackathon.exception.ForbiddenException(
-                    "Bạn không được phân công vào vòng thi này.");
-        }
-        return "{\"roundId\":\"" + cleanRoundId + "\",\"criteria\":" + criteriaJson + "}";
+        return "Criterion deleted successfully.";
     }
 }

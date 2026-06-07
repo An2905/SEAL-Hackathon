@@ -35,6 +35,9 @@ import com.hackathon.hackathon.model.dto.request.DeleteUniversityRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateUniversityRequest;
 import com.hackathon.hackathon.model.dto.request.CriteriaRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateCriteriaRequest;
+import com.hackathon.hackathon.model.dto.response.CriteriaResponse;
+import com.hackathon.hackathon.model.dto.response.EventCriteriaResponse;
+import jakarta.validation.Valid;
 import com.hackathon.hackathon.model.dto.response.DeleteUniversityPreviewResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.dto.response.StaffUniversityItemResponse;
@@ -183,35 +186,35 @@ public class StaffController {
         return ResponseEntity.ok(staffService.deleteUniversity(authHeader, request));
     }
     
-     @PostMapping("/criteria")
-    public ResponseEntity<String> createCriteria(
+    @PostMapping("/criteria")
+    public ResponseEntity<CriteriaResponse> createCriteria(
             @RequestHeader("Authorization") String authHeader,
-            @RequestBody CriteriaRequest request) {
+            @Valid @RequestBody CriteriaRequest request) {
         return ResponseEntity.ok(staffService.createCriteria(authHeader, request));
     }
- 
+
     @GetMapping("/criteria")
-    public ResponseEntity<String> getCriteriaByEvent(
+    public ResponseEntity<EventCriteriaResponse> getCriteriaByEvent(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam String eventId) {
         return ResponseEntity.ok(staffService.getCriteriaByEvent(authHeader, eventId));
     }
- 
+
     @GetMapping("/criteria/detail")
-    public ResponseEntity<String> getCriteriaDetail(
+    public ResponseEntity<CriteriaResponse> getCriteriaDetail(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam String criteriaId) {
         return ResponseEntity.ok(staffService.getCriteriaDetail(authHeader, criteriaId));
     }
- 
+
     @PutMapping("/criteria")
-    public ResponseEntity<String> updateCriteria(
+    public ResponseEntity<CriteriaResponse> updateCriteria(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam String criteriaId,
-            @RequestBody UpdateCriteriaRequest request) {
+            @Valid @RequestBody UpdateCriteriaRequest request) {
         return ResponseEntity.ok(staffService.updateCriteria(authHeader, criteriaId, request));
     }
- 
+
     @DeleteMapping("/criteria")
     public ResponseEntity<String> deleteCriteria(
             @RequestHeader("Authorization") String authHeader,
