@@ -33,6 +33,8 @@ import com.hackathon.hackathon.model.dto.request.AssignMentorGroupRequest;
 import com.hackathon.hackathon.model.dto.request.CreateUniversityRequest;
 import com.hackathon.hackathon.model.dto.request.DeleteUniversityRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateUniversityRequest;
+import com.hackathon.hackathon.model.dto.request.CriteriaRequest;
+import com.hackathon.hackathon.model.dto.request.UpdateCriteriaRequest;
 import com.hackathon.hackathon.model.dto.response.DeleteUniversityPreviewResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.dto.response.StaffUniversityItemResponse;
@@ -179,5 +181,41 @@ public class StaffController {
             @RequestHeader("Authorization") String authHeader,
             @RequestBody DeleteUniversityRequest request) {
         return ResponseEntity.ok(staffService.deleteUniversity(authHeader, request));
+    }
+    
+     @PostMapping("/criteria")
+    public ResponseEntity<String> createCriteria(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody CriteriaRequest request) {
+        return ResponseEntity.ok(staffService.createCriteria(authHeader, request));
+    }
+ 
+    @GetMapping("/criteria")
+    public ResponseEntity<String> getCriteriaByEvent(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam String eventId) {
+        return ResponseEntity.ok(staffService.getCriteriaByEvent(authHeader, eventId));
+    }
+ 
+    @GetMapping("/criteria/detail")
+    public ResponseEntity<String> getCriteriaDetail(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam String criteriaId) {
+        return ResponseEntity.ok(staffService.getCriteriaDetail(authHeader, criteriaId));
+    }
+ 
+    @PutMapping("/criteria")
+    public ResponseEntity<String> updateCriteria(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam String criteriaId,
+            @RequestBody UpdateCriteriaRequest request) {
+        return ResponseEntity.ok(staffService.updateCriteria(authHeader, criteriaId, request));
+    }
+ 
+    @DeleteMapping("/criteria")
+    public ResponseEntity<String> deleteCriteria(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam String criteriaId) {
+        return ResponseEntity.ok(staffService.deleteCriteria(authHeader, criteriaId));
     }
 }

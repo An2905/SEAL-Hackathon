@@ -28,6 +28,12 @@ public class JudgeController {
         return judgeService.getAssignedEvents(authHeader);
     }
 
+     @GetMapping("/criteria")
+    public String getCriteria(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam String roundId) {
+        return staffService.getCriteriaForJudge(authHeader, roundId);
+    }
 
 }
 
