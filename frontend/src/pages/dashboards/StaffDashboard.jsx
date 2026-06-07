@@ -121,11 +121,17 @@ function AccountStatusPicker({ account, onUpdated }) {
 }
 
 // ─── Create Staff Account Form ────────────────────────────────────────────────
-export function CreateStaffAccountForm({ onSuccess }) {
+export function CreateStaffAccountForm({ open, onClose, onSuccess }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
   const [form, setForm] = useState({ email: '', fullName: '', role: 'EXPERT_INTERNAL' })
+
+  useEffect(() => {
+    if (!open) return
+    setMessage(null)
+    setForm({ email: '', fullName: '', role: 'EXPERT_INTERNAL' })
+  }, [open])
 
   const handle = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
 
@@ -149,6 +155,7 @@ export function CreateStaffAccountForm({ onSuccess }) {
       showToast('Đã tạo tài khoản & gửi email mời', 'success')
       setForm({ email: '', fullName: '', role: form.role })
       onSuccess?.(`Tạo tài khoản ${createdLabel} — ${email}`)
+      onClose?.()
     } catch (err) {
       setMessage({ text: localizeError(err.message), type: 'error' })
     } finally {
@@ -157,14 +164,22 @@ export function CreateStaffAccountForm({ onSuccess }) {
   }
 
   return (
-    <div className='card'>
-      <div className='card-head'>
-        <div className='card-title'>Tạo tài khoản Khách</div>
-      </div>
-      <p className='card-sub'>Khách có thể được phân công làm Mentor và/hoặc Judge theo từng sự kiện. Hệ thống sinh mật khẩu tạm và gửi email mời.</p>
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      title='Tạo tài khoản Khách'
+      subtitle='Khách có thể được phân công làm Mentor và/hoặc Judge theo từng sự kiện. Hệ thống sinh mật khẩu tạm và gửi email mời.'
+    >
       <form className='form' onSubmit={handleSubmit}>
         <FormField label='Họ và tên'>
-          <input name='fullName' value={form.fullName} onChange={handle} required placeholder='Nguyễn Văn A' />
+          <input
+            name='fullName'
+            value={form.fullName}
+            onChange={handle}
+            required
+            disabled={loading}
+            placeholder='Nguyễn Văn A'
+          />
         </FormField>
         <FormField label='Email'>
           <input
@@ -173,11 +188,12 @@ export function CreateStaffAccountForm({ onSuccess }) {
             value={form.email}
             onChange={handle}
             required
+            disabled={loading}
             placeholder='judge@fpt.edu.vn'
           />
         </FormField>
         <FormField label='Loại khách'>
-          <select name='role' value={form.role} onChange={handle} required>
+          <select name='role' value={form.role} onChange={handle} required disabled={loading}>
             <option value='EXPERT_INTERNAL'>Khách (INTERNAL)</option>
             <option value='EXPERT_EXTERNAL'>Khách (EXTERNAL)</option>
           </select>
@@ -187,7 +203,7 @@ export function CreateStaffAccountForm({ onSuccess }) {
         </LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
       </form>
-    </div>
+    </Modal>
   )
 }
 
@@ -588,7 +604,7 @@ export function EventsListSection({ refreshKey = 0, onStatusChanged, onPendingTo
 }
 
 // ─── Accounts List Section ────────────────────────────────────────────────────
-export function AccountsListSection() {
+export function AccountsListSection({ refreshKey = 0 }) {
   const { showToast } = useToast()
   const [role, setRole] = useState('ALL')
   const [search, setSearch] = useState('')
@@ -617,8 +633,8 @@ export function AccountsListSection() {
   )
 
   useEffect(() => {
-    fetchAccounts('ALL', '')
-  }, [fetchAccounts])
+    fetchAccounts(role, search)
+  }, [fetchAccounts, refreshKey])
 
   const handleRoleChange = (e) => {
     const next = e.target.value
@@ -717,6 +733,8 @@ export default function StaffDashboard() {
   const { auth } = useAuth()
   const [refreshKey, setRefreshKey] = useState(0)
   const [pendingTotal, setPendingTotal] = useState(0)
+  const [showCreateAccountModal, setShowCreateAccountModal] = useState(false)
+  const [accountsRefreshKey, setAccountsRefreshKey] = useState(0)
 
   return (
     <DashboardShell
@@ -740,12 +758,25 @@ export default function StaffDashboard() {
       <div className='section-title' style={{ marginTop: 32 }}>
         <h2>Tạo tài khoản</h2>
       </div>
-      <CreateStaffAccountForm />
+      <div style={{ marginBottom: 16 }}>
+        <button
+          type='button'
+          className='btn btn-primary'
+          onClick={() => setShowCreateAccountModal(true)}
+        >
+          Tạo tài khoản Khách
+        </button>
+      </div>
+      <CreateStaffAccountForm
+        open={showCreateAccountModal}
+        onClose={() => setShowCreateAccountModal(false)}
+        onSuccess={() => setAccountsRefreshKey((k) => k + 1)}
+      />
 
       <div className='section-title' style={{ marginTop: 32 }}>
         <h2>Danh sách tài khoản</h2>
       </div>
-      <AccountsListSection />
+      <AccountsListSection refreshKey={accountsRefreshKey} />
     </DashboardShell>
   )
 }
