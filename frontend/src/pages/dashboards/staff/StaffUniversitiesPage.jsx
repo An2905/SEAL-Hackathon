@@ -3,6 +3,7 @@ import FormField from '../../../components/common/FormField'
 import FormMessage from '../../../components/common/FormMessage'
 import LoadingButton from '../../../components/common/LoadingButton'
 import Modal from '../../../components/common/Modal'
+import CollapsibleKvList from '../../../components/common/CollapsibleList'
 import {
   createUniversity,
   deleteUniversity,
@@ -324,11 +325,13 @@ export default function StaffUniversitiesPage() {
           <p className='hint'>Không tìm thấy trường khớp với &quot;{search.trim()}&quot;.</p>
         )}
         {!loading && filteredUniversities.length > 0 && (
-          <div className='kv-list'>
-            {filteredUniversities.map((u) => {
+          <CollapsibleKvList
+            items={filteredUniversities}
+            getItemKey={(u) => u.universityId}
+            renderItem={(u) => {
               const linked = Number(u.linkedUserCount) || 0
               return (
-                <div className='kv' key={u.universityId}>
+                <div className='kv'>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600 }}>{u.universityName}</div>
                   </div>
@@ -369,8 +372,8 @@ export default function StaffUniversitiesPage() {
                   </div>
                 </div>
               )
-            })}
-          </div>
+            }}
+          />
         )}
       </div>
 

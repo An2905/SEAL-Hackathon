@@ -15,6 +15,7 @@ import {
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 import ChatPopup, { ChatOpenButton } from '../../components/chat/ChatPopup'
+import CollapsibleKvList, { CollapsibleListToggle, useCollapsibleList } from '../../components/common/CollapsibleList'
 
 function formatDateTime(value) {
   if (!value) return '—'
@@ -96,9 +97,11 @@ function TeamInfoCard({ data, onRefresh }) {
       <div className="section-title" style={{ margin: '22px 0 10px' }}>
         <h2 style={{ fontSize: 16 }}>Thành viên</h2>
       </div>
-      <div className="kv-list">
-        {(data.members || []).map((m) => (
-          <div className="member-row" key={m.userId}>
+      <CollapsibleKvList
+        items={data.members || []}
+        getItemKey={(m) => m.userId}
+        renderItem={(m) => (
+          <div className="member-row">
             <div className="avatar">{(m.fullName?.[0] || m.email?.[0] || 'U').toUpperCase()}</div>
             <div className="member-info">
               <div className="member-name">
@@ -108,8 +111,8 @@ function TeamInfoCard({ data, onRefresh }) {
               <div className="member-meta">{m.email || ''}</div>
             </div>
           </div>
-        ))}
-      </div>
+        )}
+      />
 
       <div className="card-actions" style={{ marginTop: 18 }}>
         <button className="btn btn-outline" onClick={handleCopyEnroll}>Sao chép mã enroll</button>
@@ -253,9 +256,11 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-dim)', marginBottom: 8 }}>
         Mentor bảng
       </div>
-      <div className="kv-list">
-        {mentors.map((m) => (
-          <div className="member-row" key={m.mentorId}>
+      <CollapsibleKvList
+        items={mentors}
+        getItemKey={(m) => m.mentorId}
+        renderItem={(m) => (
+          <div className="member-row">
             <div className="avatar">{(m.mentorName?.[0] || 'M').toUpperCase()}</div>
             <div className="member-info">
               <div className="member-name" style={{ display: 'flex', alignItems: 'center' }}>
@@ -275,8 +280,8 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
               <div className="member-meta">{m.mentorEmail || ''}</div>
             </div>
           </div>
-        ))}
-      </div>
+        )}
+      />
     </div>
   )
 }
@@ -353,17 +358,28 @@ function TeamEventsPanel({ refreshKey, onOpenChat }) {
         <div className="empty-state">Đội chưa đăng ký sự kiện nào.</div>
       )}
       {!loading && list.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {list.map((reg, index) => {
-            const isOngoing = (reg.eventStatus || '').toUpperCase() === 'ONGOING'
-            return (
+        <TeamEventsList list={list} mentorsByEvent={mentorsByEvent} onOpenChat={onOpenChat} />
+      )}
+    </div>
+  )
+}
+
+function TeamEventsList({ list, mentorsByEvent, onOpenChat }) {
+  const { visibleItems, hasMore, expanded, hiddenCount, toggle } = useCollapsibleList(list)
+
+  return (
+    <>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {visibleItems.map((reg, index) => {
+          const isOngoing = (reg.eventStatus || '').toUpperCase() === 'ONGOING'
+          return (
             <div
               key={reg.registrationId || reg.eventId}
               className={isOngoing ? 'team-event-item team-event-item--ongoing' : 'team-event-item'}
               style={{
-                paddingBottom: index < list.length - 1 ? (isOngoing ? 24 : 20) : (isOngoing ? 4 : 0),
+                paddingBottom: index < visibleItems.length - 1 ? (isOngoing ? 24 : 20) : (isOngoing ? 4 : 0),
                 borderBottom:
-                  index < list.length - 1
+                  index < visibleItems.length - 1
                     ? '1px solid var(--border, rgba(255,255,255,0.08))'
                     : 'none'
               }}
@@ -418,11 +434,16 @@ function TeamEventsPanel({ refreshKey, onOpenChat }) {
                 onOpenChat={onOpenChat}
               />
             </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
+          )
+        })}
+      </div>
+      <CollapsibleListToggle
+        hasMore={hasMore}
+        expanded={expanded}
+        hiddenCount={hiddenCount}
+        onToggle={toggle}
+      />
+    </>
   )
 }
 
@@ -515,14 +536,16 @@ function ActivityLog({ activities }) {
     )
   }
   return (
-    <div className="kv-list">
-      {activities.map((a, i) => (
-        <div className="kv" key={i}>
+    <CollapsibleKvList
+      items={activities}
+      getItemKey={(a, i) => `${a.at?.getTime?.() ?? i}-${a.text}`}
+      renderItem={(a) => (
+        <div className="kv">
           <span>{a.at.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
           <span>{a.text}</span>
         </div>
-      ))}
-    </div>
+      )}
+    />
   )
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import DashboardShell from './DashboardShell'
 import FormField from '../../components/common/FormField'
@@ -6,6 +6,8 @@ import FormMessage from '../../components/common/FormMessage'
 import Modal from '../../components/common/Modal'
 import PendingTeamsBadge from '../../components/common/PendingTeamsBadge'
 import LoadingButton from '../../components/common/LoadingButton'
+import CollapsibleKvList from '../../components/common/CollapsibleList'
+import FullWidthSearchBar from '../../components/common/FullWidthSearchBar'
 import {
   createStaffAccount,
   createEvent,
@@ -457,6 +459,8 @@ function formatEventDate(value) {
 export function EventsListSection({ refreshKey = 0, onStatusChanged, onPendingTotalChange }) {
   const { showToast } = useToast()
   const [status, setStatus] = useState('ALL')
+  const [searchInput, setSearchInput] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -520,6 +524,14 @@ export function EventsListSection({ refreshKey = 0, onStatusChanged, onPendingTo
     onStatusChanged?.(eventId, newStatus)
   }
 
+  const filteredEvents = useMemo(() => {
+    if (!searchQuery) return events
+    return events.filter((ev) => {
+      const haystack = [ev.title, ev.description, ev.status].filter(Boolean).join(' ').toLowerCase()
+      return haystack.includes(searchQuery)
+    })
+  }, [events, searchQuery])
+
   return (
     <div className='card'>
       <div className='card-head'>
@@ -549,6 +561,14 @@ export function EventsListSection({ refreshKey = 0, onStatusChanged, onPendingTo
         </select>
       </FormField>
 
+      <FullWidthSearchBar
+        value={searchInput}
+        onChange={setSearchInput}
+        onSearch={() => setSearchQuery(searchInput.trim().toLowerCase())}
+        placeholder='Tên sự kiện, mô tả…'
+        disabled={loading}
+      />
+
       {error && <FormMessage message={error} type='error' />}
       {loading && (
         <div className='empty-state' style={{ marginTop: 12 }}>
@@ -561,16 +581,32 @@ export function EventsListSection({ refreshKey = 0, onStatusChanged, onPendingTo
         </div>
       )}
 
-      {!loading && events.length > 0 && (
+      {!loading && events.length > 0 && filteredEvents.length === 0 && (
+        <div className='empty-state' style={{ marginTop: 12 }}>
+          Không tìm thấy sự kiện khớp với &quot;{searchInput.trim()}&quot;.
+        </div>
+      )}
+
+      {!loading && filteredEvents.length > 0 && (
         <>
           <div className='card-sub' style={{ marginTop: 12, marginBottom: 6 }}>
-            Tổng cộng <strong>{events.length}</strong> sự kiện
+            {searchQuery ? (
+              <>
+                Hiển thị <strong>{filteredEvents.length}</strong> / {events.length} sự kiện
+              </>
+            ) : (
+              <>
+                Tổng cộng <strong>{events.length}</strong> sự kiện
+              </>
+            )}
           </div>
-          <div className='kv-list'>
-            {events.map((ev) => (
+          <CollapsibleKvList
+            key={`${searchQuery}|${status}`}
+            items={filteredEvents}
+            getItemKey={(ev) => ev.eventId}
+            renderItem={(ev) => (
               <div
                 className={`kv event-list-item${Number(ev.pendingTeams) > 0 ? ' has-pending-badge' : ''}`}
-                key={ev.eventId}
               >
                 <PendingTeamsBadge count={ev.pendingTeams} />
                 <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
@@ -592,11 +628,18 @@ export function EventsListSection({ refreshKey = 0, onStatusChanged, onPendingTo
                   >
                     Chi tiết
                   </Link>
+                  <Link
+                    to={`/staff/events/${ev.eventId}/check-in`}
+                    className='btn btn-outline'
+                    style={{ fontSize: 12, padding: '4px 10px' }}
+                  >
+                    CheckIn
+                  </Link>
                   <EventStatusPicker event={ev} onUpdated={handleEventStatusUpdated} />
                 </span>
               </div>
-            ))}
-          </div>
+            )}
+          />
         </>
       )}
     </div>
@@ -697,31 +740,30 @@ export function AccountsListSection({ refreshKey = 0 }) {
           <div className='card-sub' style={{ marginTop: 12, marginBottom: 6 }}>
             Tổng cộng <strong>{accounts.length}</strong> tài khoản
           </div>
-          <div className='kv-list'>
-            {accounts.map((a) => {
-              const uid = resolveAccountUserId(a)
-              return (
-                <div className='kv' key={uid || a.email}>
-                  <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--text)' }}>{a.fullName || '—'}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{a.email}</div>
-                  </span>
-                  <span
-                    style={{
-                      display: 'flex',
-                      gap: 6,
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      justifyContent: 'flex-end'
-                    }}
-                  >
-                    <span className='card-badge'>{roleUiLabel(a.role) || '—'}</span>
-                    <AccountStatusPicker account={a} onUpdated={handleStatusUpdated} />
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+          <CollapsibleKvList
+            items={accounts}
+            getItemKey={(a) => resolveAccountUserId(a) || a.email}
+            renderItem={(a) => (
+              <div className='kv'>
+                <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                  <div style={{ fontWeight: 600, color: 'var(--text)' }}>{a.fullName || '—'}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{a.email}</div>
+                </span>
+                <span
+                  style={{
+                    display: 'flex',
+                    gap: 6,
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    justifyContent: 'flex-end'
+                  }}
+                >
+                  <span className='card-badge'>{roleUiLabel(a.role) || '—'}</span>
+                  <AccountStatusPicker account={a} onUpdated={handleStatusUpdated} />
+                </span>
+              </div>
+            )}
+          />
         </>
       )}
     </div>

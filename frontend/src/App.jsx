@@ -14,6 +14,7 @@ import StaffAssignPage from './pages/dashboards/staff/StaffAssignPage'
 import MentorDashboard from './pages/dashboards/MentorDashboard'
 import JudgeDashboard from './pages/dashboards/JudgeDashboard'
 import EventDetailsPage from './pages/dashboards/EventDetailsPage'
+import StaffCheckInPage from './pages/dashboards/staff/StaffCheckInPage'
 
 export default function App() {
   return (
@@ -54,6 +55,15 @@ export default function App() {
             element={
               <RequireRole role='Staff'>
                 <EventDetailsPage />
+              </RequireRole>
+            }
+          />
+
+          <Route
+            path='/staff/events/:eventId/check-in'
+            element={
+              <RequireRole role='Staff'>
+                <StaffCheckInPage />
               </RequireRole>
             }
           />

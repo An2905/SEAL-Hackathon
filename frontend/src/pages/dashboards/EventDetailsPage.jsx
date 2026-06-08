@@ -33,6 +33,7 @@ import LoadingButton from '../../components/common/LoadingButton'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 import CriteriaManager from './staff/CriteriaManager'
+import CollapsibleKvList, { CollapsibleSimpleList } from '../../components/common/CollapsibleList'
 
 const REGISTRATION_STATUSES = ['PENDING', 'APPROVED', 'REJECTED']
 const EVENT_STATUSES = ['BUILDING', 'UPCOMING', 'ONGOING', 'COMPLETED']
@@ -499,10 +500,11 @@ function EventBoardGroupDetailModal({ eventId, group, rounds = [], isOpen, onClo
             ) : assignedTeams.length === 0 ? (
               <p className='muted'>Chưa có đội nào trong bảng.</p>
             ) : (
-              <ul className='simple-list'>
-                {assignedTeams.map((team) => (
+              <CollapsibleSimpleList
+                items={assignedTeams}
+                getItemKey={(team) => team.teamId}
+                renderItem={(team) => (
                   <li
-                    key={team.teamId}
                     className='simple-list-item'
                     style={{
                       display: 'flex',
@@ -521,8 +523,8 @@ function EventBoardGroupDetailModal({ eventId, group, rounds = [], isOpen, onClo
                       {teamActionId === team.teamId ? '…' : 'Gỡ'}
                     </button>
                   </li>
-                ))}
-              </ul>
+                )}
+              />
             )}
 
             <div style={{ marginTop: 12 }}>
@@ -1166,17 +1168,19 @@ function TeamsDropdownContent({ teams, onUpdated }) {
     return <div className='event-stat-dropdown-empty'>Chưa có đội nào tham gia.</div>
   }
   return (
-    <div className='kv-list'>
-      {teams.map((team) => (
-        <div className='kv' key={team.registrationId || team.teamId}>
+    <CollapsibleKvList
+      items={teams}
+      getItemKey={(team) => team.registrationId || team.teamId}
+      renderItem={(team) => (
+        <div className='kv'>
           <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
             <div style={{ fontWeight: 600 }}>{team.teamName || '—'}</div>
             <div style={{ fontSize: 11, color: 'var(--text-mute)' }}></div>
           </span>
           <TeamRegistrationStatusPicker team={team} onUpdated={onUpdated} />
         </div>
-      ))}
-    </div>
+      )}
+    />
   )
 }
 
@@ -1554,17 +1558,18 @@ function GroupsDropdownContent({ eventId, groups, onGroupDeleted, onGroupUpdated
       {!groups.length ? (
         <div className='event-stat-dropdown-empty'>Chưa có bảng thi nào.</div>
       ) : (
-        <div className='kv-list'>
-          {groups.map((group) => (
+        <CollapsibleKvList
+          items={groups}
+          getItemKey={(group) => group.groupId}
+          renderItem={(group) => (
             <GroupStatItem
-              key={group.groupId}
               eventId={eventId}
               group={group}
               onUpdated={onGroupUpdated}
               onDeleted={onGroupDeleted}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
       <SetupPanelLink eventId={eventId} focus='group'>
         + Thêm bảng thi
@@ -1579,17 +1584,18 @@ function RoundsDropdownContent({ eventId, rounds, onRoundDeleted, onRoundUpdated
       {!rounds.length ? (
         <div className='event-stat-dropdown-empty'>Chưa có vòng thi nào.</div>
       ) : (
-        <div className='kv-list'>
-          {rounds.map((round) => (
+        <CollapsibleKvList
+          items={rounds}
+          getItemKey={(round) => round.roundId}
+          renderItem={(round) => (
             <RoundStatItem
-              key={round.roundId}
               eventId={eventId}
               round={round}
               onUpdated={onRoundUpdated}
               onDeleted={onRoundDeleted}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
       <SetupPanelLink eventId={eventId} focus='round'>
         + Thêm vòng thi
@@ -1963,10 +1969,11 @@ function MentorsDropdownContent({ eventId, assignedMentors = [], rounds = [], gr
       {!assignedMentors.length ? (
         <div className='event-stat-dropdown-empty'>Chưa phân công mentor nào.</div>
       ) : (
-        <div className='kv-list'>
-          {assignedMentors.map((m) => (
+        <CollapsibleKvList
+          items={assignedMentors}
+          getItemKey={(m) => `${m.roundId}-${m.groupId}-${m.mentorId}`}
+          renderItem={(m) => (
             <MentorStatItem
-              key={`${m.roundId}-${m.groupId}-${m.mentorId}`}
               eventId={eventId}
               assignment={m}
               rounds={rounds}
@@ -1974,8 +1981,8 @@ function MentorsDropdownContent({ eventId, assignedMentors = [], rounds = [], gr
               onUpdated={onUpdated}
               onDeleted={onDeleted}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
       <AssignPanelLink eventId={eventId} focus='mentor'>
         + Thêm mentor
@@ -1990,10 +1997,11 @@ function JudgesDropdownContent({ eventId, assignedJudges = [], rounds = [], grou
       {!assignedJudges.length ? (
         <div className='event-stat-dropdown-empty'>Chưa phân công judge nào.</div>
       ) : (
-        <div className='kv-list'>
-          {assignedJudges.map((j) => (
+        <CollapsibleKvList
+          items={assignedJudges}
+          getItemKey={(j) => `${j.roundId}-${j.groupId}-${j.judgeId}`}
+          renderItem={(j) => (
             <JudgeStatItem
-              key={`${j.roundId}-${j.groupId}-${j.judgeId}`}
               eventId={eventId}
               assignment={j}
               rounds={rounds}
@@ -2001,8 +2009,8 @@ function JudgesDropdownContent({ eventId, assignedJudges = [], rounds = [], grou
               onUpdated={onUpdated}
               onDeleted={onDeleted}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
       <AssignPanelLink eventId={eventId} focus='judge'>
         + Thêm judge
@@ -2365,17 +2373,18 @@ function AwardsDropdownContent({ eventId, awards = [], onAwardCreated, onAwardUp
       {!awards.length ? (
         <div className='event-stat-dropdown-empty'>Chưa có giải thưởng nào.</div>
       ) : (
-        <div className='kv-list'>
-          {awards.map((award) => (
+        <CollapsibleKvList
+          items={awards}
+          getItemKey={(award) => award.awardId}
+          renderItem={(award) => (
             <AwardStatItem
-              key={award.awardId}
               eventId={eventId}
               award={award}
               onUpdated={onAwardUpdated}
               onDeleted={onAwardDeleted}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
       {createOpen ? (
         <form className='event-stat-item-edit' style={{ marginTop: 12 }} onSubmit={handleCreate}>

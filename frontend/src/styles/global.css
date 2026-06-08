@@ -1799,6 +1799,143 @@ main {
   gap: 6px;
   margin-top: 8px;
 }
+
+.collapsible-list-toggle {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.collapsible-list-toggle-btn {
+  font-size: 12px;
+  padding: 6px 14px;
+}
+
+.fullwidth-search-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.fullwidth-search-bar-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+}
+
+.fullwidth-search-bar-input:focus {
+  outline: none;
+  border-color: var(--primary, #2563eb);
+}
+
+.fullwidth-search-bar-btn {
+  flex-shrink: 0;
+  font-size: 13px;
+  padding: 8px 16px;
+  white-space: nowrap;
+}
+
+.fullwidth-search-bar--compact {
+  margin-top: 0;
+}
+
+.checkin-team-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.checkin-team-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-subtle);
+  overflow: hidden;
+}
+
+.checkin-team-item.is-open {
+  border-color: var(--primary, #2563eb);
+}
+
+.checkin-team-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  background: transparent;
+}
+
+.checkin-team-header-btn {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.checkin-team-header-btn:hover {
+  opacity: 0.9;
+}
+
+.checkin-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.checkin-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary, #2563eb);
+}
+
+.checkin-member-row {
+  gap: 10px;
+}
+
+.checkin-member-row .checkin-checkbox-label {
+  padding-top: 2px;
+}
+
+.checkin-team-header-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.checkin-team-chevron {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.4;
+  flex-shrink: 0;
+  width: 14px;
+}
+
+.checkin-team-members {
+  padding: 0 14px 14px 36px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
 .kv {
   display: flex;
   align-items: center;

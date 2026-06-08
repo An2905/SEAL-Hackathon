@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 import ChatPopup from '../../components/chat/ChatPopup'
+import CollapsibleKvList from '../../components/common/CollapsibleList'
 
 function formatDateTime(value) {
   if (!value) return '—'
@@ -199,16 +200,18 @@ export default function MentorDashboard() {
           <div className='empty-state'>Bạn chưa được phân công sự kiện nào.</div>
         )}
         {!loading && events.length > 0 && (
-          <div className='kv-list'>
-            {events.map((ev) => (
-              <div className='kv' key={ev.eventId}>
+          <CollapsibleKvList
+            items={events}
+            getItemKey={(ev) => ev.eventId}
+            renderItem={(ev) => (
+              <div className='kv'>
                 <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
                   <div style={{ fontWeight: 600, color: 'var(--text)' }}>{ev.title || '—'}</div>
                 </span>
                 <StatusBadge status={ev.status} />
               </div>
-            ))}
-          </div>
+            )}
+          />
         )}
       </div>
 
@@ -225,9 +228,11 @@ export default function MentorDashboard() {
           <div className='empty-state'>Hiện không có vòng nào đang diễn ra.</div>
         )}
         {!loadingRounds && rounds.length > 0 && (
-          <div className='kv-list'>
-            {rounds.map((rd) => (
-              <div className='kv' key={rd.roundId}>
+          <CollapsibleKvList
+            items={rounds}
+            getItemKey={(rd) => rd.roundId}
+            renderItem={(rd) => (
+              <div className='kv'>
                 <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
                   <div style={{ fontWeight: 600, color: 'var(--text)' }}>{rd.roundName || '—'}</div>
                   <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{rd.eventTitle || '—'}</div>
@@ -237,8 +242,8 @@ export default function MentorDashboard() {
                 </span>
                 <StatusBadge status={rd.roundStatus} />
               </div>
-            ))}
-          </div>
+            )}
+          />
         )}
       </div>
 
@@ -296,9 +301,11 @@ export default function MentorDashboard() {
               <div className='empty-state'>Không có đội nào trong bảng này.</div>
             )}
             {!loadingTeams && teams.length > 0 && (
-              <div className='kv-list'>
-                {teams.map((team) => (
-                  <div className='kv' key={team.teamId || team.registrationId} style={{ alignItems: 'flex-start' }}>
+              <CollapsibleKvList
+                items={teams}
+                getItemKey={(team) => team.teamId || team.registrationId}
+                renderItem={(team) => (
+                  <div className='kv' style={{ alignItems: 'flex-start' }}>
                     <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
                       <div style={{ fontWeight: 600, color: 'var(--text)' }}>{team.teamName || '—'}</div>
                       <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
@@ -329,8 +336,8 @@ export default function MentorDashboard() {
                       </span>
                     </span>
                   </div>
-                ))}
-              </div>
+                )}
+              />
             )}
           </>
         )}

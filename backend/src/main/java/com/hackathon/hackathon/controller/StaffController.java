@@ -38,10 +38,15 @@ import com.hackathon.hackathon.model.dto.request.UpdateCriteriaRequest;
 import com.hackathon.hackathon.model.dto.response.CriteriaResponse;
 import com.hackathon.hackathon.model.dto.response.EventCriteriaResponse;
 import jakarta.validation.Valid;
+import com.hackathon.hackathon.model.dto.request.CheckInMemberRequest;
+import com.hackathon.hackathon.model.dto.request.CheckInTeamRequest;
+import com.hackathon.hackathon.model.dto.response.CheckInPageResponse;
+import com.hackathon.hackathon.model.dto.response.CheckInTeamResponse;
 import com.hackathon.hackathon.model.dto.response.DeleteUniversityPreviewResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.dto.response.StaffUniversityItemResponse;
 import com.hackathon.hackathon.model.dto.response.UniversityResponse;
+import com.hackathon.hackathon.service.CheckInService;
 import com.hackathon.hackathon.service.EventService;
 import com.hackathon.hackathon.service.StaffService;
 
@@ -56,6 +61,9 @@ public class StaffController {
 
     @Autowired
     private EventService eventService;
+
+    @Autowired
+    private CheckInService checkInService;
 
     @PostMapping("/register")
     public ResponseEntity<String> registerAccount(@RequestHeader("Authorization") String authHeader,
@@ -220,5 +228,26 @@ public class StaffController {
             @RequestHeader("Authorization") String authHeader,
             @RequestParam String criteriaId) {
         return ResponseEntity.ok(staffService.deleteCriteria(authHeader, criteriaId));
+    }
+
+    @GetMapping("/check-in")
+    public ResponseEntity<CheckInPageResponse> getCheckInPage(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam String eventId) {
+        return ResponseEntity.ok(checkInService.getCheckInPage(authHeader, eventId));
+    }
+
+    @PutMapping("/check-in/team")
+    public ResponseEntity<CheckInTeamResponse> setTeamCheckIn(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody CheckInTeamRequest request) {
+        return ResponseEntity.ok(checkInService.setTeamCheckIn(authHeader, request));
+    }
+
+    @PutMapping("/check-in/member")
+    public ResponseEntity<CheckInTeamResponse> setMemberCheckIn(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody CheckInMemberRequest request) {
+        return ResponseEntity.ok(checkInService.setMemberCheckIn(authHeader, request));
     }
 }
