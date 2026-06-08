@@ -1,7 +1,7 @@
 const BASE = '/api'
 
 async function request(url, options = {}) {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('hh_token')
   const res = await fetch(url, {
     ...options,
     headers: {
@@ -10,8 +10,19 @@ async function request(url, options = {}) {
       ...options.headers
     }
   })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.message || 'Lỗi server')
+
+  const text = await res.text()
+
+  let data
+  try {
+    data = JSON.parse(text)
+  } catch {
+    // BE trả về plain string (lỗi validation)
+    if (!res.ok) throw new Error(text)
+    return text
+  }
+
+  if (!res.ok) throw new Error(data.message || data || 'Lỗi server')
   return data
 }
 
@@ -20,16 +31,14 @@ async function request(url, options = {}) {
  * @returns { criteria: [], count, totalWeight, totalMaxScore }
  */
 export async function getCriteriaByEvent(eventId) {
-  const res = await request(`${BASE}/staff/criteria?eventId=${eventId}`)
-  return res.data
+  return await request(`${BASE}/staff/criteria?eventId=${eventId}`)
 }
 
 /**
  * Lấy chi tiết 1 tiêu chí
  */
 export async function getCriteriaDetail(criteriaId) {
-  const res = await request(`${BASE}/staff/criteria/detail?criteriaId=${criteriaId}`)
-  return res.data
+  return await request(`${BASE}/staff/criteria/detail?criteriaId=${criteriaId}`)
 }
 
 /**
@@ -37,11 +46,10 @@ export async function getCriteriaDetail(criteriaId) {
  * @param {Object} payload - { eventId, criterionName, weight, maxScore, description }
  */
 export async function createCriteria(payload) {
-  const res = await request(`${BASE}/staff/criteria`, {
+  return await request(`${BASE}/staff/criteria`, {
     method: 'POST',
     body: JSON.stringify(payload)
   })
-  return res.data
 }
 
 /**
@@ -50,11 +58,10 @@ export async function createCriteria(payload) {
  * @param {Object} payload - { eventId, criterionName, weight, maxScore, description }
  */
 export async function updateCriteria(criteriaId, payload) {
-  const res = await request(`${BASE}/staff/criteria?criteriaId=${criteriaId}`, {
+  return await request(`${BASE}/staff/criteria?criteriaId=${criteriaId}`, {
     method: 'PUT',
     body: JSON.stringify(payload)
   })
-  return res.data
 }
 
 /**
@@ -70,6 +77,5 @@ export async function deleteCriteria(criteriaId) {
  * @returns { roundId, criteria: [], count, totalWeight, totalMaxScore }
  */
 export async function getCriteriaForJudge(roundId) {
-  const res = await request(`${BASE}/judge/criteria?roundId=${roundId}`)
-  return res.data
+  return await request(`${BASE}/judge/criteria?roundId=${roundId}`)
 }
