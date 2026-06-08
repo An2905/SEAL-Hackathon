@@ -15,7 +15,8 @@ import org.springframework.stereotype.Repository;
 
 import com.hackathon.hackathon.model.dto.response.EventAssignedJudgeResponse;
 import com.hackathon.hackathon.model.dto.response.EventAssignedMentorResponse;
-import com.hackathon.hackathon.model.dto.response.GroupColleagueItemResponse;import com.hackathon.hackathon.model.dto.response.TeamTrackMentorItemResponse;
+import com.hackathon.hackathon.model.dto.response.GroupColleagueItemResponse;
+import com.hackathon.hackathon.model.dto.response.TeamTrackMentorItemResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignmentResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.model.entity.Award;
@@ -640,7 +641,7 @@ public class EventRepository {
         return events;
     }
 
-public List<GroupColleagueItemResponse> findJudgesByGroupAndRound(String groupId, String roundId) {
+    public List<GroupColleagueItemResponse> findJudgesByGroupAndRound(String groupId, String roundId) {
         List<GroupColleagueItemResponse> judges = new ArrayList<>();
         String sql = """
             SELECT u.user_id, u.full_name, u.email
@@ -701,8 +702,6 @@ public List<GroupColleagueItemResponse> findJudgesByGroupAndRound(String groupId
         }
         return mentors;
     }
-
-    public List<TeamTrackMentorItemResponse> findMentorsByGroupAndRound(String groupId, String roundId) {
 
     public List<TeamTrackMentorItemResponse> findMentorsByGroupAndRound(String groupId, String roundId) {
         List<TeamTrackMentorItemResponse> mentors = new ArrayList<>();

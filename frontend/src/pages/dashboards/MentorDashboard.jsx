@@ -9,7 +9,8 @@ import {
   getGroupColleagues,
   getMentorAssignments
 } from '../../api/mentor'
-import ExpertGroupColleaguesBoard from '../../components/expert/ExpertGroupColleaguesBoard'import { useAuth } from '../../context/AuthContext'
+import ExpertGroupColleaguesBoard from '../../components/expert/ExpertGroupColleaguesBoard'
+import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 import ChatPopup from '../../components/chat/ChatPopup'
