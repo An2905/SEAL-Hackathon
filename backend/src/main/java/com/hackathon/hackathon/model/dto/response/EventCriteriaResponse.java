@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 public class EventCriteriaResponse {
-    private String eventId;
+    private String roundId;
     private double totalWeight;
     private List<CriteriaResponse> criteria;
 }

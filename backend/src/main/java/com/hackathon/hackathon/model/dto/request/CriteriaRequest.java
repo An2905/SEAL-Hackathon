@@ -9,8 +9,8 @@ import lombok.Data;
 @Data
 public class CriteriaRequest {
 
-    @NotBlank(message = "Event ID is required.")
-    private String eventId;
+    @NotBlank(message = "Round ID is required.")
+    private String roundId;
 
     @NotBlank(message = "Criterion name is required.")
     @Size(max = 100, message = "Criterion name must be at most 100 characters.")

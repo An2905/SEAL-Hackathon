@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import DashboardShell from './DashboardShell'
+
 import {
   getAssignedEvents,
   getAssignedCurrentRounds,
   getAssignedTeams,
+  getGroupColleagues,
   getMentorAssignments
 } from '../../api/mentor'
-import { useAuth } from '../../context/AuthContext'
+import ExpertGroupColleaguesBoard from '../../components/expert/ExpertGroupColleaguesBoard'import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 import ChatPopup from '../../components/chat/ChatPopup'
@@ -89,11 +91,14 @@ export default function MentorDashboard() {
   const [errorAssignments, setErrorAssignments] = useState(null)
   const [selectedAssignmentKey, setSelectedAssignmentKey] = useState('')
   const [teamStatusFilter, setTeamStatusFilter] = useState('APPROVED')
+
   const [teams, setTeams] = useState([])
   const [loadingTeams, setLoadingTeams] = useState(false)
   const [errorTeams, setErrorTeams] = useState(null)
+  const [colleagues, setColleagues] = useState(null)
+  const [loadingColleagues, setLoadingColleagues] = useState(false)
+  const [errorColleagues, setErrorColleagues] = useState(null)
   const [chatOpen, setChatOpen] = useState(false)
-
   const selectedAssignment = useMemo(
     () => assignments.find((a) => assignmentKey(a) === selectedAssignmentKey) ?? null,
     [assignments, selectedAssignmentKey]
@@ -141,16 +146,21 @@ export default function MentorDashboard() {
     }
   }, [showToast])
 
+
   useEffect(() => {
     if (!selectedAssignment) {
       setTeams([])
       setErrorTeams(null)
+      setColleagues(null)
+      setErrorColleagues(null)
       return
     }
 
     let cancelled = false
     setLoadingTeams(true)
     setErrorTeams(null)
+    setLoadingColleagues(true)
+    setErrorColleagues(null)
 
     ;(async () => {
       try {
@@ -171,11 +181,28 @@ export default function MentorDashboard() {
       }
     })()
 
+    ;(async () => {
+      try {
+        const data = await getGroupColleagues({
+          eventId: selectedAssignment.eventId,
+          roundId: selectedAssignment.roundId,
+          groupId: selectedAssignment.groupId
+        })
+        if (!cancelled) setColleagues(data)
+      } catch (err) {
+        if (!cancelled) {
+          setColleagues(null)
+          setErrorColleagues(localizeError(err?.message))
+        }
+      } finally {
+        if (!cancelled) setLoadingColleagues(false)
+      }
+    })()
+
     return () => {
       cancelled = true
     }
   }, [selectedAssignment, teamStatusFilter])
-
   return (
     <DashboardShell
       roleLabel={guestLabel}
@@ -279,6 +306,15 @@ export default function MentorDashboard() {
                   </button>
                 )
               })}
+
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <ExpertGroupColleaguesBoard
+                colleagues={colleagues}
+                loading={loadingColleagues}
+                error={errorColleagues}
+              />
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>

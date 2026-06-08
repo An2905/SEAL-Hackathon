@@ -10,7 +10,6 @@ import lombok.Data;
 public class UpdateCriteriaRequest {
 
     private String criteriaId;
-    private String eventId;
 
     @NotBlank(message = "Criterion name is required.")
     @Size(max = 100, message = "Criterion name must be at most 100 characters.")

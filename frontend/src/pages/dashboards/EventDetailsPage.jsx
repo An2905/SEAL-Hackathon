@@ -299,8 +299,87 @@ function EventBoardCreateGroupModal({ eventId, rounds, isOpen, onClose, onCreate
   )
 }
 
-function EventBoardGroupDetailModal({ eventId, group, rounds = [], isOpen, onClose, onUpdated, onDeleted }) {
-  const { showToast } = useToast()
+
+function filterAssignmentsForGroup(assignments, group) {
+  if (!group?.groupId) return []
+  return (assignments ?? []).filter(
+    (item) => item.groupId === group.groupId && (!group.roundId || item.roundId === group.roundId)
+  )
+}
+
+function GroupStaffAssignmentsPanel({ eventId, mentors = [], judges = [] }) {
+  const renderStaffName = (item, nameKey, emailKey, idKey) =>
+    item[nameKey] || item[emailKey] || item[idKey] || '—'
+
+  return (
+    <div className='event-group-staff-panel' style={{ marginBottom: 16 }}>
+      <div className='event-group-staff-block'>
+        <h4 className='section-subtitle'>Mentor ({mentors.length})</h4>
+        {mentors.length === 0 ? (
+          <p className='muted'>Chưa phân công mentor.</p>
+        ) : (
+          <CollapsibleSimpleList
+            items={mentors}
+            getItemKey={(m) => m.mentorId || `${m.roundId}-${m.groupId}`}
+            renderItem={(m) => (
+              <li className='simple-list-item event-group-staff-item'>
+                <span className='event-group-staff-name'>
+                  {renderStaffName(m, 'mentorName', 'mentorEmail', 'mentorId')}
+                </span>
+                {m.mentorEmail && m.mentorName ? (
+                  <span className='event-group-staff-email'>{m.mentorEmail}</span>
+                ) : null}
+              </li>
+            )}
+          />
+        )}
+      </div>
+
+      <div className='event-group-staff-block'>
+        <h4 className='section-subtitle'>Judge ({judges.length})</h4>
+        {judges.length === 0 ? (
+          <p className='muted'>Chưa phân công judge.</p>
+        ) : (
+          <CollapsibleSimpleList
+            items={judges}
+            getItemKey={(j) => j.judgeId || `${j.roundId}-${j.groupId}`}
+            renderItem={(j) => (
+              <li className='simple-list-item event-group-staff-item'>
+                <span className='event-group-staff-name'>
+                  {renderStaffName(j, 'judgeName', 'judgeEmail', 'judgeId')}
+                </span>
+                {j.judgeEmail && j.judgeName ? (
+                  <span className='event-group-staff-email'>{j.judgeEmail}</span>
+                ) : null}
+              </li>
+            )}
+          />
+        )}
+      </div>
+
+      <div className='event-group-staff-actions'>
+        <AssignPanelLink eventId={eventId} focus='mentor'>
+          + Phân công mentor
+        </AssignPanelLink>
+        <AssignPanelLink eventId={eventId} focus='judge'>
+          + Phân công judge
+        </AssignPanelLink>
+      </div>
+    </div>
+  )
+}
+
+function EventBoardGroupDetailModal({
+  eventId,
+  group,
+  rounds = [],
+  assignedMentors = [],
+  assignedJudges = [],
+  isOpen,
+  onClose,
+  onUpdated,
+  onDeleted
+}) {  const { showToast } = useToast()
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [teamsLoading, setTeamsLoading] = useState(false)
@@ -368,12 +447,27 @@ function EventBoardGroupDetailModal({ eventId, group, rounds = [], isOpen, onClo
     }
   }, [isOpen, group, eventId])
 
+
+  const groupRound = useMemo(
+    () => rounds.find((r) => r.roundId === group?.roundId) ?? null,
+    [group?.roundId, rounds]
+  )
+
   const roundLabel = useMemo(() => {
     if (!group) return '—'
     if (group.roundName) return group.roundName
-    const round = rounds.find((r) => r.roundId === group.roundId)
-    return round ? roundDisplayLabel(round) : '—'
-  }, [group, rounds])
+    return groupRound ? roundDisplayLabel(groupRound) : '—'
+  }, [group, groupRound])
+
+
+  const isFirstRound = Number(groupRound?.roundOrder ?? 1) <= 1
+  const addTeamLabel = isFirstRound ? 'Thêm đội đã duyệt' : 'Thêm đội winner vòng trước'
+  const noTeamsHint = isFirstRound
+    ? 'Không còn đội khả dụng'
+    : 'Không còn đội winner vòng trước khả dụng'
+
+  const groupMentors = useMemo(() => filterAssignmentsForGroup(assignedMentors, group), [assignedMentors, group])
+  const groupJudges = useMemo(() => filterAssignmentsForGroup(assignedJudges, group), [assignedJudges, group])
 
   const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
 
@@ -487,14 +581,24 @@ function EventBoardGroupDetailModal({ eventId, group, rounds = [], isOpen, onClo
                 {teamCount}/{group.maxTeams ?? '—'}
               </span>
             </div>
+
             <div className='kv'>
               <span>Giới hạn</span>
               <span>{group.maxTeams != null ? `Tối đa ${group.maxTeams} đội` : 'Không giới hạn'}</span>
             </div>
+            <div className='kv'>
+              <span>Mentor</span>
+              <span>{groupMentors.length}</span>
+            </div>
+            <div className='kv'>
+              <span>Judge</span>
+              <span>{groupJudges.length}</span>
+            </div>
           </div>
 
-          <div className='event-group-teams-panel' style={{ marginBottom: 16 }}>
-            <h4 className='section-subtitle'>Đội trong bảng</h4>
+          <GroupStaffAssignmentsPanel eventId={eventId} mentors={groupMentors} judges={groupJudges} />
+
+          <div className='event-group-teams-panel' style={{ marginBottom: 16 }}>            <h4 className='section-subtitle'>Đội trong bảng</h4>
             {teamsLoading ? (
               <p className='muted'>Đang tải danh sách đội…</p>
             ) : assignedTeams.length === 0 ? (
@@ -527,8 +631,9 @@ function EventBoardGroupDetailModal({ eventId, group, rounds = [], isOpen, onClo
               />
             )}
 
+
             <div style={{ marginTop: 12 }}>
-              <FormField label='Thêm đội đã duyệt'>
+              <FormField label={addTeamLabel}>
                 <div
                   style={{
                     display: 'flex',
@@ -543,8 +648,7 @@ function EventBoardGroupDetailModal({ eventId, group, rounds = [], isOpen, onClo
                     disabled={busy || teamsLoading || availableTeams.length === 0}
                     style={{ flex: '1 1 200px', minWidth: 0 }}
                   >
-                    <option value=''>{availableTeams.length === 0 ? 'Không còn đội khả dụng' : 'Chọn đội…'}</option>
-                    {availableTeams.map((team) => (
+                    <option value=''>{availableTeams.length === 0 ? noTeamsHint : 'Chọn đội…'}</option>                    {availableTeams.map((team) => (
                       <option key={team.teamId} value={team.teamId}>
                         {team.teamName || team.teamId}
                       </option>
@@ -862,6 +966,7 @@ function EventBoardSection({
     [event?.rounds]
   )
 
+
   const groupsByRound = useMemo(() => {
     const map = new Map()
     for (const group of event?.groups ?? []) {
@@ -876,6 +981,17 @@ function EventBoardSection({
     return map
   }, [event?.groups])
 
+  const staffCountByGroup = useMemo(() => {
+    const map = new Map()
+    for (const group of event?.groups ?? []) {
+      const key = `${group.roundId}:${group.groupId}`
+      map.set(key, {
+        mentors: filterAssignmentsForGroup(event?.assignedMentors, group).length,
+        judges: filterAssignmentsForGroup(event?.assignedJudges, group).length
+      })
+    }
+    return map
+  }, [event?.groups, event?.assignedMentors, event?.assignedJudges])
   return (
     <section className='event-board' style={{ marginTop: 16 }}>
       {rounds.length ? (
@@ -901,23 +1017,30 @@ function EventBoardSection({
               <div className='event-board-row-groups'>
                 {groups.length ? (
                   <div className='event-board-groups-track'>
-                    {groups.map((group) => (
-                      <button
-                        key={group.groupId}
-                        type='button'
-                        className='event-board-group-card event-board-group-card-btn'
-                        onClick={() => {
-                          setGroupDetailGroup(group)
-                          setGroupDetailOpen(true)
-                        }}
-                      >
-                        <div className='event-board-card-title'>{group.name || '—'}</div>
-                        <div className='event-board-card-meta'>
-                          {group.teamCount ?? 0}/{group.maxTeams ?? '—'} Team
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+
+                    {groups.map((group) => {
+                      const staffCounts = staffCountByGroup.get(`${group.roundId}:${group.groupId}`) ?? {
+                        mentors: 0,
+                        judges: 0
+                      }
+                      return (
+                        <button
+                          key={group.groupId}
+                          type='button'
+                          className='event-board-group-card event-board-group-card-btn'
+                          onClick={() => {
+                            setGroupDetailGroup(group)
+                            setGroupDetailOpen(true)
+                          }}
+                        >
+                          <div className='event-board-card-title'>{group.name || '—'}</div>
+                          <div className='event-board-card-meta'>
+                            {group.teamCount ?? 0}/{group.maxTeams ?? '—'} Team · {staffCounts.mentors} Mentor ·{' '}
+                            {staffCounts.judges} Judge
+                          </div>
+                        </button>
+                      )
+                    })}                  </div>
                 ) : (
                   <div className='event-board-groups-empty'>Chưa có bảng thi</div>
                 )}
@@ -981,10 +1104,13 @@ function EventBoardSection({
         onUpdated={onRoundUpdated}
         onDeleted={onRoundDeleted}
       />
+
       <EventBoardGroupDetailModal
         eventId={event.eventId}
         group={groupDetailGroup}
         rounds={rounds}
+        assignedMentors={event.assignedMentors ?? []}
+        assignedJudges={event.assignedJudges ?? []}
         isOpen={groupDetailOpen}
         onClose={() => {
           setGroupDetailOpen(false)
@@ -992,8 +1118,7 @@ function EventBoardSection({
         }}
         onUpdated={onGroupUpdated}
         onDeleted={onGroupDeleted}
-      />
-    </section>
+      />    </section>
   )
 }
 
@@ -2848,7 +2973,8 @@ export default function EventDetailsPage() {
           />
 
           <div style={{ marginTop: 24 }}>
-            <CriteriaManager eventId={event.eventId} />
+
+            <CriteriaManager rounds={event.rounds ?? []} />
           </div>
         </div>
       )}

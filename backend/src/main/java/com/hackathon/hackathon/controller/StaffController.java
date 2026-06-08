@@ -201,13 +201,13 @@ public class StaffController {
         return ResponseEntity.ok(staffService.createCriteria(authHeader, request));
     }
 
-    @GetMapping("/criteria")
-    public ResponseEntity<EventCriteriaResponse> getCriteriaByEvent(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestParam String eventId) {
-        return ResponseEntity.ok(staffService.getCriteriaByEvent(authHeader, eventId));
-    }
 
+    @GetMapping("/criteria")
+    public ResponseEntity<EventCriteriaResponse> getCriteriaByRound(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam String roundId) {
+        return ResponseEntity.ok(staffService.getCriteriaByRound(authHeader, roundId));
+    }
     @GetMapping("/criteria/detail")
     public ResponseEntity<CriteriaResponse> getCriteriaDetail(
             @RequestHeader("Authorization") String authHeader,

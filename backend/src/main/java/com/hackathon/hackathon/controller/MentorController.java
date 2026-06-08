@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignmentResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
+
+import com.hackathon.hackathon.model.dto.response.GroupColleaguesResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedTeamResponse;
 import com.hackathon.hackathon.service.MentorService;
 
@@ -42,6 +44,16 @@ public class MentorController {
     public ResponseEntity<List<MentorAssignmentResponse>> getAssignments(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         return ResponseEntity.ok(mentorService.getAssignments(authHeader));
+    }
+
+
+    @GetMapping("/colleagues")
+    public ResponseEntity<GroupColleaguesResponse> getGroupColleagues(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam(value = "eventId", required = false) String eventId,
+            @RequestParam(value = "roundId", required = false) String roundId,
+            @RequestParam(value = "groupId", required = false) String groupId) {
+        return ResponseEntity.ok(mentorService.getGroupColleagues(authHeader, eventId, roundId, groupId));
     }
 
     @GetMapping("/teams")

@@ -12,9 +12,10 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
+
 import com.hackathon.hackathon.model.dto.response.EventAssignedJudgeResponse;
 import com.hackathon.hackathon.model.dto.response.EventAssignedMentorResponse;
-import com.hackathon.hackathon.model.dto.response.TeamTrackMentorItemResponse;
+import com.hackathon.hackathon.model.dto.response.GroupColleagueItemResponse;import com.hackathon.hackathon.model.dto.response.TeamTrackMentorItemResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignmentResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.model.entity.Award;
@@ -244,16 +245,26 @@ public class EventRepository {
         String sql = "SELECT tr.registration_id, tr.team_id, t.team_name, tr.status "
                 + "FROM team_registrations tr "
                 + "JOIN teams t ON tr.team_id = t.team_id "
+                + "JOIN rounds curr ON curr.round_id = ? AND curr.event_id = ? "
+                + "LEFT JOIN rounds prev ON prev.event_id = curr.event_id AND prev.round_order = curr.round_order - 1 "
                 + "WHERE tr.event_id = ? AND tr.status = 'APPROVED' "
                 + "AND NOT EXISTS ("
                 + "SELECT 1 FROM group_teams gt WHERE gt.team_id = tr.team_id AND gt.round_id = ?"
+                + ") "
+                + "AND ("
+                + "curr.round_order <= 1 "
+                + "OR EXISTS ("
+                + "SELECT 1 FROM round_winners rw WHERE rw.round_id = prev.round_id AND rw.team_id = tr.team_id"
+                + ")"
                 + ") "
                 + "ORDER BY t.team_name ASC";
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, eventId);
-            ps.setString(2, roundId);
+            ps.setString(1, roundId);
+            ps.setString(2, eventId);
+            ps.setString(3, eventId);
+            ps.setString(4, roundId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     registrations.add(eventMapper.teamRegistrationFromResultSet(rs));
@@ -263,6 +274,31 @@ public class EventRepository {
             return registrations;
         }
         return registrations;
+    }
+
+    public boolean isTeamEligibleForRoundAssignment(String eventId, String roundId, String teamId) {
+        String sql = "SELECT 1 "
+                + "FROM rounds curr "
+                + "LEFT JOIN rounds prev ON prev.event_id = curr.event_id AND prev.round_order = curr.round_order - 1 "
+                + "WHERE curr.round_id = ? AND curr.event_id = ? "
+                + "AND ("
+                + "curr.round_order <= 1 "
+                + "OR EXISTS ("
+                + "SELECT 1 FROM round_winners rw WHERE rw.round_id = prev.round_id AND rw.team_id = ?"
+                + ")"
+                + ")";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, roundId);
+            ps.setString(2, eventId);
+            ps.setString(3, teamId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public List<Award> findAwardsByEventId(String eventId) {
@@ -603,6 +639,70 @@ public class EventRepository {
         }
         return events;
     }
+
+public List<GroupColleagueItemResponse> findJudgesByGroupAndRound(String groupId, String roundId) {
+        List<GroupColleagueItemResponse> judges = new ArrayList<>();
+        String sql = """
+            SELECT u.user_id, u.full_name, u.email
+            FROM judge_assignments ja
+            JOIN users u ON ja.judge_id = u.user_id
+            WHERE ja.group_id = ? AND ja.round_id = ?
+            ORDER BY u.full_name ASC
+            """;
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, groupId);
+            ps.setString(2, roundId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    GroupColleagueItemResponse judge = new GroupColleagueItemResponse();
+                    judge.setUserId(rs.getString("user_id"));
+                    judge.setFullName(rs.getString("full_name"));
+                    judge.setEmail(rs.getString("email"));
+                    judge.setRole("JUDGE");
+                    judge.setSelf(false);
+                    judges.add(judge);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(sql, e);
+        }
+        return judges;
+    }
+
+    public List<GroupColleagueItemResponse> findMentorColleaguesByGroupAndRound(String groupId, String roundId) {
+        List<GroupColleagueItemResponse> mentors = new ArrayList<>();
+        String sql = """
+            SELECT u.user_id, u.full_name, u.email
+            FROM mentor_assignments ma
+            JOIN users u ON ma.mentor_id = u.user_id
+            WHERE ma.group_id = ? AND ma.round_id = ?
+            ORDER BY u.full_name ASC
+            """;
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, groupId);
+            ps.setString(2, roundId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    GroupColleagueItemResponse mentor = new GroupColleagueItemResponse();
+                    mentor.setUserId(rs.getString("user_id"));
+                    mentor.setFullName(rs.getString("full_name"));
+                    mentor.setEmail(rs.getString("email"));
+                    mentor.setRole("MENTOR");
+                    mentor.setSelf(false);
+                    mentors.add(mentor);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(sql, e);
+        }
+        return mentors;
+    }
+
+    public List<TeamTrackMentorItemResponse> findMentorsByGroupAndRound(String groupId, String roundId) {
 
     public List<TeamTrackMentorItemResponse> findMentorsByGroupAndRound(String groupId, String roundId) {
         List<TeamTrackMentorItemResponse> mentors = new ArrayList<>();

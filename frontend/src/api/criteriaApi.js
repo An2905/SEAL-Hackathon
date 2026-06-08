@@ -17,7 +17,6 @@ async function request(url, options = {}) {
   try {
     data = JSON.parse(text)
   } catch {
-    // BE trả về plain string (lỗi validation)
     if (!res.ok) throw new Error(text)
     return text
   }
@@ -26,24 +25,39 @@ async function request(url, options = {}) {
   return data
 }
 
-/**
- * Lấy danh sách tiêu chí của event (có tổng weight & tổng maxScore)
- * @returns { criteria: [], count, totalWeight, totalMaxScore }
- */
-export async function getCriteriaByEvent(eventId) {
-  return await request(`${BASE}/staff/criteria?eventId=${eventId}`)
+function mapCriteriaResponse(data) {
+  const criteria = Array.isArray(data.criteria) ? data.criteria : []
+  const totalWeight = data.totalWeight ?? 0
+  const totalMaxScore = criteria.reduce((sum, c) => sum + (Number(c.maxScore) || 0), 0)
+  return {
+    roundId: data.roundId ?? data.round_id ?? '',
+    criteria,
+    count: criteria.length,
+    totalWeight,
+    totalMaxScore
+  }
 }
 
 /**
- * Lấy chi tiết 1 tiêu chí
+ * Lấy danh sách tiêu chí của round (có tổng weight & tổng maxScore)
  */
+export async function getCriteriaByRound(roundId) {
+  const data = await request(`${BASE}/staff/criteria?roundId=${encodeURIComponent(roundId)}`)
+  return mapCriteriaResponse(data)
+}
+
+/** @deprecated dùng getCriteriaByRound */
+export async function getCriteriaByEvent(roundId) {
+  return getCriteriaByRound(roundId)
+}
+
 export async function getCriteriaDetail(criteriaId) {
-  return await request(`${BASE}/staff/criteria/detail?criteriaId=${criteriaId}`)
+  return await request(`${BASE}/staff/criteria/detail?criteriaId=${encodeURIComponent(criteriaId)}`)
 }
 
 /**
- * Tạo tiêu chí mới
- * @param {Object} payload - { eventId, criterionName, weight, maxScore, description }
+ * Tạo tiêu chí mới cho round
+ * @param {Object} payload - { roundId, criterionName, weight, maxScore, description }
  */
 export async function createCriteria(payload) {
   return await request(`${BASE}/staff/criteria`, {
@@ -52,30 +66,19 @@ export async function createCriteria(payload) {
   })
 }
 
-/**
- * Cập nhật tiêu chí
- * @param {string} criteriaId
- * @param {Object} payload - { eventId, criterionName, weight, maxScore, description }
- */
 export async function updateCriteria(criteriaId, payload) {
-  return await request(`${BASE}/staff/criteria?criteriaId=${criteriaId}`, {
+  return await request(`${BASE}/staff/criteria?criteriaId=${encodeURIComponent(criteriaId)}`, {
     method: 'PUT',
     body: JSON.stringify(payload)
   })
 }
 
-/**
- * Xóa tiêu chí
- */
 export async function deleteCriteria(criteriaId) {
-  const res = await request(`${BASE}/staff/criteria?criteriaId=${criteriaId}`, { method: 'DELETE' })
-  return res
+  return await request(`${BASE}/staff/criteria?criteriaId=${encodeURIComponent(criteriaId)}`, {
+    method: 'DELETE'
+  })
 }
 
-/**
- * Judge xem tiêu chí của round mình được assign
- * @returns { roundId, criteria: [], count, totalWeight, totalMaxScore }
- */
 export async function getCriteriaForJudge(roundId) {
-  return await request(`${BASE}/judge/criteria?roundId=${roundId}`)
+  return await request(`${BASE}/judge/criteria?roundId=${encodeURIComponent(roundId)}`)
 }

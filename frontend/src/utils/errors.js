@@ -8,7 +8,9 @@ const ERROR_MAP = {
   'Team name already exists. Please choose a different name.':
     'Tên đội đã tồn tại. Vui lòng chọn tên khác.',
   'Team name cannot be empty.': 'Tên đội không được để trống.',
-  'Team name must be at most 100 characters.': 'Tên đội tối đa 100 ký tự.'
+  'Team name must be at most 100 characters.': 'Tên đội tối đa 100 ký tự.',
+  'Only winners from the previous round can be assigned to this round.':
+    'Chỉ đội winner vòng trước mới được thêm vào vòng này.'
 }
 
 // Các pattern kỹ thuật không được hiển thị trực tiếp ra UI

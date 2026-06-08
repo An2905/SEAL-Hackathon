@@ -482,6 +482,10 @@ public class EventService {
         if (!eventSetupRepository.isTeamApprovedForEvent(eventId, teamId)) {
             throw new BadRequestException("Team is not approved for this event.");
         }
+        if (!eventRepository.isTeamEligibleForRoundAssignment(eventId, roundId, teamId)) {
+            throw new BadRequestException(
+                    "Only winners from the previous round can be assigned to this round.");
+        }
         if (eventSetupRepository.isTeamInRound(roundId, teamId)) {
             throw new ConflictException("Team is already assigned to a group in this round.");
         }

@@ -7,11 +7,65 @@ import { getAllAccounts, assignJudge, assignMentor } from '../../../api/staff'
 import { useToast } from '../../../context/ToastContext'
 import { localizeError } from '../../../utils/errors'
 
+
 function groupLabel(g) {
   const round = g.roundName ? `${g.roundName} · ` : ''
   return `${round}${g.name || '—'}`
 }
 
+const EXCLUDED_EVENT_STATUSES = new Set(['BUILDING', 'COMPLETED'])
+
+function isAssignableEvent(event) {
+  const status = String(event?.status ?? '')
+    .trim()
+    .toUpperCase()
+  return status && !EXCLUDED_EVENT_STATUSES.has(status)
+}
+
+function eventStatusLabel(status) {
+  const key = String(status ?? '')
+    .trim()
+    .toUpperCase()
+  if (key === 'UPCOMING') return 'Sắp diễn ra'
+  if (key === 'ONGOING') return 'Đang diễn ra'
+  if (key === 'CANCELLED') return 'Đã hủy'
+  if (key === 'BUILDING') return 'Đang thiết lập'
+  if (key === 'COMPLETED') return 'Đã kết thúc'
+  return status || '—'
+}
+
+function EventAssignStatsPanel({ detail }) {
+  if (!detail) return null
+
+  const mentorCount = detail.assignedMentors?.length ?? 0
+  const judgeCount = detail.assignedJudges?.length ?? 0
+
+  const stats = [
+    { label: 'Đội tham gia', value: detail.totalTeams ?? '0' },
+    { label: 'Mentor', value: String(mentorCount) },
+    { label: 'Judge', value: String(judgeCount) },
+    { label: 'Vòng thi', value: detail.totalRounds ?? '0' },
+    { label: 'Bảng thi', value: detail.totalGroups ?? '0' },
+    { label: 'Trạng thái', value: eventStatusLabel(detail.status) }
+  ]
+
+  return (
+    <div className='assign-event-stats' style={{ marginTop: 14 }}>
+      <div className='assign-event-stats-head'>
+        <span className='assign-event-stats-title'>Tổng quan sự kiện</span>
+        <span className='assign-event-stats-sub'>{detail.title || '—'}</span>
+      </div>
+      <div className='event-stat-grid'>
+        {stats.map((item) => (
+          <div key={item.label} className='assign-event-stat-tile'>
+            <span className='assign-event-stat-label'>{item.label}</span>
+            <span className='assign-event-stat-value'>{item.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 function AssignJudgeForm({ judges, rounds, groups, disabled }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -248,6 +302,15 @@ export default function StaffAssignPage() {
     }
   }, [eventId, showToast])
 
+  const assignableEvents = useMemo(() => events.filter(isAssignableEvent), [events])
+
+  useEffect(() => {
+    if (!eventId) return
+    if (!assignableEvents.some((ev) => ev.eventId === eventId)) {
+      setEventId('')
+    }
+  }, [eventId, assignableEvents])
+
   const rounds = detail?.rounds ?? []
   const groups = detail?.groups ?? []
   const ready = !!detail && !loadingDetail
@@ -261,23 +324,34 @@ export default function StaffAssignPage() {
 
       <div className='card'>
         <div className='card-head'>
-          <div className='card-title'>Chọn sự kiện</div>
+          <div>
+            <div className='card-title'>Chọn sự kiện</div>
+            <p className='card-sub' style={{ margin: '4px 0 0' }}>
+              {assignableEvents.length} sự kiện khả dụng (trừ BUILDING & COMPLETED)
+            </p>
+          </div>
         </div>
         <FormField label='Sự kiện'>
           <select value={eventId} onChange={(e) => setEventId(e.target.value)}>
-            <option value=''>— Chọn sự kiện —</option>
-            {events.map((ev) => (
+            <option value=''>
+              {assignableEvents.length ? '— Chọn sự kiện —' : '— Không có sự kiện khả dụng —'}
+            </option>
+            {assignableEvents.map((ev) => (
               <option key={ev.eventId} value={ev.eventId}>
-                {ev.title}
+                {ev.title} ({eventStatusLabel(ev.status)})
               </option>
             ))}
           </select>
         </FormField>
+
         {loadingDetail && (
           <div className='empty-state' style={{ marginTop: 12 }}>
-            Đang tải vòng & bảng…
+            Đang tải thông tin sự kiện…
           </div>
         )}
+
+        {ready && <EventAssignStatsPanel detail={detail} />}
+
         {ready && rounds.length === 0 && (
           <div className='empty-state' style={{ marginTop: 12 }}>
             Sự kiện này chưa có vòng nào.

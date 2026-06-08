@@ -16,7 +16,7 @@ public class CriteriaMapper {
     public EventCriterion fromRow(ResultSet rs) throws SQLException {
         EventCriterion entity = new EventCriterion();
         entity.setCriteriaId(rs.getString("criteria_id"));
-        entity.setEventId(rs.getString("event_id"));
+        entity.setRoundId(rs.getString("round_id"));
         entity.setCriterionName(rs.getString("criterion_name"));
         entity.setWeight(rs.getDouble("weight"));
         entity.setMaxScore(rs.getDouble("max_score"));
@@ -31,7 +31,7 @@ public class CriteriaMapper {
         }
         CriteriaResponse response = new CriteriaResponse();
         response.setCriteriaId(entity.getCriteriaId());
-        response.setEventId(entity.getEventId());
+        response.setRoundId(entity.getRoundId());
         response.setCriterionName(entity.getCriterionName());
         response.setWeight(entity.getWeight());
         response.setMaxScore(entity.getMaxScore());

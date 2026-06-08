@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class EventCriterion {
     private String criteriaId;
-    private String eventId;
+    private String roundId;
     private String criterionName;
     private double weight;
     private double maxScore;

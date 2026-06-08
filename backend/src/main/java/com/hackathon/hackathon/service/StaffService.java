@@ -732,20 +732,21 @@ public class StaffService {
     }
 
     // ── COORDINATOR: Tạo tiêu chí mới ───────────────────────────────────────
+
     public CriteriaResponse createCriteria(String authHeader, CriteriaRequest request) {
         authService.validateRole(authHeader, "COORDINATOR");
 
-        String eventId = trim(request.getEventId());
+        String roundId = trim(request.getRoundId());
         String criterionName = trim(request.getCriterionName());
         double weight = request.getWeight();
         double maxScore = request.getMaxScore();
         String description = request.getDescription() == null ? null : request.getDescription().trim();
 
-        if (eventId.isEmpty()) {
-            throw new BadRequestException("Event ID is required.");
+        if (roundId.isEmpty()) {
+            throw new BadRequestException("Round ID is required.");
         }
-        if (!eventRepository.existsById(eventId)) {
-            throw new BadRequestException("Event does not exist.");
+        if (!criteriaRepository.roundExistsById(roundId)) {
+            throw new BadRequestException("Round does not exist.");
         }
         if (criterionName.isEmpty()) {
             throw new BadRequestException("Criterion name is required.");
@@ -760,14 +761,14 @@ public class StaffService {
             throw new BadRequestException("Max score must be greater than 0.");
         }
 
-        double currentTotal = criteriaRepository.sumWeightByEvent(eventId, null);
+        double currentTotal = criteriaRepository.sumWeightByRound(roundId, null);
         if (currentTotal + weight > 100) {
             throw new BadRequestException(
                     "Total weight exceeds 100%. Current total: " + currentTotal + "%, trying to add: " + weight + "%.");
         }
 
         String criteriaId = criteriaRepository.insertCriteria(
-                eventId, criterionName, weight, maxScore,
+                roundId, criterionName, weight, maxScore,
                 (description == null || description.isEmpty()) ? null : description);
         if (criteriaId == null) {
             throw new BadRequestException("Failed to create criterion.");
@@ -778,28 +779,27 @@ public class StaffService {
         return criteriaMapper.toResponse(entity);
     }
 
-    // ── COORDINATOR: Lấy danh sách tiêu chí của event ───────────────────────
-    public EventCriteriaResponse getCriteriaByEvent(String authHeader, String eventId) {
+    // ── COORDINATOR: Lấy danh sách tiêu chí của round ───────────────────────
+    public EventCriteriaResponse getCriteriaByRound(String authHeader, String roundId) {
         authService.validateRole(authHeader, "COORDINATOR");
 
-        String cleanEventId = trim(eventId);
-        if (cleanEventId.isEmpty()) {
-            throw new BadRequestException("Event ID is required.");
+        String cleanRoundId = trim(roundId);
+        if (cleanRoundId.isEmpty()) {
+            throw new BadRequestException("Round ID is required.");
         }
-        if (!eventRepository.existsById(cleanEventId)) {
-            throw new BadRequestException("Event does not exist.");
+        if (!criteriaRepository.roundExistsById(cleanRoundId)) {
+            throw new BadRequestException("Round does not exist.");
         }
 
-        List<EventCriterion> criteriaList = criteriaRepository.findCriteriaByEventId(cleanEventId);
-        double totalWeight = criteriaRepository.sumWeightByEvent(cleanEventId, null);
+        List<EventCriterion> criteriaList = criteriaRepository.findCriteriaByRoundId(cleanRoundId);
+        double totalWeight = criteriaRepository.sumWeightByRound(cleanRoundId, null);
 
         EventCriteriaResponse response = new EventCriteriaResponse();
-        response.setEventId(cleanEventId);
+        response.setRoundId(cleanRoundId);
         response.setTotalWeight(totalWeight);
         response.setCriteria(criteriaMapper.toResponseList(criteriaList));
         return response;
     }
-
     // ── COORDINATOR: Xem chi tiết 1 tiêu chí ────────────────────────────────
     public CriteriaResponse getCriteriaDetail(String authHeader, String criteriaId) {
         authService.validateRole(authHeader, "COORDINATOR");
@@ -846,9 +846,9 @@ public class StaffService {
             throw new BadRequestException("Max score must be greater than 0.");
         }
 
-        String eventId = criteriaRepository.findEventIdByCriteriaId(cleanId);
-        double currentTotal = criteriaRepository.sumWeightByEvent(eventId, cleanId);
-        if (currentTotal + weight > 100) {
+
+        String roundId = criteriaRepository.findRoundIdByCriteriaId(cleanId);
+        double currentTotal = criteriaRepository.sumWeightByRound(roundId, cleanId);        if (currentTotal + weight > 100) {
             throw new BadRequestException(
                     "Total weight exceeds 100%. Remaining criteria: " + currentTotal + "%, trying to set: " + weight + "%.");
         }

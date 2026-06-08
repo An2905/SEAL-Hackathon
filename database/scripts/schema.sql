@@ -248,6 +248,7 @@ CREATE TABLE `eliminations` (
 
 --
 -- Table structure for table `event_criteria`
+-- Scoring criteria belong to a round (not the whole event).
 --
 
 DROP TABLE IF EXISTS `event_criteria`;
@@ -255,15 +256,15 @@ DROP TABLE IF EXISTS `event_criteria`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `event_criteria` (
   `criteria_id` varchar(36) NOT NULL,
-  `event_id` varchar(36) NOT NULL,
+  `round_id` varchar(36) NOT NULL,
   `criterion_name` varchar(100) NOT NULL,
   `weight` decimal(5,2) NOT NULL,
   `max_score` decimal(5,2) NOT NULL,
   `description` longtext,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`criteria_id`),
-  KEY `idx_ec_event` (`event_id`),
-  CONSTRAINT `fk_ec_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`)
+  KEY `idx_ec_round` (`round_id`),
+  CONSTRAINT `fk_ec_round` FOREIGN KEY (`round_id`) REFERENCES `rounds` (`round_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

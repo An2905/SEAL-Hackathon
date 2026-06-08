@@ -1,19 +1,45 @@
-// src/pages/staff/CriteriaManager.jsx
-// COORDINATOR — Quản lý tiêu chí chấm điểm cho event
-// Dùng trong EventSetupPage hoặc EventDetailsPage, nhận props: eventId
+// COORDINATOR — Quản lý tiêu chí chấm điểm theo từng vòng thi
 
-import { useState, useEffect, useCallback } from 'react'
-import { getCriteriaByEvent, createCriteria, updateCriteria, deleteCriteria } from '../../../api/criteriaApi'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import Modal from '../../../components/common/Modal'
+import FormField from '../../../components/common/FormField'
+import LoadingButton from '../../../components/common/LoadingButton'
+import FormMessage from '../../../components/common/FormMessage'
+import { getCriteriaByRound, createCriteria, updateCriteria, deleteCriteria } from '../../../api/criteriaApi'
 
-// ─── Palette màu theo trạng thái weight ─────────────────────────────────────
 const weightColor = (pct) => {
   if (pct >= 100) return '#ef4444'
   if (pct >= 80) return '#f59e0b'
   return '#10b981'
 }
 
-// ─── Component con: Form thêm / sửa ─────────────────────────────────────────
-function CriteriaForm({ eventId, initial, onSave, onCancel, remainingWeight }) {
+function roundLabel(round) {
+  const name = String(round?.name ?? round?.roundName ?? '').trim()
+  if (name) return name
+  const order = round?.roundOrder
+  return order ? `Vòng ${order}` : 'Vòng'
+}
+
+function WeightBar({ total }) {
+  const pct = Math.min(total, 100)
+  const color = weightColor(pct)
+
+  return (
+    <div className='criteria-weight-bar'>
+      <div className='criteria-weight-bar-head'>
+        <span>Tổng trọng số</span>
+        <span style={{ color, fontWeight: 700 }}>{total.toFixed(2)}% / 100%</span>
+      </div>
+      <div className='criteria-weight-track'>
+        <div className='criteria-weight-fill' style={{ width: `${pct}%`, background: color }} />
+      </div>
+      {total > 100 && <p className='criteria-weight-warn'>⚠️ Tổng trọng số đã vượt 100% — vui lòng điều chỉnh</p>}
+      {total === 100 && <p className='criteria-weight-ok'>✅ Phân bổ trọng số đầy đủ</p>}
+    </div>
+  )
+}
+
+function CriteriaForm({ roundId, initial, onSave, onCancel, remainingWeight }) {
   const [form, setForm] = useState(initial ?? { criterionName: '', weight: '', maxScore: '', description: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -33,14 +59,13 @@ function CriteriaForm({ eventId, initial, onSave, onCancel, remainingWeight }) {
 
     setLoading(true)
     try {
-      const payload = {
-        eventId,
+      await onSave({
+        roundId,
         criterionName: form.criterionName.trim(),
         weight,
         maxScore,
         description: form.description
-      }
-      await onSave(payload)
+      })
     } catch (err) {
       setError(err.message)
     } finally {
@@ -49,27 +74,24 @@ function CriteriaForm({ eventId, initial, onSave, onCancel, remainingWeight }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={styles.form}>
-      <h3 style={styles.formTitle}>{initial ? '✏️ Sửa tiêu chí' : '➕ Thêm tiêu chí mới'}</h3>
+    <form className='form criteria-form-panel' onSubmit={handleSubmit}>
+      <h4 className='section-subtitle'>{initial ? 'Sửa tiêu chí' : 'Thêm tiêu chí mới'}</h4>
+      <FormMessage message={error} type='error' />
 
-      {error && <div style={styles.error}>{error}</div>}
-
-      <label style={styles.label}>
-        Tên tiêu chí <span style={{ color: '#ef4444' }}>*</span>
+      <FormField label='Tên tiêu chí *'>
         <input
-          style={styles.input}
           value={form.criterionName}
           onChange={(e) => set('criterionName', e.target.value)}
           placeholder='Ví dụ: Tính sáng tạo'
           maxLength={100}
+          disabled={loading}
+          required
         />
-      </label>
+      </FormField>
 
-      <div style={{ display: 'flex', gap: 12 }}>
-        <label style={{ ...styles.label, flex: 1 }}>
-          Trọng số (%) <span style={{ color: '#ef4444' }}>*</span>
+      <div className='criteria-form-row'>
+        <FormField label='Trọng số (%) *'>
           <input
-            style={styles.input}
             type='number'
             min='0.01'
             max='100'
@@ -77,166 +99,136 @@ function CriteriaForm({ eventId, initial, onSave, onCancel, remainingWeight }) {
             value={form.weight}
             onChange={(e) => set('weight', e.target.value)}
             placeholder='30'
+            disabled={loading}
+            required
           />
           {remainingWeight !== undefined && (
-            <span style={styles.hint}>
+            <span className='criteria-form-hint'>
               Còn có thể phân bổ: <b>{remainingWeight.toFixed(2)}%</b>
             </span>
           )}
-        </label>
+        </FormField>
 
-        <label style={{ ...styles.label, flex: 1 }}>
-          Điểm tối đa <span style={{ color: '#ef4444' }}>*</span>
+        <FormField label='Điểm tối đa *'>
           <input
-            style={styles.input}
             type='number'
             min='0.01'
             step='0.01'
             value={form.maxScore}
             onChange={(e) => set('maxScore', e.target.value)}
             placeholder='10'
+            disabled={loading}
+            required
           />
-        </label>
+        </FormField>
       </div>
 
-      <label style={styles.label}>
-        Mô tả
+      <FormField label='Mô tả'>
         <textarea
-          style={{ ...styles.input, minHeight: 80, resize: 'vertical' }}
           value={form.description}
           onChange={(e) => set('description', e.target.value)}
           placeholder='Mô tả chi tiết tiêu chí chấm điểm...'
+          rows={3}
+          disabled={loading}
         />
-      </label>
+      </FormField>
 
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-        <button type='button' style={styles.btnSecondary} onClick={onCancel}>
+      <div className='criteria-form-actions'>
+        <button type='button' className='btn btn-ghost' onClick={onCancel} disabled={loading}>
           Huỷ
         </button>
-        <button type='submit' style={styles.btnPrimary} disabled={loading}>
-          {loading ? 'Đang lưu...' : initial ? 'Cập nhật' : 'Thêm tiêu chí'}
-        </button>
+        <LoadingButton loading={loading} type='submit' className='btn btn-primary'>
+          {initial ? 'Cập nhật' : 'Thêm tiêu chí'}
+        </LoadingButton>
       </div>
     </form>
   )
 }
 
-// ─── Component con: Thanh tổng weight ───────────────────────────────────────
-function WeightBar({ total }) {
-  const pct = Math.min(total, 100)
-  const color = weightColor(pct)
-
-  return (
-    <div style={styles.weightBar}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-        <span style={styles.weightLabel}>Tổng trọng số</span>
-        <span style={{ ...styles.weightValue, color }}>{total.toFixed(2)}% / 100%</span>
-      </div>
-      <div style={styles.barTrack}>
-        <div
-          style={{
-            ...styles.barFill,
-            width: `${pct}%`,
-            background: color,
-            transition: 'width 0.4s ease, background 0.3s'
-          }}
-        />
-      </div>
-      {total > 100 && (
-        <p style={{ color: '#ef4444', fontSize: 12, marginTop: 4 }}>
-          ⚠️ Tổng trọng số đã vượt 100% — vui lòng điều chỉnh
-        </p>
-      )}
-      {total === 100 && <p style={{ color: '#10b981', fontSize: 12, marginTop: 4 }}>✅ Phân bổ trọng số đầy đủ</p>}
-    </div>
-  )
-}
-
-// ─── Component con: Card tiêu chí ───────────────────────────────────────────
 function CriteriaCard({ c, onEdit, onDelete }) {
   const [confirmDel, setConfirmDel] = useState(false)
 
   return (
-    <div style={styles.card}>
-      <div style={styles.cardHeader}>
+    <div className='criteria-card'>
+      <div className='criteria-card-head'>
         <div>
-          <span style={styles.cardName}>{c.criterionName}</span>
-          <div style={styles.cardMeta}>
-            <span style={styles.badge}>⚖️ {c.weight}%</span>
-            <span style={styles.badge}>🎯 Tối đa {c.maxScore} điểm</span>
+          <div className='criteria-card-name'>{c.criterionName}</div>
+          <div className='criteria-card-meta'>
+            <span className='criteria-badge'>⚖️ {c.weight}%</span>
+            <span className='criteria-badge'>🎯 Tối đa {c.maxScore} điểm</span>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button style={styles.btnIcon} onClick={() => onEdit(c)} title='Sửa'>
-            ✏️
+        <div className='criteria-card-actions'>
+          <button type='button' className='btn btn-ghost btn-sm' onClick={() => onEdit(c)} title='Sửa'>
+            Sửa
           </button>
           {confirmDel ? (
             <>
               <button
-                style={{ ...styles.btnIcon, background: '#fee2e2', color: '#ef4444' }}
+                type='button'
+                className='btn btn-danger btn-sm'
                 onClick={() => {
                   onDelete(c.criteriaId)
                   setConfirmDel(false)
                 }}
               >
-                ✓ Xác nhận xóa
+                Xác nhận
               </button>
-              <button style={styles.btnIcon} onClick={() => setConfirmDel(false)}>
-                ✕
+              <button type='button' className='btn btn-ghost btn-sm' onClick={() => setConfirmDel(false)}>
+                Huỷ
               </button>
             </>
           ) : (
-            <button
-              style={{ ...styles.btnIcon, background: '#fee2e2', color: '#ef4444' }}
-              onClick={() => setConfirmDel(true)}
-              title='Xóa'
-            >
-              🗑️
+            <button type='button' className='btn btn-danger btn-sm' onClick={() => setConfirmDel(true)} title='Xóa'>
+              Xóa
             </button>
           )}
         </div>
       </div>
-      {c.description && <p style={styles.cardDesc}>{c.description}</p>}
+      {c.description ? <p className='criteria-card-desc'>{c.description}</p> : null}
     </div>
   )
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Main Component
-// ═══════════════════════════════════════════════════════════════════════════
-
-export default function CriteriaManager({ eventId }) {
-  const [data, setData] = useState(null) // { criteria, totalWeight, totalMaxScore }
-  const [loading, setLoading] = useState(true)
+function RoundCriteriaModal({ round, isOpen, onClose }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(false)
   const [pageError, setPageError] = useState('')
-
-  const [showForm, setShowForm] = useState(false)
-  const [editTarget, setEditTarget] = useState(null) // null = thêm mới, object = sửa
-
-  // ─── Load danh sách ────────────────────────────────────────────────────────
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editTarget, setEditTarget] = useState(null)
 
   const load = useCallback(async () => {
+    if (!round?.roundId) {
+      setData(null)
+      return
+    }
     setLoading(true)
     setPageError('')
+    setShowAddForm(false)
+    setEditTarget(null)
     try {
-      const d = await getCriteriaByEvent(eventId)
-      setData(d)
+      setData(await getCriteriaByRound(round.roundId))
     } catch (err) {
       setPageError(err.message)
+      setData(null)
     } finally {
       setLoading(false)
     }
-  }, [eventId])
+  }, [round?.roundId])
 
   useEffect(() => {
-    load()
-  }, [load])
+    if (isOpen && round) load()
+  }, [isOpen, round, load])
 
-  // ─── Handlers ──────────────────────────────────────────────────────────────
+  const handleClose = () => {
+    setShowAddForm(false)
+    setEditTarget(null)
+    onClose()
+  }
 
   const handleAdd = async (payload) => {
     await createCriteria(payload)
-    setShowForm(false)
+    setShowAddForm(false)
     await load()
   }
 
@@ -255,207 +247,148 @@ export default function CriteriaManager({ eventId }) {
     }
   }
 
-  const openEdit = (c) => {
-    setEditTarget(c)
-    setShowForm(false)
-  }
-
-  // ─── Render ────────────────────────────────────────────────────────────────
-
-  if (loading) return <div style={styles.center}>⏳ Đang tải tiêu chí...</div>
-  if (pageError) return <div style={styles.error}>{pageError}</div>
-
   const totalWeight = data?.totalWeight ?? 0
   const remaining = Math.max(0, 100 - totalWeight)
   const criteria = data?.criteria ?? []
+  const busyForm = showAddForm || !!editTarget
 
   return (
-    <div style={styles.container}>
-      {/* Header */}
-      <div style={styles.header}>
-        <div>
-          <h2 style={styles.title}>📋 Tiêu chí chấm điểm</h2>
-          <p style={styles.subtitle}>
-            {criteria.length} tiêu chí · Tổng điểm tối đa: {data?.totalMaxScore ?? 0}
-          </p>
-        </div>
-        <button
-          style={styles.btnPrimary}
-          onClick={() => {
-            setShowForm(true)
-            setEditTarget(null)
-          }}
-          disabled={showForm || !!editTarget}
-        >
-          ＋ Thêm tiêu chí
-        </button>
-      </div>
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title='Tiêu chí chấm điểm'
+      subtitle={round ? roundLabel(round) : undefined}
+      className='modal-wide'
+    >
+      {pageError ? <FormMessage message={pageError} type='error' /> : null}
 
-      {/* Weight bar */}
-      <WeightBar total={totalWeight} />
-
-      {/* Form thêm mới */}
-      {showForm && (
-        <CriteriaForm
-          eventId={eventId}
-          remainingWeight={remaining}
-          onSave={handleAdd}
-          onCancel={() => setShowForm(false)}
-        />
-      )}
-
-      {/* Danh sách tiêu chí */}
-      {criteria.length === 0 && !showForm ? (
-        <div style={styles.empty}>
-          <span style={{ fontSize: 40 }}>📭</span>
-          <p>Chưa có tiêu chí nào. Hãy thêm tiêu chí đầu tiên!</p>
-        </div>
+      {loading ? (
+        <div className='empty-state'>Đang tải tiêu chí…</div>
       ) : (
-        <div style={styles.list}>
-          {criteria.map((c) =>
-            editTarget?.criteriaId === c.criteriaId ? (
-              <CriteriaForm
-                key={c.criteriaId}
-                eventId={eventId}
-                initial={{
-                  criterionName: c.criterionName,
-                  weight: c.weight,
-                  maxScore: c.maxScore,
-                  description: c.description ?? ''
-                }}
-                remainingWeight={remaining + c.weight}
-                onSave={handleUpdate}
-                onCancel={() => setEditTarget(null)}
-              />
-            ) : (
-              <CriteriaCard key={c.criteriaId} c={c} onEdit={openEdit} onDelete={handleDelete} />
-            )
+        <>
+          <WeightBar total={totalWeight} />
+
+          <div className='criteria-modal-toolbar'>
+            <p className='muted' style={{ margin: 0 }}>
+              {criteria.length} tiêu chí · Tổng trọng số mỗi vòng = 100%
+            </p>
+            <button
+              type='button'
+              className='btn btn-primary btn-sm'
+              onClick={() => {
+                setShowAddForm(true)
+                setEditTarget(null)
+              }}
+              disabled={busyForm}
+            >
+              ＋ Thêm tiêu chí
+            </button>
+          </div>
+
+          {showAddForm ? (
+            <CriteriaForm
+              roundId={round.roundId}
+              remainingWeight={remaining}
+              onSave={handleAdd}
+              onCancel={() => setShowAddForm(false)}
+            />
+          ) : null}
+
+          {criteria.length === 0 && !showAddForm ? (
+            <div className='empty-state'>Chưa có tiêu chí cho vòng này.</div>
+          ) : (
+            <div className='criteria-list'>
+              {criteria.map((c) =>
+                editTarget?.criteriaId === c.criteriaId ? (
+                  <CriteriaForm
+                    key={c.criteriaId}
+                    roundId={round.roundId}
+                    initial={{
+                      criterionName: c.criterionName,
+                      weight: c.weight,
+                      maxScore: c.maxScore,
+                      description: c.description ?? ''
+                    }}
+                    remainingWeight={remaining + c.weight}
+                    onSave={handleUpdate}
+                    onCancel={() => setEditTarget(null)}
+                  />
+                ) : (
+                  <CriteriaCard
+                    key={c.criteriaId}
+                    c={c}
+                    onEdit={(item) => {
+                      setEditTarget(item)
+                      setShowAddForm(false)
+                    }}
+                    onDelete={handleDelete}
+                  />
+                )
+              )}
+            </div>
           )}
-        </div>
+
+          <div style={{ marginTop: 16 }}>
+            <button type='button' className='btn btn-ghost' onClick={handleClose}>
+              Đóng
+            </button>
+          </div>
+        </>
       )}
-    </div>
+    </Modal>
   )
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+export default function CriteriaManager({ rounds = [] }) {
+  const sortedRounds = useMemo(
+    () => [...rounds].sort((a, b) => Number(a.roundOrder) - Number(b.roundOrder)),
+    [rounds]
+  )
 
-const styles = {
-  container: {
-    background: '#fff',
-    borderRadius: 12,
-    padding: 24,
-    boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20
-  },
-  title: { margin: 0, fontSize: 20, fontWeight: 700, color: '#111827' },
-  subtitle: { margin: '4px 0 0', color: '#6b7280', fontSize: 14 },
-  weightBar: {
-    background: '#f9fafb',
-    border: '1px solid #e5e7eb',
-    borderRadius: 8,
-    padding: '12px 16px',
-    marginBottom: 20
-  },
-  weightLabel: { fontSize: 13, color: '#6b7280', fontWeight: 500 },
-  weightValue: { fontSize: 14, fontWeight: 700 },
-  barTrack: { background: '#e5e7eb', borderRadius: 99, height: 8 },
-  barFill: { height: '100%', borderRadius: 99 },
-  list: { display: 'flex', flexDirection: 'column', gap: 10 },
-  card: {
-    border: '1px solid #e5e7eb',
-    borderRadius: 10,
-    padding: '14px 16px',
-    background: '#fafafa'
-  },
-  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
-  cardName: { fontSize: 15, fontWeight: 600, color: '#111827' },
-  cardMeta: { display: 'flex', gap: 8, marginTop: 6 },
-  cardDesc: { margin: '10px 0 0', fontSize: 13, color: '#6b7280', lineHeight: 1.5 },
-  badge: {
-    display: 'inline-block',
-    background: '#eff6ff',
-    color: '#2563eb',
-    borderRadius: 6,
-    padding: '2px 8px',
-    fontSize: 12,
-    fontWeight: 500
-  },
-  form: {
-    background: '#f0f9ff',
-    border: '1px solid #bae6fd',
-    borderRadius: 10,
-    padding: 20,
-    marginBottom: 12
-  },
-  formTitle: { margin: '0 0 16px', fontSize: 16, fontWeight: 600, color: '#0369a1' },
-  label: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-    fontSize: 13,
-    fontWeight: 500,
-    color: '#374151',
-    marginBottom: 12
-  },
-  input: {
-    border: '1px solid #d1d5db',
-    borderRadius: 8,
-    padding: '8px 12px',
-    fontSize: 14,
-    color: '#111827',
-    outline: 'none',
-    background: '#fff',
-    width: '100%',
-    boxSizing: 'border-box'
-  },
-  hint: { fontSize: 12, color: '#6b7280', marginTop: 2 },
-  btnPrimary: {
-    background: '#2563eb',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 8,
-    padding: '9px 18px',
-    fontWeight: 600,
-    fontSize: 14,
-    cursor: 'pointer'
-  },
-  btnSecondary: {
-    background: '#f3f4f6',
-    color: '#374151',
-    border: '1px solid #d1d5db',
-    borderRadius: 8,
-    padding: '9px 18px',
-    fontWeight: 500,
-    fontSize: 14,
-    cursor: 'pointer'
-  },
-  btnIcon: {
-    background: '#f3f4f6',
-    border: '1px solid #e5e7eb',
-    borderRadius: 6,
-    padding: '5px 10px',
-    cursor: 'pointer',
-    fontSize: 13
-  },
-  error: {
-    background: '#fee2e2',
-    color: '#dc2626',
-    border: '1px solid #fecaca',
-    borderRadius: 8,
-    padding: '10px 14px',
-    fontSize: 13,
-    marginBottom: 12
-  },
-  empty: {
-    textAlign: 'center',
-    color: '#9ca3af',
-    padding: '40px 0',
-    fontSize: 14
-  },
-  center: { textAlign: 'center', padding: 40, color: '#6b7280' }
+  const [activeRound, setActiveRound] = useState(null)
+
+  if (!sortedRounds.length) {
+    return (
+      <section className='criteria-manager'>
+        <h3 className='section-title'>Tiêu chí chấm điểm theo vòng</h3>
+        <div className='empty-state'>Chưa có vòng thi nào. Hãy tạo vòng thi trước khi thiết lập tiêu chí.</div>
+      </section>
+    )
+  }
+
+  return (
+    <section className='criteria-manager'>
+      <div className='criteria-manager-head'>
+        <div>
+          <h3 className='section-title'>Tiêu chí chấm điểm theo vòng</h3>
+          <p className='muted' style={{ margin: '4px 0 0' }}>
+            Mỗi vòng có bộ tiêu chí riêng — nhấn vào vòng để quản lý
+          </p>
+        </div>
+      </div>
+
+      <div className='criteria-round-list'>
+        {sortedRounds.map((round) => (
+          <button
+            key={round.roundId}
+            type='button'
+            className='criteria-round-row'
+            onClick={() => setActiveRound(round)}
+          >
+            <span className='criteria-round-row-main'>
+              <span className='criteria-round-row-name'>{roundLabel(round)}</span>
+              <span className='criteria-round-row-meta'>Vòng {round.roundOrder ?? '—'}</span>
+            </span>
+            <span className='criteria-round-row-action'>Tiêu chí ›</span>
+          </button>
+        ))}
+      </div>
+
+      <RoundCriteriaModal
+        round={activeRound}
+        isOpen={!!activeRound}
+        onClose={() => setActiveRound(null)}
+      />
+    </section>
+  )
 }
