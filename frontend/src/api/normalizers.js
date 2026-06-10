@@ -203,6 +203,88 @@ export function mapMentorAssignedTeamRow(row) {
   }
 }
 
+export function mapGroupColleagueRow(row) {
+  const r = row && typeof row === 'object' ? row : {}
+  return {
+    userId: normalizeId(r.userId ?? r.user_id),
+    fullName: r.fullName ?? r.full_name ?? '',
+    email: r.email ?? '',
+    role: r.role ?? '',
+    self: Boolean(r.self)
+  }
+}
+
+export function mapGroupColleaguesResponse(data) {
+  const r = data && typeof data === 'object' ? data : {}
+  return {
+    eventId: normalizeEventId(r.eventId ?? r.event_id),
+    roundId: normalizeId(r.roundId ?? r.round_id),
+    groupId: normalizeId(r.groupId ?? r.group_id),
+    roundName: r.roundName ?? r.round_name ?? '',
+    groupName: r.groupName ?? r.group_name ?? '',
+    mentors: mapList(r.mentors, mapGroupColleagueRow),
+    judges: mapList(r.judges, mapGroupColleagueRow)
+  }
+}
+
+export function mapCriteriaResponse(data) {
+  const r = data && typeof data === 'object' ? data : {}
+  const criteria = Array.isArray(r.criteria) ? r.criteria : []
+  const totalWeight =
+    r.totalWeight ??
+    criteria.reduce((sum, c) => sum + (Number(c.weight) || 0), 0)
+  const totalMaxScore = criteria.reduce((sum, c) => sum + (Number(c.maxScore) || 0), 0)
+  return {
+    roundId: normalizeId(r.roundId ?? r.round_id),
+    criteria,
+    count: criteria.length,
+    totalWeight,
+    totalMaxScore
+  }
+}
+
+function mapJudgeScoreDetailRow(row) {
+  const r = row && typeof row === 'object' ? row : {}
+  return {
+    detailId: normalizeId(r.detailId ?? r.detail_id),
+    scoreId: normalizeId(r.scoreId ?? r.score_id),
+    criteriaId: normalizeId(r.criteriaId ?? r.criteria_id),
+    score: r.score ?? null,
+    feedback: r.feedback ?? ''
+  }
+}
+
+export function mapJudgeScoreRow(data) {
+  const r = data && typeof data === 'object' ? data : {}
+  return {
+    scoreId: normalizeId(r.scoreId ?? r.score_id),
+    submissionId: normalizeId(r.submissionId ?? r.submission_id),
+    judgeId: normalizeId(r.judgeId ?? r.judge_id),
+    groupId: normalizeId(r.groupId ?? r.group_id),
+    totalScore: r.totalScore ?? r.total_score ?? null,
+    submittedAt: r.submittedAt ?? r.submitted_at ?? '',
+    details: mapList(r.details, mapJudgeScoreDetailRow)
+  }
+}
+
+export function mapTeamToScoreRow(row) {
+  const r = row && typeof row === 'object' ? row : {}
+  return {
+    teamId: normalizeId(r.teamId ?? r.team_id),
+    teamName: r.teamName ?? r.team_name ?? '',
+    submissionId: normalizeId(r.submissionId ?? r.submission_id),
+    submissionStatus: r.submissionStatus ?? r.submission_status ?? '',
+    submittedAt: r.submittedAt ?? r.submitted_at ?? '',
+    githubUrl: r.githubUrl ?? r.github_url ?? '',
+    demoUrl: r.demoUrl ?? r.demo_url ?? '',
+    reportUrl: r.reportUrl ?? r.report_url ?? '',
+    slideUrl: r.slideUrl ?? r.slide_url ?? '',
+    scored: Boolean(r.scored),
+    totalScore: r.totalScore ?? r.total_score ?? null,
+    scoreId: normalizeId(r.scoreId ?? r.score_id)
+  }
+}
+
 export function mapEventDetailRow(row) {
   const r = row && typeof row === 'object' ? row : {}
   return {

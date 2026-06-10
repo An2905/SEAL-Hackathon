@@ -1,3 +1,5 @@
+import { mapCriteriaResponse } from './normalizers'
+
 const BASE = '/api'
 
 async function request(url, options = {}) {
@@ -23,19 +25,6 @@ async function request(url, options = {}) {
 
   if (!res.ok) throw new Error(data.message || data || 'Lỗi server')
   return data
-}
-
-function mapCriteriaResponse(data) {
-  const criteria = Array.isArray(data.criteria) ? data.criteria : []
-  const totalWeight = data.totalWeight ?? 0
-  const totalMaxScore = criteria.reduce((sum, c) => sum + (Number(c.maxScore) || 0), 0)
-  return {
-    roundId: data.roundId ?? data.round_id ?? '',
-    criteria,
-    count: criteria.length,
-    totalWeight,
-    totalMaxScore
-  }
 }
 
 /**
@@ -79,6 +68,8 @@ export async function deleteCriteria(criteriaId) {
   })
 }
 
+/** @deprecated dùng getCriteriaForJudge từ api/judge.js */
 export async function getCriteriaForJudge(roundId) {
-  return await request(`${BASE}/judge/criteria?roundId=${encodeURIComponent(roundId)}`)
+  const data = await request(`${BASE}/judge/criteria?roundId=${encodeURIComponent(roundId)}`)
+  return mapCriteriaResponse(data)
 }

@@ -26,6 +26,9 @@ export default function HomeNavbar({ onOpenLogin, onOpenRegister }) {
         </a>
 
         <div className='nav-links'>
+          <a href='#events' className='nav-link'>
+            Sự kiện
+          </a>
           <a href='#about' className='nav-link'>
             Giới thiệu
           </a>

@@ -15,42 +15,12 @@ import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 import ChatPopup from '../../components/chat/ChatPopup'
 import CollapsibleKvList from '../../components/common/CollapsibleList'
-
-function formatDateTime(value) {
-  if (!value) return '—'
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return String(value)
-  return d.toLocaleString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-function eventStatusPillClass(status) {
-  const key = (status || '').toUpperCase()
-  if (key === 'BUILDING') return 'status-pending'
-  if (key === 'UPCOMING') return 'status-pending'
-  if (key === 'ONGOING') return 'status-active'
-  if (key === 'COMPLETED') return 'status-default'
-  if (key === 'CANCELLED') return 'status-rejected'
-  return 'status-default'
-}
-
-function StatusBadge({ status }) {
-  return (
-    <span className="status-picker" style={{ flexShrink: 0 }}>
-      <span
-        className={`status-pill ${eventStatusPillClass(status)}`}
-        style={{ cursor: 'default' }}
-      >
-        {status || '—'}
-      </span>
-    </span>
-  )
-}
+import {
+  formatDateTime,
+  StatusBadge,
+  assignmentKey,
+  assignmentLabel
+} from '../../components/expert/expertDashboardUtils'
 
 function registrationStatusPillClass(status) {
   const key = (status || '').toUpperCase()
@@ -58,14 +28,6 @@ function registrationStatusPillClass(status) {
   if (key === 'PENDING') return 'status-pending'
   if (key === 'REJECTED') return 'status-rejected'
   return 'status-default'
-}
-
-function assignmentKey(a) {
-  return `${a.eventId}-${a.roundId}-${a.groupId}`
-}
-
-function assignmentLabel(a) {
-  return [a.eventTitle, a.roundName, a.groupName].filter(Boolean).join(' · ')
 }
 
 const TEAM_STATUS_FILTERS = [

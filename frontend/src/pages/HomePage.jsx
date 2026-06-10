@@ -8,7 +8,9 @@ import { useAuth } from "../context/AuthContext";
 
 import posterImg from "../assets/images/poster.jpg";
 import eventImg from "../assets/images/event.jpg";
-import speakerImg from "../assets/images/speaker.jpg";
+import anh1Img from "../assets/images/anh1.jpg";
+import anh2Img from "../assets/images/anh2.jpg";
+import LandingEventsSection from "../components/landing/LandingEventsSection";
 
 export default function HomePage() {
 	const { isLoggedIn } = useAuth();
@@ -85,6 +87,8 @@ export default function HomePage() {
 						</div>
 					</div>
 				</section>
+
+				<LandingEventsSection onOpenRegister={!isLoggedIn ? () => setModal("register") : undefined} />
 
 				{/* ABOUT */}
 				<section className="section" id="about">
@@ -189,13 +193,15 @@ export default function HomePage() {
 						</p>
 					</div>
 
-					<div className="gallery">
-						<div className="gallery-item large">
-							<img src={eventImg} alt="SEAL Hackathon - khán giả và sân khấu" />
+					<div className="gallery gallery-four">
+						<div className="gallery-item gallery-item--feature">
+							<img src={anh2Img} alt="SEAL Hackathon - toàn cảnh sự kiện và ban giám khảo" />
 						</div>
-
 						<div className="gallery-item">
-							<img src={speakerImg} alt="SEAL Hackathon - diễn giả phát biểu" />
+							<img src={anh1Img} alt="SEAL Hackathon - không khí hackathon và thí sinh" />
+						</div>
+						<div className="gallery-item">
+							<img src={eventImg} alt="SEAL Hackathon - khán giả và sân khấu" />
 						</div>
 					</div>
 				</section>

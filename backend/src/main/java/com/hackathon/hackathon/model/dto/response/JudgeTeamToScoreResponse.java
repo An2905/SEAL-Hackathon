@@ -9,6 +9,10 @@ public class JudgeTeamToScoreResponse {
     private String submissionId;
     private String submissionStatus;
     private String submittedAt;
+    private String githubUrl;
+    private String demoUrl;
+    private String reportUrl;
+    private String slideUrl;
     private boolean scored;
     private Double totalScore;
     private String scoreId;

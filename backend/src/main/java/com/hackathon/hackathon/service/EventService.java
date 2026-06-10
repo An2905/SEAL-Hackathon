@@ -254,6 +254,14 @@ public class EventService {
         return events;
     }
 
+    public List<EventSummaryResponse> getPublicEvents() {
+        List<EventSummaryResponse> events = new ArrayList<>();
+        for (Event event : eventRepository.findPublicEvents()) {
+            events.add(eventMapper.toSummaryResponse(event));
+        }
+        return events;
+    }
+
     public EventDetailResponse getEventDetail(String authHeader, String eventId) {
         authService.validateRole(authHeader, "COORDINATOR");
 

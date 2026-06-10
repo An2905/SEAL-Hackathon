@@ -189,6 +189,17 @@ public class MentorService {
                 break;
             }
         }
+        if (roundName.isEmpty() && groupName.isEmpty()) {
+            for (MentorAssignmentResponse assignment
+                    : eventRepository.findJudgeAssignmentsByJudgeId(normalizedExpertId)) {
+                if (normalizedRoundId.equals(assignment.getRoundId())
+                        && normalizedGroupId.equals(assignment.getGroupId())) {
+                    roundName = assignment.getRoundName() != null ? assignment.getRoundName() : "";
+                    groupName = assignment.getGroupName() != null ? assignment.getGroupName() : "";
+                    break;
+                }
+            }
+        }
 
         GroupColleaguesResponse response = new GroupColleaguesResponse();
         response.setEventId(normalizedEventId);

@@ -3,7 +3,7 @@
 // Dùng trong JudgeDashboard, nhận props: roundId (string), roundName (string optional)
 
 import { useState, useEffect } from 'react';
-import { getCriteriaForJudge } from '../../api/criteriaApi';
+import { getCriteriaForJudge } from '../../../api/judge';
 
 // ─── Thanh trọng số mini trong mỗi card ─────────────────────────────────────
 function MiniWeightBar({ weight, total }) {

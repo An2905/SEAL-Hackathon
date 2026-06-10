@@ -20,6 +20,9 @@ import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
 import com.hackathon.hackathon.model.dto.response.JudgeCriteriaResponse;
 import com.hackathon.hackathon.model.dto.response.JudgeTeamToScoreResponse;
 import com.hackathon.hackathon.model.dto.response.JudgeScoreResponse;
+import com.hackathon.hackathon.model.dto.response.GroupColleaguesResponse;
+import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
+import com.hackathon.hackathon.model.dto.response.MentorAssignmentResponse;
 import com.hackathon.hackathon.model.dto.request.SubmitScoreRequest;
 import com.hackathon.hackathon.model.dto.request.ScoreDetailItemRequest;
 import com.hackathon.hackathon.model.entity.Event;
@@ -61,6 +64,9 @@ public class JudgeService {
     @Autowired
     private ScoreRepository scoreRepository;
 
+    @Autowired
+    private MentorService mentorService;
+
     public List<EventSummaryResponse> getAssignedEvents(String authHeader) {
         Claims claims = authService.validateRole(authHeader, "EXPERT_INTERNAL", "EXPERT_EXTERNAL");
 
@@ -74,6 +80,32 @@ public class JudgeService {
             summaries.add(eventMapper.toSummaryResponse(event));
         }
         return summaries;
+    }
+
+    public List<MentorAssignedCurrentRoundResponse> getAssignedCurrentRounds(String authHeader) {
+        Claims claims = authService.validateRole(authHeader, "EXPERT_INTERNAL", "EXPERT_EXTERNAL");
+        String judgeId = claims.get("userId", String.class);
+        if (judgeId == null || judgeId.trim().isEmpty()) {
+            throw new UnauthorizedException("Invalid or missing token.");
+        }
+        return eventRepository.findAssignedCurrentRoundsByJudgeId(judgeId.trim());
+    }
+
+    public List<MentorAssignmentResponse> getAssignments(String authHeader) {
+        Claims claims = authService.validateRole(authHeader, "EXPERT_INTERNAL", "EXPERT_EXTERNAL");
+        String judgeId = claims.get("userId", String.class);
+        if (judgeId == null || judgeId.trim().isEmpty()) {
+            throw new UnauthorizedException("Invalid or missing token.");
+        }
+        return eventRepository.findJudgeAssignmentsByJudgeId(judgeId.trim());
+    }
+
+    public GroupColleaguesResponse getGroupColleagues(
+            String authHeader,
+            String eventId,
+            String roundId,
+            String groupId) {
+        return mentorService.getGroupColleagues(authHeader, eventId, roundId, groupId);
     }
 
     public JudgeCriteriaResponse getCriteriaForJudge(String authHeader, String roundId) {
@@ -96,8 +128,7 @@ public class JudgeService {
         List<EventCriterion> criteriaList = criteriaRepository.findCriteriaByRoundId(cleanRoundId);
         JudgeCriteriaResponse response = new JudgeCriteriaResponse();
         response.setRoundId(cleanRoundId);
-        double totalWeight = criteriaList.stream().mapToDouble(EventCriterion::getWeight).sum();
-        response.setTotalWeight(totalWeight);
+        response.setTotalWeight(criteriaRepository.sumWeightByRound(cleanRoundId, null));
         response.setCriteria(criteriaMapper.toResponseList(criteriaList));
         return response;
     }

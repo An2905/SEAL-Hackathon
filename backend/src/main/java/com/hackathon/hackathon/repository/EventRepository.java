@@ -95,6 +95,25 @@ public class EventRepository {
         }
     }
 
+    public List<Event> findPublicEvents() {
+        List<Event> events = new ArrayList<>();
+        String sql = "SELECT event_id, title, description, start_date, end_date, status, created_at "
+                + "FROM events "
+                + "WHERE status IN ('ONGOING', 'UPCOMING', 'COMPLETED') "
+                + "ORDER BY FIELD(status, 'ONGOING', 'UPCOMING', 'COMPLETED'), start_date DESC";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                events.add(eventMapper.fromSummaryRow(rs));
+            }
+        } catch (Exception e) {
+            return events;
+        }
+        return events;
+    }
+
     public List<Event> findAllByStatus(String statusFilter) {
         List<Event> events = new ArrayList<>();
         boolean filterAll = (statusFilter == null || statusFilter.isEmpty() || "ALL".equals(statusFilter));
@@ -617,6 +636,64 @@ public class EventRepository {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public List<MentorAssignmentResponse> findJudgeAssignmentsByJudgeId(String judgeId) {
+        List<MentorAssignmentResponse> rows = new ArrayList<>();
+        String sql = "SELECT e.event_id, e.title AS event_title, "
+                + "r.round_id, r.name AS round_name, "
+                + "rg.group_id, rg.name AS group_name "
+                + "FROM judge_assignments ja "
+                + "INNER JOIN round_groups rg ON ja.group_id = rg.group_id "
+                + "INNER JOIN rounds r ON ja.round_id = r.round_id "
+                + "INNER JOIN events e ON r.event_id = e.event_id "
+                + "WHERE ja.judge_id = ? "
+                + "ORDER BY e.start_date DESC, r.round_order ASC, rg.name ASC";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, judgeId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    MentorAssignmentResponse row = new MentorAssignmentResponse();
+                    row.setEventId(rs.getString("event_id"));
+                    row.setEventTitle(rs.getString("event_title"));
+                    row.setRoundId(rs.getString("round_id"));
+                    row.setRoundName(rs.getString("round_name"));
+                    row.setGroupId(rs.getString("group_id"));
+                    row.setGroupName(rs.getString("group_name"));
+                    rows.add(row);
+                }
+            }
+        } catch (Exception e) {
+            return rows;
+        }
+        return rows;
+    }
+
+    public List<MentorAssignedCurrentRoundResponse> findAssignedCurrentRoundsByJudgeId(String judgeId) {
+        List<MentorAssignedCurrentRoundResponse> rounds = new ArrayList<>();
+        String sql = "SELECT DISTINCT e.event_id, e.title, r.round_id, r.name, r.start_date, r.end_date, "
+                + "'ONGOING' AS round_status "
+                + "FROM events e "
+                + "JOIN rounds r ON e.event_id = r.event_id "
+                + "JOIN judge_assignments ja ON r.round_id = ja.round_id "
+                + "WHERE ja.judge_id = ? "
+                + "AND NOW() BETWEEN r.start_date AND r.end_date "
+                + "ORDER BY e.start_date DESC";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, judgeId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    rounds.add(eventMapper.toMentorAssignedCurrentRoundResponse(rs));
+                }
+            }
+        } catch (Exception e) {
+            return rounds;
+        }
+        return rounds;
     }
 
     public List<Event> findEventsByJudgeId(String judgeId) {
