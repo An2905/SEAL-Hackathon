@@ -6,5 +6,6 @@ import lombok.Data;
 @Data
 public class JudgeCriteriaResponse {
     private String roundId;
+    private double totalWeight;
     private List<CriteriaResponse> criteria;
 }

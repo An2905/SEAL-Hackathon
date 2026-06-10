@@ -12,7 +12,6 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-
 import com.hackathon.hackathon.model.dto.response.EventAssignedJudgeResponse;
 import com.hackathon.hackathon.model.dto.response.EventAssignedMentorResponse;
 import com.hackathon.hackathon.model.dto.response.GroupColleagueItemResponse;
@@ -584,8 +583,10 @@ public class EventRepository {
     }
 
     /**
-     * Submission allowed only while round is active: started, not ended, and before deadline (if set).
-     * Locks automatically when {@code NOW() > end_date} or past {@code submission_deadline}.
+     * Submission allowed only while round is active: started, not ended, and before
+     * deadline (if set).
+     * Locks automatically when {@code NOW() > end_date} or past
+     * {@code submission_deadline}.
      */
     public boolean isRoundOpenForSubmission(String roundId) {
         String sql = "SELECT start_date, end_date, submission_deadline FROM rounds WHERE round_id = ?";
@@ -644,12 +645,12 @@ public class EventRepository {
     public List<GroupColleagueItemResponse> findJudgesByGroupAndRound(String groupId, String roundId) {
         List<GroupColleagueItemResponse> judges = new ArrayList<>();
         String sql = """
-            SELECT u.user_id, u.full_name, u.email
-            FROM judge_assignments ja
-            JOIN users u ON ja.judge_id = u.user_id
-            WHERE ja.group_id = ? AND ja.round_id = ?
-            ORDER BY u.full_name ASC
-            """;
+                SELECT u.user_id, u.full_name, u.email
+                FROM judge_assignments ja
+                JOIN users u ON ja.judge_id = u.user_id
+                WHERE ja.group_id = ? AND ja.round_id = ?
+                ORDER BY u.full_name ASC
+                """;
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -675,12 +676,12 @@ public class EventRepository {
     public List<GroupColleagueItemResponse> findMentorColleaguesByGroupAndRound(String groupId, String roundId) {
         List<GroupColleagueItemResponse> mentors = new ArrayList<>();
         String sql = """
-            SELECT u.user_id, u.full_name, u.email
-            FROM mentor_assignments ma
-            JOIN users u ON ma.mentor_id = u.user_id
-            WHERE ma.group_id = ? AND ma.round_id = ?
-            ORDER BY u.full_name ASC
-            """;
+                SELECT u.user_id, u.full_name, u.email
+                FROM mentor_assignments ma
+                JOIN users u ON ma.mentor_id = u.user_id
+                WHERE ma.group_id = ? AND ma.round_id = ?
+                ORDER BY u.full_name ASC
+                """;
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -706,12 +707,12 @@ public class EventRepository {
     public List<TeamTrackMentorItemResponse> findMentorsByGroupAndRound(String groupId, String roundId) {
         List<TeamTrackMentorItemResponse> mentors = new ArrayList<>();
         String sql = """
-            SELECT u.user_id AS mentor_id, u.full_name AS mentor_name, u.email AS mentor_email
-            FROM mentor_assignments ma
-            JOIN users u ON ma.mentor_id = u.user_id
-            WHERE ma.group_id = ? AND ma.round_id = ?
-            ORDER BY u.full_name ASC
-            """;
+                SELECT u.user_id AS mentor_id, u.full_name AS mentor_name, u.email AS mentor_email
+                FROM mentor_assignments ma
+                JOIN users u ON ma.mentor_id = u.user_id
+                WHERE ma.group_id = ? AND ma.round_id = ?
+                ORDER BY u.full_name ASC
+                """;
         try (
                 Connection conn = dataSource.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -731,5 +732,4 @@ public class EventRepository {
         }
         return mentors;
     }
-
 }

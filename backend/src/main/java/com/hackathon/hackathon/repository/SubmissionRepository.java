@@ -199,4 +199,25 @@ public class SubmissionRepository {
         }
         return submissions;
     }
+
+    public boolean validateSubmissionForScoring(String submissionId, String roundId, String groupId, String eventId) {
+        String sql = "SELECT 1 FROM submissions s "
+                + "JOIN group_teams gt ON s.team_id = gt.team_id AND s.round_id = gt.round_id AND s.group_id = gt.group_id "
+                + "JOIN team_registrations tr ON tr.team_id = s.team_id AND tr.event_id = ? "
+                + "WHERE s.submission_id = ? AND s.round_id = ? AND s.group_id = ? AND tr.status = 'APPROVED' "
+                + "LIMIT 1";
+        try (
+                Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, eventId);
+            ps.setString(2, submissionId);
+            ps.setString(3, roundId);
+            ps.setString(4, groupId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }
