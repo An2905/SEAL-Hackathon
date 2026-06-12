@@ -85,6 +85,12 @@ function isTeamFullyChecked(team) {
 
   const members = team.members || []
 
+  if ((team.registrationStatus || '').toUpperCase() === 'APPROVED') {
+
+    return members.length > 0
+
+  }
+
   return members.length > 0 && members.every((m) => m.checkedIn)
 
 }
@@ -289,6 +295,9 @@ function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }
 
                 const memberBusy = busyKey === `member:${team.teamId}:${m.userId}`
 
+                const memberChecked =
+                  Boolean(m.checkedIn) || (team.registrationStatus || '').toUpperCase() === 'APPROVED'
+
                 return (
 
                   <div className='kv checkin-member-row' style={{ alignItems: 'flex-start' }}>
@@ -301,7 +310,7 @@ function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }
 
                         className='checkin-checkbox'
 
-                        checked={Boolean(m.checkedIn)}
+                        checked={memberChecked}
 
                         disabled={memberBusy || Boolean(busyKey)}
 
@@ -349,13 +358,13 @@ function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }
 
                     <span
 
-                      className={`status-pill ${m.checkedIn ? 'status-active' : 'status-pending'}`}
+                      className={`status-pill ${memberChecked ? 'status-active' : 'status-pending'}`}
 
                       style={{ cursor: 'default', flexShrink: 0 }}
 
                     >
 
-                      {m.checkedIn ? 'Đã check-in' : 'Chưa check-in'}
+                      {memberChecked ? 'Đã check-in' : 'Chưa check-in'}
 
                     </span>
 
