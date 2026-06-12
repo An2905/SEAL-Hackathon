@@ -38,10 +38,7 @@ function eventMatchesSearch(event, query) {
   if (!query) return true
   const status = String(event.status ?? '').toUpperCase()
   const statusLabel = STATUS_LABELS[status] ?? status
-  const haystack = [event.title, event.description, status, statusLabel]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase()
+  const haystack = [event.title, event.description, status, statusLabel].filter(Boolean).join(' ').toLowerCase()
   return haystack.includes(query)
 }
 
@@ -56,9 +53,7 @@ function EventRow({ event }) {
       </div>
       <div className='landing-event-row-main'>
         <h3 className='landing-event-row-title'>{event.title || '—'}</h3>
-        <p className='landing-event-row-desc'>
-          {event.description?.trim() || 'Chưa có mô tả.'}
-        </p>
+        <p className='landing-event-row-desc'>{event.description?.trim() || 'Chưa có mô tả.'}</p>
       </div>
       <div className='landing-event-row-date'>{formatDateRange(event.startDate, event.endDate)}</div>
     </article>
@@ -119,21 +114,29 @@ export default function LandingEventsSection({ onOpenRegister }) {
       <div className='landing-events-inner'>
         <div className='landing-events-section-head'>
           <h2>Sự kiện hackathon</h2>
-          <p className='landing-events-lead'>
-            Tìm cuộc thi phù hợp, đăng ký tài khoản và tham gia cùng đội của bạn.
-          </p>
+          <p className='landing-events-lead'>Tìm cuộc thi phù hợp, đăng ký tài khoản và tham gia cùng đội của bạn.</p>
         </div>
 
         <div className='landing-events-panel'>
           <FullWidthSearchBar
-          className='fullwidth-search-bar--compact landing-events-search'
-          value={searchInput}
-          onChange={(value) => {
-            setSearchInput(value)
-            setSearchQuery(String(value ?? '').trim().toLowerCase())
-          }}
-          onSearch={(value) => setSearchQuery(String(value ?? '').trim().toLowerCase())}
-          placeholder='Tìm theo tên, mô tả hoặc trạng thái…'
+            className='fullwidth-search-bar--compact landing-events-search'
+            value={searchInput}
+            onChange={(value) => {
+              setSearchInput(value)
+              setSearchQuery(
+                String(value ?? '')
+                  .trim()
+                  .toLowerCase()
+              )
+            }}
+            onSearch={(value) =>
+              setSearchQuery(
+                String(value ?? '')
+                  .trim()
+                  .toLowerCase()
+              )
+            }
+            placeholder='Tìm theo tên, mô tả hoặc trạng thái…'
             disabled={loading}
           />
 
@@ -143,9 +146,7 @@ export default function LandingEventsSection({ onOpenRegister }) {
             <div className='landing-events-empty'>Hiện chưa có sự kiện công khai.</div>
           )}
           {!loading && !error && events.length > 0 && filteredEvents.length === 0 && (
-            <div className='landing-events-empty'>
-              Không tìm thấy sự kiện khớp với &quot;{searchQuery}&quot;.
-            </div>
+            <div className='landing-events-empty'>Không tìm thấy sự kiện khớp với &quot;{searchQuery}&quot;.</div>
           )}
 
           {!loading && !error && grouped.length > 0 && (

@@ -3,7 +3,7 @@ package com.hackathon.hackathon.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
+
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,7 +21,7 @@ import com.hackathon.hackathon.service.StaffService;
 
 @RestController
 @RequestMapping(value = "/api/staff/assign", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
-@CrossOrigin("*")
+
 public class StaffAssignmentController {
 
     @Autowired

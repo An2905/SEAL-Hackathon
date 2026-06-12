@@ -129,9 +129,7 @@ function SendParticipantForm() {
         roles: selectedRoles
       })
       setMessage({
-        text: `Đã gửi thành công · ${
-          result.totalRecipients
-        } người nhận · ${formatDateTime(result.createdAt)}`,
+        text: `Đã gửi thành công · ${result.totalRecipients} người nhận · ${formatDateTime(result.createdAt)}`,
         type: 'success'
       })
       showToast(`Gửi thông báo thành công — ${result.totalRecipients} người nhận`, 'success')

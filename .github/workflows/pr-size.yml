@@ -1,0 +1,62 @@
+name: PR Size Labeler
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  label:
+    name: Label PR by Size
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate PR Size
+        id: size
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+          diff=$(git diff --shortstat origin/${{ github.event.pull_request.base.ref }}...HEAD || echo "0 files changed, 0 insertions(+), 0 deletions(-)")
+          echo "Diff stat: $diff"
+          
+          # Extract additions and deletions
+          additions=$(echo "$diff" | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo "0")
+          deletions=$(echo "$diff" | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || echo "0")
+          total=$((additions + deletions))
+          echo "Total lines changed: $total"
+          echo "total=$total" >> $GITHUB_OUTPUT
+
+      - name: Apply Size Label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TOTAL: ${{ steps.size.outputs.total }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ $TOTAL -lt 10 ]; then
+            LABEL="size/XS"
+          elif [ $TOTAL -lt 50 ]; then
+            LABEL="size/S"
+          elif [ $TOTAL -lt 150 ]; then
+            LABEL="size/M"
+          elif [ $TOTAL -lt 500 ]; then
+            LABEL="size/L"
+          else
+            LABEL="size/XL"
+          fi
+          echo "Applying label $LABEL to PR $PR_NUMBER"
+          
+          # Remove existing size labels if any
+          for existing in $(gh pr view $PR_NUMBER --json labels -q '.labels[].name' | grep '^size/'); do
+            if [ "$existing" != "$LABEL" ]; then
+              gh pr edit $PR_NUMBER --remove-label "$existing" || true
+            fi
+          done
+          
+          # Add new label
+          gh pr edit $PR_NUMBER --add-label "$LABEL" || true

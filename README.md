@@ -1,154 +1,174 @@
 # SEAL Hackathon Management System (SEAL-HMS)
 
-> A comprehensive Hackathon Management System designed to facilitate event coordination, student participation, and judging for the Software Engineering Agile League (SEAL).
+[![Backend CI](https://github.com/nmt2103/SEAL-Hackathon/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/nmt2103/SEAL-Hackathon/actions/workflows/backend-ci.yml)
+[![Frontend CI](https://github.com/nmt2103/SEAL-Hackathon/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/nmt2103/SEAL-Hackathon/actions/workflows/frontend-ci.yml)
+[![Security Scan](https://github.com/nmt2103/SEAL-Hackathon/actions/workflows/security.yml/badge.svg)](https://github.com/nmt2103/SEAL-Hackathon/actions/workflows/security.yml)
 
-## 📖 Overview
+A comprehensive, production-ready monorepo platform designed to automate event coordination, team registration, mentoring, real-time communication, and academic research-based grading for the annual Software Engineering Agile League (SEAL) hackathon.
 
-"Software Engineering Agile League (SEAL)" is an annual academic hackathon organized by the Software Engineering Department in collaboration with PDP at FPT University Ho Chi Minh City. SEAL-HMS transforms the traditional manual and fragmented event management process into a unified, transparent, and data-driven digital platform.
+***
 
-The system serves a dual purpose: a robust competition management platform and a data collection tool for Research-Based Learning (RBL) focused on inter-rater reliability in software engineering evaluation.
+## 📖 Project Overview
 
-## 🎯 Vision & Business Objectives
+"Software Engineering Agile League (SEAL)" is an academic hackathon organized by the Software Engineering Department at FPT University Ho Chi Minh City. **SEAL-HMS** transforms the traditional manual and fragmented event coordination process into a unified, transparent, and data-driven digital platform.
 
-- **Automation:** Reduce the administrative overhead of managing annual hackathons by 70% through automated registration, team formation, and round advancement.
-- **Data Integrity:** Eliminate manual data entry errors in scoring and ranking by providing a direct digital interface for judges.
-- **Transparency:** Establish a 100% audit trail for all scoring decisions and team eliminations to ensure fairness and contestability.
-- **Research Support:** Enable Research-Based Learning (RBL) by collecting granular, non-aggregated scoring data to analyze inter-rater reliability among judges.
+The system serves a dual purpose:
 
-## ✨ Key Features
+1. **Competition Management:** Seamlessly administers user profiles, event configurations, group stages, project submissions, and real-time chat.
+2. **Academic Research Support:** Collects granular scoring data to enable Research-Based Learning (RBL) focusing on inter-rater reliability among judges.
 
-| Module                           | Features                                                                                                                                            |
-| :------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **User & Identity Management**   | JWT-based authentication, manual approval workflow for internal/external students, and temporary Guest Judge accounts.                              |
-| **Event & Track Management**     | Dynamic creation of multi-track, multi-round events, customizable scoring criteria templates, and configurable advancement rules (e.g., Top N).     |
-| **Team & Submission Management** | Self-service team formation (3-5 members), Track registration, and multi-format submissions (URLs/repository links).                                |
-| **Assessment & Ranking**         | Dedicated scoring portal for judges, automated ranking calculations based on weighted criteria, real-time leaderboards, and elimination audit logs. |
-| **Research Module (RBL)**        | Judge calibration tools, score variance dashboards, and exportable anonymized scoring datasets for academic research.                               |
-| **Real-time Chat Module**        | Dynamic chat rooms between teams and assigned mentors for event rounds. Supports real-time message broadcasting via WebSockets (STOMP), user authentication via JWT, and message history persistence. |
+***
 
-## 🛠 Tech Stack
+## 🛠 Tech Stack & Tools
 
-### Backend
+### Backend (API Server)
 
-- **Framework:** Spring Boot 4.0.6
-- **Language:** Java 17
-- **Database:** MySQL
-- **Real-time Chat:** Spring Boot WebSockets + STOMP (with JWT authentication)
-- **Authentication:** JWT (JSON Web Token)
-- **Email Service:** Brevo (formerly Sendinblue)
-- **Architecture:** Direct JDBC (`Connection`, `PreparedStatement`) for high performance and low abstraction overhead.
+* **Framework:** Spring Boot 4.0.6 (Java 17)
+* **Database:** MySQL
+* **Real-Time Communication:** Spring Boot WebSockets + STOMP (with JWT channel authentication)
+* **Architecture:** Direct JDBC (`Connection`, `PreparedStatement`) for maximum database control and low-level performance optimization.
+* **Email Dispatch:** Brevo API integration for automated invitations and OTPs.
 
-### Frontend
+### Frontend (SPA Client)
 
-- **Framework:** React 18
-- **Build Tool:** Vite
-- **Routing:** React Router DOM
-- **API Communication:** Fetch API with Vite proxy configuration
+* **Framework:** React 18
+* **Build Engine:** Vite (with server-side API routing proxy)
+* **Routing:** React Router DOM
+* **Linting & Code Quality:** ESLint & Prettier quality rules
 
----
+***
 
-## 🚀 Environment Setup
+## 🏗 System Architecture & Design Decisions
+
+```
+[ Frontend Client: React 18 (Vite) ]
+              │
+              ▼ (REST APIs & STOMP WebSockets via Proxy)
+[ API Gateway / Spring Security Filter (JWT Authentication) ]
+              │
+              ▼
+    [ Spring Controllers ]
+              │
+              ▼
+     [ Service Layer ]
+              │
+              ▼ (Direct JDBC Access)
+  [ Spring JDBC Repositories ]
+              │
+              ▼
+     [ MySQL Database ]
+```
+
+### Architectural Highlights:
+
+* **Zero ORM Overhead:** Direct SQL executions using direct JDBC connections for peak query efficiency, using parameterized statements to eliminate SQL injection risks.
+* **Stateless Authentication:** JWT token authentication with role-based validation (`COORDINATOR`, `EXPERT_INTERNAL`, `EXPERT_EXTERNAL`, `STUDENT_FPT`, `STUDENT_EXTERNAL`).
+* **Standardized Error Handling:** High-integrity Global Exception Handler returning consistent JSON error payloads matching frontend expectation DTOs.
+
+***
+
+## 🚀 Getting Started & Local Setup
 
 ### Prerequisites
 
-- **JDK 17**: Ensure Java 17 is installed and `JAVA_HOME` is set.
-- **Node.js**: v18.x or later is recommended.
-- **MySQL**: A local instance of MySQL Database (v8.0 or later).
-- **Maven**: (Optional) Use the included `./mvnw` wrapper.
+* **Java JDK 17** (Temurin or similar distribution)
+* **Node.js** v20.x or later
+* **MySQL Server** (v8.0+)
+* **Git**
 
-### 1. Database Setup
+### 1. Database Initialization
 
-1. Install and start your MySQL server instance.
-2. Create a new database named `hackathon`.
-3. Locate the MySQL scripts at `database/scripts/schema.sql` and `database/scripts/seeding.sql`.
-4. Run `schema.sql` first to initialize the schema, followed by `seeding.sql` to seed initial data (including users and roles).
+1. Ensure your local MySQL instance is running and create a database named `hackathon`:
+   ```sql
+   CREATE DATABASE hackathon CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   ```
+2. Navigate to `database/scripts/` and run `schema.sql` to generate tables, followed by `seeding.sql` to populate initial users, universities, and event details.
 
-### 2. Backend Configuration
+### 2. Environment Variables Configuration
 
-The backend uses environment variables for sensitive configuration. You can provide these via a `.env.properties` file in the `backend/` directory.
+We manage configurations via a single example template. Refer to [.env.example](file:///C:/Users/Ngo%20Minh%20Thuan/Documents/SU26/SEAL-Hackathon/.env.example) at the repository root for details.
 
-1. Create a file named `.env.properties` in the `backend/` directory.
-2. Add the following required variables:
-
+1. **Backend:** Copy `.env.example` to `backend/.env.properties`:
+   ```bash
+   cp .env.example backend/.env.properties
+   ```
+   Fill in your local MySQL details:
    ```properties
-   # Email service API key
-   BREVO_API_KEY=your_brevo_api_key_here
-
-   # Secret key for JWT signing (minimum 32 characters)
+   DB_HOST=localhost
+   DB_PORT=3306
+   DB_NAME=hackathon
+   DB_USERNAME=root
+   DB_PASSWORD=your_database_password
    JWT_SECRET_KEY=your_very_secret_and_long_jwt_key_here
    ```
+2. **Frontend:** Copy `.env.example` to `frontend/.env.local` to override environment configurations if needed.
 
-3. **Optional Database Overrides**: If your local MySQL instance does not use the default credentials (`root` / `12345`) or port, add:
+### 3. Running the Applications Locally
 
-   ```properties
-   SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/hackathon?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Ho_Chi_Minh&characterEncoding=utf8
-   SPRING_DATASOURCE_USERNAME=your_username
-   SPRING_DATASOURCE_PASSWORD=your_password
-   ```
+#### Start the Spring Boot Backend:
 
-### 3. Frontend Setup
-
-1. Navigate to the `frontend` directory:
-
-   ```bash
-   cd frontend
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
----
-
-## 🏃‍♂️ How to Run
-
-### Start the Backend
-
-From the `backend` directory:
+From the `backend/` directory, use the Maven wrapper:
 
 ```bash
+cd backend
 ./mvnw spring-boot:run
 ```
 
-The server will start at `http://localhost:8080`.
+The backend starts at `http://localhost:8080` (API endpoints available at `/api/*`).
 
-### Start the Frontend
+#### Start the React Frontend:
 
-From the `frontend` directory:
+From the `frontend/` directory, install dependencies and launch Vite:
 
 ```bash
+cd frontend
+npm install
 npm run dev
 ```
 
-The application will be accessible at `http://localhost:5173` (or the port indicated by Vite).
+The frontend starts at `http://localhost:5173`. Vite will proxy API and WebSocket connections to the local backend.
 
----
+***
 
-## 📁 Project Structure
-
-The project is structured as a monorepo containing the backend service, frontend application, database setup scripts, and technical documentation.
+## 📁 Repository Structure
 
 ```text
 SEAL-Hackathon/
+├── .github/                  # GitHub Actions Workflows & Templates
+│   ├── ISSUE_TEMPLATE/       # Templates for Bug & Feature issues
+│   └── workflows/            # CI/CD pipelines (Backend, Frontend, Security)
 ├── backend/                  # Spring Boot backend application
-│   ├── src/                  # Application source code and resource files
-│   └── pom.xml               # Maven dependencies and configuration
+│   ├── src/                  # Application source code & properties
+│   └── pom.xml               # Maven configuration & dependencies
 ├── database/                 # Database initialization scripts
-│   └── scripts/              # SQL schema definition and seeding scripts
-├── docs/                     # Technical specifications and guides
-│   ├── context/              # Architectural diagrams and workflows
-│   ├── functional-specs/     # Functional specifications
-│   └── rules/                # System development rules and protocols
-└── frontend/                 # React single-page application
-    ├── src/                  # React components, pages, and router definitions
-    └── vite.config.js        # Vite configuration and proxy setup
+│   └── scripts/              # SQL schema & seeding scripts
+├── docs/                     # Technical specifications & flow guides
+│   ├── DEPLOY.md             # Multi-environment deployment guide
+│   └── FLOW_DOCUMENTATION.md # End-to-end system sequence breakdown
+└── frontend/                 # React Single Page Application (Vite)
+    ├── src/                  # Components, context, router & utility code
+    └── package.json          # Dependency mappings & tool scripts
 ```
 
-### Directory Overview
+***
 
-*   **`backend/`**: Serves as the core API server powered by Spring Boot. It manages business logic, JWT-based security, WebSocket-based real-time communication, and direct database access.
-*   **`database/`**: Contains the SQL schema definitions and database seeding scripts required to initialize the local development database.
-*   **`docs/`**: Holds functional specifications, context models, and guidelines that describe the system design and project requirements.
-*   **`frontend/`**: Hosts the web client built using React and bundled with Vite. It communicates with the backend via a local API proxy.
+## 🛠 Tooling & Quality Gates (CI/CD)
+
+The project includes structured automation checks executed on every Pull Request:
+
+* **Backend Quality Gate:** Validates compilation and packaging via JDK 17 on Ubuntu.
+* **Frontend Quality Gate:** Executes `npm run lint` and `npm run format:check` to enforce strict formatting standards and clean JS compilation.
+* **Security Scans:** Triggers dependency vulnerability audits (`npm audit` and Maven dependency scans) weekly and on PR merges.
+* **PR Automations:** Includes size checks (labeling PRs from `size/XS` to `size/XL`), stale-issue closers, and auto-labelers.
+
+***
+
+## 🤝 Contributing Guidelines
+
+We welcome contributions! Please review the [CONTRIBUTING.md](CONTRIBUTING.md) guide and read our [DEVELOPMENT\_RULES.md](docs\DEVELOPMENT_RULES.md) documentation prior to submitting a Pull Request.
+
+***
+
+## 📄 License
+
+This repository is private and licensed for academic use within the Software Engineering Department at FPT University Ho Chi Minh City. All rights reserved.

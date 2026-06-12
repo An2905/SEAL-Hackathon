@@ -47,12 +47,9 @@ export default function JudgeScoreModal({ isOpen, assignment, team, onClose, onS
   const [error, setError] = useState('')
 
   const isEdit = Boolean(team?.scored && team?.scoreId)
-  const criteria = criteriaData?.criteria ?? []
+  const criteria = useMemo(() => criteriaData?.criteria ?? [], [criteriaData])
 
-  const previewTotal = useMemo(
-    () => calcPreviewTotal(criteria, form),
-    [criteria, form]
-  )
+  const previewTotal = useMemo(() => calcPreviewTotal(criteria, form), [criteria, form])
 
   useEffect(() => {
     if (!isOpen || !assignment?.roundId || !team) return

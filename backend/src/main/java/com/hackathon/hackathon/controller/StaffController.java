@@ -6,7 +6,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 
-import org.springframework.web.bind.annotation.CrossOrigin;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -53,7 +53,7 @@ import com.hackathon.hackathon.service.StaffService;
 @RestController
 @RequestMapping(value = "/api/staff", produces = MediaType.APPLICATION_JSON_VALUE
         + ";charset=UTF-8")
-@CrossOrigin("*")
+
 public class StaffController {
 
     @Autowired

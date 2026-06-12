@@ -24,10 +24,7 @@ export default function StaffEventsPage() {
         onSuccess={() => setRefreshKey((k) => k + 1)}
       />
 
-      <EventsListSection
-        refreshKey={refreshKey}
-        onStatusChanged={() => setRefreshKey((k) => k + 1)}
-      />
+      <EventsListSection refreshKey={refreshKey} onStatusChanged={() => setRefreshKey((k) => k + 1)} />
     </>
   )
 }

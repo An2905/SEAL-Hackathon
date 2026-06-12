@@ -85,13 +85,9 @@ function mapGroupRow(row) {
 
 function mapRoundRow(row) {
   const winnersPerRoundRaw = row.winnersPerRound ?? row.winners_per_round
-  const winnersPerRoundNum =
-    winnersPerRoundRaw == null || winnersPerRoundRaw === ''
-      ? 1
-      : Number(winnersPerRoundRaw)
+  const winnersPerRoundNum = winnersPerRoundRaw == null || winnersPerRoundRaw === '' ? 1 : Number(winnersPerRoundRaw)
   const winnerCountRaw = row.winnerCount ?? row.winner_count
-  const winnerCountNum =
-    winnerCountRaw == null || winnerCountRaw === '' ? 0 : Number(winnerCountRaw)
+  const winnerCountNum = winnerCountRaw == null || winnerCountRaw === '' ? 0 : Number(winnerCountRaw)
   return {
     roundId: normalizeId(row.roundId ?? row.round_id),
     name: row.name ?? '',
@@ -230,9 +226,7 @@ export function mapGroupColleaguesResponse(data) {
 export function mapCriteriaResponse(data) {
   const r = data && typeof data === 'object' ? data : {}
   const criteria = Array.isArray(r.criteria) ? r.criteria : []
-  const totalWeight =
-    r.totalWeight ??
-    criteria.reduce((sum, c) => sum + (Number(c.weight) || 0), 0)
+  const totalWeight = r.totalWeight ?? criteria.reduce((sum, c) => sum + (Number(c.weight) || 0), 0)
   const totalMaxScore = criteria.reduce((sum, c) => sum + (Number(c.maxScore) || 0), 0)
   return {
     roundId: normalizeId(r.roundId ?? r.round_id),

@@ -340,10 +340,7 @@ function RoundCriteriaModal({ round, isOpen, onClose }) {
 }
 
 export default function CriteriaManager({ rounds = [] }) {
-  const sortedRounds = useMemo(
-    () => [...rounds].sort((a, b) => Number(a.roundOrder) - Number(b.roundOrder)),
-    [rounds]
-  )
+  const sortedRounds = useMemo(() => [...rounds].sort((a, b) => Number(a.roundOrder) - Number(b.roundOrder)), [rounds])
 
   const [activeRound, setActiveRound] = useState(null)
 
@@ -384,11 +381,7 @@ export default function CriteriaManager({ rounds = [] }) {
         ))}
       </div>
 
-      <RoundCriteriaModal
-        round={activeRound}
-        isOpen={!!activeRound}
-        onClose={() => setActiveRound(null)}
-      />
+      <RoundCriteriaModal round={activeRound} isOpen={!!activeRound} onClose={() => setActiveRound(null)} />
     </section>
   )
 }

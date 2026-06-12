@@ -313,22 +313,10 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
           />
         </FormField>
         <FormField label='Ngày bắt đầu'>
-          <input
-            type='datetime-local'
-            name='startDate'
-            value={form.startDate}
-            onChange={handle}
-            disabled={loading}
-          />
+          <input type='datetime-local' name='startDate' value={form.startDate} onChange={handle} disabled={loading} />
         </FormField>
         <FormField label='Ngày kết thúc'>
-          <input
-            type='datetime-local'
-            name='endDate'
-            value={form.endDate}
-            onChange={handle}
-            disabled={loading}
-          />
+          <input type='datetime-local' name='endDate' value={form.endDate} onChange={handle} disabled={loading} />
         </FormField>
         <FormField label='Số đội tối đa'>
           <input
@@ -342,14 +330,7 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
           />
         </FormField>
         <FormField label='Số vòng thi dự kiến'>
-          <input
-            type='number'
-            name='numRounds'
-            value={form.numRounds}
-            onChange={handle}
-            min={1}
-            disabled={loading}
-          />
+          <input type='number' name='numRounds' value={form.numRounds} onChange={handle} min={1} disabled={loading} />
         </FormField>
         <LoadingButton loading={loading} type='submit'>
           Tạo sự kiện
@@ -605,9 +586,7 @@ export function EventsListSection({ refreshKey = 0, onStatusChanged, onPendingTo
             items={filteredEvents}
             getItemKey={(ev) => ev.eventId}
             renderItem={(ev) => (
-              <div
-                className={`kv event-list-item${Number(ev.pendingTeams) > 0 ? ' has-pending-badge' : ''}`}
-              >
+              <div className={`kv event-list-item${Number(ev.pendingTeams) > 0 ? ' has-pending-badge' : ''}`}>
                 <PendingTeamsBadge count={ev.pendingTeams} />
                 <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
                   <div style={{ fontWeight: 600, color: 'var(--text)' }}>{ev.title || '—'}</div>
@@ -677,6 +656,7 @@ export function AccountsListSection({ refreshKey = 0 }) {
 
   useEffect(() => {
     fetchAccounts(role, search)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchAccounts, refreshKey])
 
   const handleRoleChange = (e) => {
@@ -801,11 +781,7 @@ export default function StaffDashboard() {
         <h2>Tạo tài khoản</h2>
       </div>
       <div style={{ marginBottom: 16 }}>
-        <button
-          type='button'
-          className='btn btn-primary'
-          onClick={() => setShowCreateAccountModal(true)}
-        >
+        <button type='button' className='btn btn-primary' onClick={() => setShowCreateAccountModal(true)}>
           Tạo tài khoản Khách
         </button>
       </div>

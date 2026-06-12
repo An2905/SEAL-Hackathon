@@ -215,9 +215,7 @@ export default function JudgeDashboard() {
               <div className='kv'>
                 <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
                   <div style={{ fontWeight: 600, color: 'var(--text)' }}>{rd.roundName || '—'}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
-                    {rd.eventTitle || '—'}
-                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{rd.eventTitle || '—'}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2 }}>
                     {formatDateTime(rd.startDate)} → {formatDateTime(rd.endDate)}
                   </div>
@@ -235,9 +233,7 @@ export default function JudgeDashboard() {
       </div>
       <div className='card'>
         {loadingAssignments && <div className='empty-state'>Đang tải phân công…</div>}
-        {!loadingAssignments && errorAssignments && (
-          <div className='empty-state'>{errorAssignments}</div>
-        )}
+        {!loadingAssignments && errorAssignments && <div className='empty-state'>{errorAssignments}</div>}
         {!loadingAssignments && !errorAssignments && assignments.length === 0 && (
           <div className='empty-state'>Bạn chưa được phân công bảng nào.</div>
         )}
@@ -262,11 +258,7 @@ export default function JudgeDashboard() {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <ExpertGroupColleaguesBoard
-                colleagues={colleagues}
-                loading={loadingColleagues}
-                error={errorColleagues}
-              />
+              <ExpertGroupColleaguesBoard colleagues={colleagues} loading={loadingColleagues} error={errorColleagues} />
             </div>
 
             {loadingTeams && <div className='empty-state'>Đang tải danh sách đội…</div>}
@@ -328,10 +320,7 @@ export default function JudgeDashboard() {
             <span className='hint'>Tiêu chí cho vòng đang chọn</span>
           </div>
           <div className='card'>
-            <JudgeCriteriaPanel
-              roundId={selectedAssignment.roundId}
-              roundName={selectedAssignment.roundName}
-            />
+            <JudgeCriteriaPanel roundId={selectedAssignment.roundId} roundName={selectedAssignment.roundName} />
           </div>
         </>
       )}
