@@ -18,7 +18,7 @@ export async function createStaffAccount({ email, fullName, role }) {
     method: 'POST',
     body: { email, fullName, role }
   })
-  if (!/account created.*email sent successfully/i.test(text)) throw new Error(text)
+  if (!/account created successfully/i.test(text)) throw new Error(text)
   return true
 }
 
@@ -177,50 +177,6 @@ export async function assignMentor({ userId, roundId, groupId }) {
   })
   if (!/mentor assigned successfully/i.test(text)) throw new Error(text)
   return true
-}
-
-// POST /api/staff/announcements/send-all
-// Body: { title, content }
-// Response: { totalRecipients: "42", status: "SENT" }
-export async function sendAnnouncementToAll({ title, content }) {
-  const t = title.trim()
-  const c = content.trim()
-  if (!t || !c) throw new Error('Tiêu đề và nội dung không được để trống')
-
-  const text = await apiFetch('/api/staff/announcements/send-all', {
-    method: 'POST',
-    body: { title: t, content: c }
-  })
-  try {
-    const data = JSON.parse(text)
-    return data // { totalRecipients, status }
-  } catch {
-    throw new Error(text || 'Gửi thông báo thất bại')
-  }
-}
-
-// POST /api/staff/announcements/send-participant
-// Body: { eventId, title, content, roles: string[] }
-// Response: { announcementId, totalRecipients, createdAt, status }
-export async function sendAnnouncementToParticipants({ eventId, title, content, roles }) {
-  const id = normalizeEventId(eventId)
-  if (!id) throw new Error('Vui lòng chọn sự kiện')
-
-  const t = title.trim()
-  const c = content.trim()
-  if (!t || !c) throw new Error('Tiêu đề và nội dung không được để trống')
-  if (!Array.isArray(roles) || roles.length === 0) throw new Error('Vui lòng chọn ít nhất một vai trò nhận thông báo')
-
-  const text = await apiFetch('/api/staff/announcements/send-participant', {
-    method: 'POST',
-    body: { eventId: id, title: t, content: c, roles }
-  })
-  try {
-    const data = JSON.parse(text)
-    return data // { announcementId, totalRecipients, createdAt, status }
-  } catch {
-    throw new Error(text || 'Gửi thông báo thất bại')
-  }
 }
 
 // GET /api/staff/events/export

@@ -151,10 +151,10 @@ export function CreateStaffAccountForm({ open, onClose, onSuccess }) {
       await createStaffAccount({ email, fullName, role: form.role })
       const createdLabel = roleUiLabel(form.role) || 'Khách'
       setMessage({
-        text: `Đã tạo tài khoản ${createdLabel} cho ${email}. Mật khẩu tạm đã được gửi qua email.`,
+        text: `Đã tạo tài khoản ${createdLabel} cho ${email}.`,
         type: 'success'
       })
-      showToast('Đã tạo tài khoản & gửi email mời', 'success')
+      showToast(`Đã tạo tài khoản ${createdLabel}`, 'success')
       setForm({ email: '', fullName: '', role: form.role })
       onSuccess?.(`Tạo tài khoản ${createdLabel} — ${email}`)
       onClose?.()
@@ -170,7 +170,7 @@ export function CreateStaffAccountForm({ open, onClose, onSuccess }) {
       isOpen={open}
       onClose={onClose}
       title='Tạo tài khoản Khách'
-      subtitle='Khách có thể được phân công làm Mentor và/hoặc Judge theo từng sự kiện. Hệ thống sinh mật khẩu tạm và gửi email mời.'
+      subtitle='Khách có thể được phân công làm Mentor và/hoặc Judge theo từng sự kiện. Hệ thống sinh mật khẩu tạm khi tạo tài khoản.'
     >
       <form className='form' onSubmit={handleSubmit}>
         <FormField label='Họ và tên'>
@@ -201,7 +201,7 @@ export function CreateStaffAccountForm({ open, onClose, onSuccess }) {
           </select>
         </FormField>
         <LoadingButton loading={loading} type='submit'>
-          Tạo tài khoản &amp; gửi email
+          Tạo tài khoản
         </LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
       </form>

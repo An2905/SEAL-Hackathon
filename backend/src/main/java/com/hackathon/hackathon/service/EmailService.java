@@ -36,26 +36,6 @@ public class EmailService {
         return sendEmail(toEmail, "Register OTP", "<h2>Your OTP is: " + escapeHtml(otp) + "</h2>");
     }
 
-    public boolean sendStaffAccountInvite(
-            String toEmail,
-            String fullName,
-            String password,
-            String role) {
-        String subject = "SEAL Hackathon — Tài khoản " + role;
-        String html = "<h2>Xin chào " + escapeHtml(fullName) + "</h2>"
-                + "<p>Tài khoản <b>" + escapeHtml(role) + "</b> của bạn đã được tạo trên hệ thống SEAL Hackathon.</p>"
-                + "<p><b>Email đăng nhập:</b> " + escapeHtml(toEmail) + "</p>"
-                + "<p><b>Mật khẩu tạm:</b> " + escapeHtml(password) + "</p>"
-                + "<p>Sau khi đăng nhập, vui lòng vào <b>Cập nhật hồ sơ</b> để bổ sung <b>số điện thoại</b> liên hệ và đổi mật khẩu nếu cần.</p>"
-                + "<p>Trân trọng,<br/>Ban tổ chức SEAL Hackathon</p>";
-        return sendEmail(toEmail, subject, html);
-    }
-
-    public boolean sendAnnouncement(String toEmail, String fullName, String title, String content) {
-        String html = "<h2>Xin chào " + escapeHtml(fullName) + "</h2><p>" + escapeHtml(content) + "</p>";
-        return sendEmail(toEmail, title, html);
-    }
-
     private boolean sendEmail(String toEmail, String subject, String htmlContent) {
         if (brevoApiKey == null || brevoApiKey.isBlank()) {
             System.err.println("BREVO_API_KEY is not configured in backend/.env.properties");

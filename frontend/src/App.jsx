@@ -7,7 +7,6 @@ import StudentDashboard from './pages/dashboards/StudentDashboard'
 import StaffLayout from './pages/dashboards/staff/StaffLayout'
 import StaffOverviewPage from './pages/dashboards/staff/StaffOverviewPage'
 import StaffAccountsPage from './pages/dashboards/staff/StaffAccountsPage'
-import StaffAnnouncementsPage from './pages/dashboards/staff/StaffAnnouncementsPage'
 import StaffUniversitiesPage from './pages/dashboards/staff/StaffUniversitiesPage'
 import StaffEventsPage from './pages/dashboards/staff/StaffEventsPage'
 import StaffAssignPage from './pages/dashboards/staff/StaffAssignPage'
@@ -45,7 +44,6 @@ export default function App() {
             <Route path='accounts' element={<StaffAccountsPage />} />
             <Route path='events' element={<StaffEventsPage />} />
             <Route path='assign' element={<StaffAssignPage />} />
-            <Route path='announcements' element={<StaffAnnouncementsPage />} />
             <Route path='universities' element={<StaffUniversitiesPage />} />
           </Route>
 

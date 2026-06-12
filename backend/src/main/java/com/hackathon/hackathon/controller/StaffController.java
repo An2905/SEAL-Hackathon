@@ -25,9 +25,6 @@ import com.hackathon.hackathon.model.dto.request.ChangeTeamRegistrationStatusReq
 import com.hackathon.hackathon.model.dto.request.CreateEventRequest;
 import com.hackathon.hackathon.model.dto.request.CreateStaffAccountRequest;
 import com.hackathon.hackathon.model.dto.response.CreateEventResponse;
-import com.hackathon.hackathon.model.dto.request.SendAllAnnouncementRequest;
-import com.hackathon.hackathon.model.dto.request.SendParticipantAnnouncementRequest;
-import com.hackathon.hackathon.model.dto.response.AnnouncementResponse;
 import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
 import com.hackathon.hackathon.model.dto.request.AssignMentorGroupRequest;
 import com.hackathon.hackathon.model.dto.request.CreateUniversityRequest;
@@ -46,7 +43,6 @@ import com.hackathon.hackathon.model.dto.response.DeleteUniversityPreviewRespons
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.dto.response.StaffUniversityItemResponse;
 import com.hackathon.hackathon.model.dto.response.UniversityResponse;
-import com.hackathon.hackathon.service.CheckInService;
 import com.hackathon.hackathon.service.EventService;
 import com.hackathon.hackathon.service.StaffService;
 
@@ -61,9 +57,6 @@ public class StaffController {
 
     @Autowired
     private EventService eventService;
-
-    @Autowired
-    private CheckInService checkInService;
 
     @PostMapping("/register")
     public ResponseEntity<String> registerAccount(@RequestHeader("Authorization") String authHeader,
@@ -126,20 +119,6 @@ public class StaffController {
             @RequestBody ChangeTeamRegistrationStatusRequest request) {
         String result = staffService.changeTeamRegistrationStatus(authHeader, request);
         return ResponseEntity.ok(result);
-    }
-
-    @PostMapping("/announcements/send-all")
-    public ResponseEntity<AnnouncementResponse> sendAnnouncementToAll(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestBody SendAllAnnouncementRequest request) {
-        return ResponseEntity.ok(staffService.sendAnnouncementToAll(authHeader, request));
-    }
-
-    @PostMapping("/announcements/send-participant")
-    public ResponseEntity<AnnouncementResponse> sendAnnouncementToParticipants(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestBody SendParticipantAnnouncementRequest request) {
-        return ResponseEntity.ok(staffService.sendAnnouncementToParticipants(authHeader, request));
     }
 
     @PostMapping("/assign/judge")
@@ -234,20 +213,20 @@ public class StaffController {
     public ResponseEntity<CheckInPageResponse> getCheckInPage(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam String eventId) {
-        return ResponseEntity.ok(checkInService.getCheckInPage(authHeader, eventId));
+        return ResponseEntity.ok(eventService.getCheckInPage(authHeader, eventId));
     }
 
     @PutMapping("/check-in/team")
     public ResponseEntity<CheckInTeamResponse> setTeamCheckIn(
             @RequestHeader("Authorization") String authHeader,
             @RequestBody CheckInTeamRequest request) {
-        return ResponseEntity.ok(checkInService.setTeamCheckIn(authHeader, request));
+        return ResponseEntity.ok(eventService.setTeamCheckIn(authHeader, request));
     }
 
     @PutMapping("/check-in/member")
     public ResponseEntity<CheckInTeamResponse> setMemberCheckIn(
             @RequestHeader("Authorization") String authHeader,
             @RequestBody CheckInMemberRequest request) {
-        return ResponseEntity.ok(checkInService.setMemberCheckIn(authHeader, request));
+        return ResponseEntity.ok(eventService.setMemberCheckIn(authHeader, request));
     }
 }
