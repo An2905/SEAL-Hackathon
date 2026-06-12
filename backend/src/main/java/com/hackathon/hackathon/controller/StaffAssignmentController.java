@@ -21,7 +21,7 @@ import com.hackathon.hackathon.service.StaffService;
 
 @RestController
 @RequestMapping(value = "/api/staff/assign", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
-@CrossOrigin("*")
+
 public class StaffAssignmentController {
 
     @Autowired

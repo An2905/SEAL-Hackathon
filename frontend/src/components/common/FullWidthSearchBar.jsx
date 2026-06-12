@@ -13,10 +13,7 @@ export default function FullWidthSearchBar({
   }
 
   return (
-    <form
-      className={`fullwidth-search-bar${className ? ` ${className}` : ''}`}
-      onSubmit={handleSubmit}
-    >
+    <form className={`fullwidth-search-bar${className ? ` ${className}` : ''}`} onSubmit={handleSubmit}>
       <input
         type='search'
         className='fullwidth-search-bar-input'

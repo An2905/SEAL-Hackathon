@@ -53,7 +53,7 @@ import com.hackathon.hackathon.service.StaffService;
 @RestController
 @RequestMapping(value = "/api/staff", produces = MediaType.APPLICATION_JSON_VALUE
         + ";charset=UTF-8")
-@CrossOrigin("*")
+
 public class StaffController {
 
     @Autowired

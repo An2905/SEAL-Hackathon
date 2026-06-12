@@ -20,7 +20,7 @@ import com.hackathon.hackathon.service.MentorService;
 
 @RestController
 @RequestMapping("/api/mentor")
-@CrossOrigin("*")
+
 public class MentorController {
     private final MentorService mentorService;
 

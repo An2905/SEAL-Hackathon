@@ -19,7 +19,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister, onSwit
   const [message, setMessage] = useState(null)
   const [form, setForm] = useState({ email: '', password: '' })
 
-  const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
+  const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -53,25 +53,62 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister, onSwit
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Đăng nhập" subtitle="Chào mừng quay lại! Hãy đăng nhập để tiếp tục.">
-      <form className="form" onSubmit={handleSubmit} noValidate>
-        <FormField label="Email">
-          <input type="email" name="email" value={form.email} onChange={handleChange}
-            required placeholder="ban@fpt.edu.vn" autoComplete="email" />
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title='Đăng nhập'
+      subtitle='Chào mừng quay lại! Hãy đăng nhập để tiếp tục.'
+    >
+      <form className='form' onSubmit={handleSubmit} noValidate>
+        <FormField label='Email'>
+          <input
+            type='email'
+            name='email'
+            value={form.email}
+            onChange={handleChange}
+            required
+            placeholder='ban@fpt.edu.vn'
+            autoComplete='email'
+          />
         </FormField>
-        <FormField label="Mật khẩu">
-          <input type="password" name="password" value={form.password} onChange={handleChange}
-            required placeholder="••••••••" autoComplete="current-password" />
+        <FormField label='Mật khẩu'>
+          <input
+            type='password'
+            name='password'
+            value={form.password}
+            onChange={handleChange}
+            required
+            placeholder='••••••••'
+            autoComplete='current-password'
+          />
         </FormField>
         <RecaptchaField />
-        <LoadingButton loading={loading} type="submit">Đăng nhập</LoadingButton>
+        <LoadingButton loading={loading} type='submit'>
+          Đăng nhập
+        </LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
-        <p className="form-footer">
-          <a href="#" onClick={(e) => { e.preventDefault(); onSwitchToReset?.() }}>Quên mật khẩu?</a>
+        <p className='form-footer'>
+          <a
+            href='#'
+            onClick={(e) => {
+              e.preventDefault()
+              onSwitchToReset?.()
+            }}
+          >
+            Quên mật khẩu?
+          </a>
         </p>
-        <p className="form-footer">
+        <p className='form-footer'>
           Chưa có tài khoản?{' '}
-          <a href="#" onClick={(e) => { e.preventDefault(); onSwitchToRegister() }}>Đăng ký ngay</a>
+          <a
+            href='#'
+            onClick={(e) => {
+              e.preventDefault()
+              onSwitchToRegister()
+            }}
+          >
+            Đăng ký ngay
+          </a>
         </p>
       </form>
     </Modal>

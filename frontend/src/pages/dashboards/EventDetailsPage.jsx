@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import DashboardShell from './DashboardShell'
@@ -299,7 +300,6 @@ function EventBoardCreateGroupModal({ eventId, rounds, isOpen, onClose, onCreate
   )
 }
 
-
 function filterAssignmentsForGroup(assignments, group) {
   if (!group?.groupId) return []
   return (assignments ?? []).filter(
@@ -308,8 +308,7 @@ function filterAssignmentsForGroup(assignments, group) {
 }
 
 function GroupStaffAssignmentsPanel({ eventId, mentors = [], judges = [] }) {
-  const renderStaffName = (item, nameKey, emailKey, idKey) =>
-    item[nameKey] || item[emailKey] || item[idKey] || '—'
+  const renderStaffName = (item, nameKey, emailKey, idKey) => item[nameKey] || item[emailKey] || item[idKey] || '—'
 
   return (
     <div className='event-group-staff-panel' style={{ marginBottom: 16 }}>
@@ -348,9 +347,7 @@ function GroupStaffAssignmentsPanel({ eventId, mentors = [], judges = [] }) {
                 <span className='event-group-staff-name'>
                   {renderStaffName(j, 'judgeName', 'judgeEmail', 'judgeId')}
                 </span>
-                {j.judgeEmail && j.judgeName ? (
-                  <span className='event-group-staff-email'>{j.judgeEmail}</span>
-                ) : null}
+                {j.judgeEmail && j.judgeName ? <span className='event-group-staff-email'>{j.judgeEmail}</span> : null}
               </li>
             )}
           />
@@ -379,7 +376,8 @@ function EventBoardGroupDetailModal({
   onClose,
   onUpdated,
   onDeleted
-}) {  const { showToast } = useToast()
+}) {
+  const { showToast } = useToast()
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [teamsLoading, setTeamsLoading] = useState(false)
@@ -445,13 +443,9 @@ function EventBoardGroupDetailModal({
     return () => {
       cancelled = true
     }
-  }, [isOpen, group, eventId])
+  }, [isOpen, group, eventId, syncTeamsState])
 
-
-  const groupRound = useMemo(
-    () => rounds.find((r) => r.roundId === group?.roundId) ?? null,
-    [group?.roundId, rounds]
-  )
+  const groupRound = useMemo(() => rounds.find((r) => r.roundId === group?.roundId) ?? null, [group?.roundId, rounds])
 
   const roundLabel = useMemo(() => {
     if (!group) return '—'
@@ -459,12 +453,9 @@ function EventBoardGroupDetailModal({
     return groupRound ? roundDisplayLabel(groupRound) : '—'
   }, [group, groupRound])
 
-
   const isFirstRound = Number(groupRound?.roundOrder ?? 1) <= 1
   const addTeamLabel = isFirstRound ? 'Thêm đội đã duyệt' : 'Thêm đội winner vòng trước'
-  const noTeamsHint = isFirstRound
-    ? 'Không còn đội khả dụng'
-    : 'Không còn đội winner vòng trước khả dụng'
+  const noTeamsHint = isFirstRound ? 'Không còn đội khả dụng' : 'Không còn đội winner vòng trước khả dụng'
 
   const groupMentors = useMemo(() => filterAssignmentsForGroup(assignedMentors, group), [assignedMentors, group])
   const groupJudges = useMemo(() => filterAssignmentsForGroup(assignedJudges, group), [assignedJudges, group])
@@ -598,7 +589,9 @@ function EventBoardGroupDetailModal({
 
           <GroupStaffAssignmentsPanel eventId={eventId} mentors={groupMentors} judges={groupJudges} />
 
-          <div className='event-group-teams-panel' style={{ marginBottom: 16 }}>            <h4 className='section-subtitle'>Đội trong bảng</h4>
+          <div className='event-group-teams-panel' style={{ marginBottom: 16 }}>
+            {' '}
+            <h4 className='section-subtitle'>Đội trong bảng</h4>
             {teamsLoading ? (
               <p className='muted'>Đang tải danh sách đội…</p>
             ) : assignedTeams.length === 0 ? (
@@ -630,8 +623,6 @@ function EventBoardGroupDetailModal({
                 )}
               />
             )}
-
-
             <div style={{ marginTop: 12 }}>
               <FormField label={addTeamLabel}>
                 <div
@@ -648,7 +639,8 @@ function EventBoardGroupDetailModal({
                     disabled={busy || teamsLoading || availableTeams.length === 0}
                     style={{ flex: '1 1 200px', minWidth: 0 }}
                   >
-                    <option value=''>{availableTeams.length === 0 ? noTeamsHint : 'Chọn đội…'}</option>                    {availableTeams.map((team) => (
+                    <option value=''>{availableTeams.length === 0 ? noTeamsHint : 'Chọn đội…'}</option>{' '}
+                    {availableTeams.map((team) => (
                       <option key={team.teamId} value={team.teamId}>
                         {team.teamName || team.teamId}
                       </option>
@@ -966,7 +958,6 @@ function EventBoardSection({
     [event?.rounds]
   )
 
-
   const groupsByRound = useMemo(() => {
     const map = new Map()
     for (const group of event?.groups ?? []) {
@@ -1017,7 +1008,6 @@ function EventBoardSection({
               <div className='event-board-row-groups'>
                 {groups.length ? (
                   <div className='event-board-groups-track'>
-
                     {groups.map((group) => {
                       const staffCounts = staffCountByGroup.get(`${group.roundId}:${group.groupId}`) ?? {
                         mentors: 0,
@@ -1040,7 +1030,8 @@ function EventBoardSection({
                           </div>
                         </button>
                       )
-                    })}                  </div>
+                    })}{' '}
+                  </div>
                 ) : (
                   <div className='event-board-groups-empty'>Chưa có bảng thi</div>
                 )}
@@ -1065,7 +1056,6 @@ function EventBoardSection({
           </div>
         </div>
       )}
-
       <div className='event-board-row event-board-row-add'>
         <div className='event-board-row-round'>
           <button type='button' className='event-board-add-btn' onClick={() => setRoundModalOpen(true)}>
@@ -1079,7 +1069,6 @@ function EventBoardSection({
         </div>
         <div className='event-board-row-winner' />
       </div>
-
       <EventBoardCreateRoundModal
         eventId={event.eventId}
         isOpen={roundModalOpen}
@@ -1104,7 +1093,6 @@ function EventBoardSection({
         onUpdated={onRoundUpdated}
         onDeleted={onRoundDeleted}
       />
-
       <EventBoardGroupDetailModal
         eventId={event.eventId}
         group={groupDetailGroup}
@@ -1118,7 +1106,8 @@ function EventBoardSection({
         }}
         onUpdated={onGroupUpdated}
         onDeleted={onGroupDeleted}
-      />    </section>
+      />{' '}
+    </section>
   )
 }
 
@@ -1179,24 +1168,6 @@ function buildSetupWarnings(event) {
   }
 
   return warnings
-}
-
-function StatRow({ label, count, badgeCount, setupWarning, onOpen }) {
-  return (
-    <div className='event-stat-row'>
-      <PendingTeamsBadge count={badgeCount} />
-      <SetupWarningBadge title={setupWarning} />
-      <button type='button' className='event-stat-row-trigger' onClick={onOpen} aria-haspopup='dialog'>
-        <span className='event-stat-row-label'>{label}</span>
-        <span className='event-stat-row-value'>
-          <span className='event-stat-row-count'>{count ?? '0'}</span>
-          <span className='event-stat-row-action' aria-hidden='true'>
-            ›
-          </span>
-        </span>
-      </button>
-    </div>
-  )
 }
 
 function registrationStatusPillClass(status) {
@@ -1687,12 +1658,7 @@ function GroupsDropdownContent({ eventId, groups, onGroupDeleted, onGroupUpdated
           items={groups}
           getItemKey={(group) => group.groupId}
           renderItem={(group) => (
-            <GroupStatItem
-              eventId={eventId}
-              group={group}
-              onUpdated={onGroupUpdated}
-              onDeleted={onGroupDeleted}
-            />
+            <GroupStatItem eventId={eventId} group={group} onUpdated={onGroupUpdated} onDeleted={onGroupDeleted} />
           )}
         />
       )}
@@ -1713,12 +1679,7 @@ function RoundsDropdownContent({ eventId, rounds, onRoundDeleted, onRoundUpdated
           items={rounds}
           getItemKey={(round) => round.roundId}
           renderItem={(round) => (
-            <RoundStatItem
-              eventId={eventId}
-              round={round}
-              onUpdated={onRoundUpdated}
-              onDeleted={onRoundDeleted}
-            />
+            <RoundStatItem eventId={eventId} round={round} onUpdated={onRoundUpdated} onDeleted={onRoundDeleted} />
           )}
         />
       )}
@@ -2502,12 +2463,7 @@ function AwardsDropdownContent({ eventId, awards = [], onAwardCreated, onAwardUp
           items={awards}
           getItemKey={(award) => award.awardId}
           renderItem={(award) => (
-            <AwardStatItem
-              eventId={eventId}
-              award={award}
-              onUpdated={onAwardUpdated}
-              onDeleted={onAwardDeleted}
-            />
+            <AwardStatItem eventId={eventId} award={award} onUpdated={onAwardUpdated} onDeleted={onAwardDeleted} />
           )}
         />
       )}
@@ -2564,7 +2520,6 @@ export default function EventDetailsPage() {
   const [event, setEvent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [statPopup, setStatPopup] = useState(null)
 
   const loadEvent = useCallback(async () => {
     setLoading(true)
@@ -2833,100 +2788,6 @@ export default function EventDetailsPage() {
     })
   }
 
-  const pendingTeamsCount = countPendingTeams(event?.teams)
-  const setupWarnings = event ? buildSetupWarnings(event) : {}
-
-  const statPopupMeta = event
-    ? {
-        teams: {
-          title: 'Đội tham gia',
-          count: event.totalTeams
-        },
-        groups: {
-          title: 'Bảng thi',
-          count: event.totalGroups
-        },
-        rounds: {
-          title: 'Vòng thi',
-          count: event.totalRounds
-        },
-        mentors: {
-          title: 'Mentor',
-          count: String(event.assignedMentors?.length ?? 0)
-        },
-        judges: {
-          title: 'Judge',
-          count: String(event.assignedJudges?.length ?? 0)
-        },
-        awards: {
-          title: 'Giải thưởng',
-          count: event.totalAwards
-        }
-      }
-    : {}
-
-  function renderStatPopupBody() {
-    if (!event || !statPopup) return null
-    switch (statPopup) {
-      case 'teams':
-        return <TeamsDropdownContent teams={event.teams} onUpdated={handleTeamRegistrationUpdated} />
-      case 'groups':
-        return (
-          <GroupsDropdownContent
-            eventId={event.eventId}
-            groups={event.groups}
-            onGroupDeleted={handleGroupDeleted}
-            onGroupUpdated={handleGroupUpdated}
-          />
-        )
-      case 'rounds':
-        return (
-          <RoundsDropdownContent
-            eventId={event.eventId}
-            rounds={event.rounds}
-            onRoundDeleted={handleRoundDeleted}
-            onRoundUpdated={handleRoundUpdated}
-          />
-        )
-      case 'mentors':
-        return (
-          <MentorsDropdownContent
-            eventId={event.eventId}
-            assignedMentors={event.assignedMentors}
-            rounds={event.rounds}
-            groups={event.groups}
-            onUpdated={handleMentorUpdated}
-            onDeleted={handleMentorDeleted}
-          />
-        )
-      case 'judges':
-        return (
-          <JudgesDropdownContent
-            eventId={event.eventId}
-            assignedJudges={event.assignedJudges}
-            rounds={event.rounds}
-            groups={event.groups}
-            onUpdated={handleJudgeUpdated}
-            onDeleted={handleJudgeDeleted}
-          />
-        )
-      case 'awards':
-        return (
-          <AwardsDropdownContent
-            eventId={event.eventId}
-            awards={event.awards}
-            onAwardCreated={handleAwardCreated}
-            onAwardUpdated={handleAwardUpdated}
-            onAwardDeleted={handleAwardDeleted}
-          />
-        )
-      default:
-        return null
-    }
-  }
-
-  const activeStat = statPopup ? statPopupMeta[statPopup] : null
-
   return (
     <DashboardShell roleLabel='Staff' title='Chi tiết sự kiện' subtitle='Thông tin đầy đủ của hackathon.' role='Staff'>
       <div className='action-row' style={{ marginBottom: 16 }}>
@@ -2973,7 +2834,6 @@ export default function EventDetailsPage() {
           />
 
           <div style={{ marginTop: 24 }}>
-
             <CriteriaManager rounds={event.rounds ?? []} />
           </div>
         </div>

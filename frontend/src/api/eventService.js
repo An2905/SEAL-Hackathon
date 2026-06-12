@@ -36,14 +36,7 @@ export async function createEventGroup({ eventId, roundId, name, maxTeams }) {
 
 // POST /api/staff/events/rounds
 // Body: { eventId, name, startDate, endDate, submissionDeadline }
-export async function createEventRound({
-  eventId,
-  name,
-  startDate,
-  endDate,
-  submissionDeadline,
-  winnersPerRound
-}) {
+export async function createEventRound({ eventId, name, startDate, endDate, submissionDeadline, winnersPerRound }) {
   const id = normalizeEventId(eventId)
   if (!id) throw new Error('Sự kiện không hợp lệ')
 
@@ -79,8 +72,7 @@ export async function createEventRound({
     roundOrder: String(data.roundOrder ?? data.round_order ?? ''),
     startDate: data.startDate ?? data.start_date ?? startDate,
     endDate: data.endDate ?? data.end_date ?? endDate,
-    submissionDeadline:
-      data.submissionDeadline ?? data.submission_deadline ?? submissionDeadline
+    submissionDeadline: data.submissionDeadline ?? data.submission_deadline ?? submissionDeadline
   }
 }
 
@@ -131,8 +123,7 @@ function mapTeamItem(data) {
 
 function mapGroupTeamsResponse(data, fallback = {}) {
   const teamCountRaw = data.teamCount ?? data.team_count ?? fallback.teamCount
-  const teamCountNum =
-    teamCountRaw == null || teamCountRaw === '' ? 0 : Number(teamCountRaw)
+  const teamCountNum = teamCountRaw == null || teamCountRaw === '' ? 0 : Number(teamCountRaw)
   const assignedRaw = data.assigned ?? data.Assigned ?? []
   const availableRaw = data.available ?? data.Available ?? []
   return {
@@ -207,15 +198,10 @@ function mapGroupResponse(data, fallback = {}) {
 }
 
 function mapRoundResponse(data, fallback = {}) {
-  const winnersPerRoundRaw =
-    data.winnersPerRound ?? data.winners_per_round ?? fallback.winnersPerRound
-  const winnersPerRoundNum =
-    winnersPerRoundRaw == null || winnersPerRoundRaw === ''
-      ? 1
-      : Number(winnersPerRoundRaw)
+  const winnersPerRoundRaw = data.winnersPerRound ?? data.winners_per_round ?? fallback.winnersPerRound
+  const winnersPerRoundNum = winnersPerRoundRaw == null || winnersPerRoundRaw === '' ? 1 : Number(winnersPerRoundRaw)
   const winnerCountRaw = data.winnerCount ?? data.winner_count ?? fallback.winnerCount
-  const winnerCountNum =
-    winnerCountRaw == null || winnerCountRaw === '' ? 0 : Number(winnerCountRaw)
+  const winnerCountNum = winnerCountRaw == null || winnerCountRaw === '' ? 0 : Number(winnerCountRaw)
   return {
     roundId: String(data.roundId ?? data.round_id ?? fallback.roundId ?? ''),
     eventId: String(data.eventId ?? data.event_id ?? fallback.eventId ?? ''),
@@ -223,8 +209,7 @@ function mapRoundResponse(data, fallback = {}) {
     roundOrder: String(data.roundOrder ?? data.round_order ?? fallback.roundOrder ?? ''),
     startDate: data.startDate ?? data.start_date ?? fallback.startDate ?? '',
     endDate: data.endDate ?? data.end_date ?? fallback.endDate ?? '',
-    submissionDeadline:
-      data.submissionDeadline ?? data.submission_deadline ?? fallback.submissionDeadline ?? '',
+    submissionDeadline: data.submissionDeadline ?? data.submission_deadline ?? fallback.submissionDeadline ?? '',
     winnersPerRound: Number.isFinite(winnersPerRoundNum) ? winnersPerRoundNum : 1,
     winnerCount: Number.isFinite(winnerCountNum) ? winnerCountNum : 0
   }
@@ -352,23 +337,16 @@ function mapEventUpdateResponse(data, fallback = {}) {
 }
 
 // PUT /api/staff/events
-export async function updateEvent({
-  eventId,
-  title,
-  description,
-  startDate,
-  endDate,
-  status,
-  maxTeams,
-  numRounds
-}) {
+export async function updateEvent({ eventId, title, description, startDate, endDate, status, maxTeams, numRounds }) {
   const id = normalizeEventId(eventId)
   if (!id) throw new Error('Sự kiện không hợp lệ')
 
   const t = String(title ?? '').trim()
   if (!t) throw new Error('Tên sự kiện không được để trống')
 
-  const nextStatus = String(status ?? '').trim().toUpperCase()
+  const nextStatus = String(status ?? '')
+    .trim()
+    .toUpperCase()
   if (!['BUILDING', 'UPCOMING', 'ONGOING', 'COMPLETED'].includes(nextStatus)) {
     throw new Error('Trạng thái phải là BUILDING, UPCOMING, ONGOING hoặc COMPLETED')
   }

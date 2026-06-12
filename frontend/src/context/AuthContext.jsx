@@ -75,7 +75,9 @@ export function AuthProvider({ children }) {
   const pillLabelForRole = (role) => (role && role in ROLE_UI_LABELS ? ROLE_UI_LABELS[role] : null)
 
   return (
-    <AuthContext.Provider value={{ auth, saveAuth, clearAuth, isLoggedIn, pathForRole, labelForRole, pillLabelForRole }}>
+    <AuthContext.Provider
+      value={{ auth, saveAuth, clearAuth, isLoggedIn, pathForRole, labelForRole, pillLabelForRole }}
+    >
       {children}
     </AuthContext.Provider>
   )

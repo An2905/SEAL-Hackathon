@@ -11,7 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/universities")
-@CrossOrigin("*")
+
 public class UniversityController {
 
     private final UniversityService universityService;

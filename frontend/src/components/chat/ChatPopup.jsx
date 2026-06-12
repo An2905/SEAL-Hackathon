@@ -1,12 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import FormMessage from '../common/FormMessage'
 import LoadingButton from '../common/LoadingButton'
-import {
-  chatErrorMessage,
-  getChatMessages,
-  listChatRooms,
-  openChatRoom
-} from '../../api/chat'
+import { chatErrorMessage, getChatMessages, listChatRooms, openChatRoom } from '../../api/chat'
 import { useAuth } from '../../context/AuthContext'
 import { useChatStomp } from '../../hooks/useChatStomp'
 import { localizeError } from '../../utils/errors'
@@ -25,27 +20,29 @@ function formatDateTime(value) {
 }
 
 function renderMessageContent(content) {
-  return String(content || '').split(/(https?:\/\/\S+)/g).map((part, i) => {
-    if (/^https?:\/\//.test(part)) {
-      return (
-        <a key={i} href={part} target="_blank" rel="noopener noreferrer">
-          {part}
-        </a>
-      )
-    }
-    return part
-  })
+  return String(content || '')
+    .split(/(https?:\/\/\S+)/g)
+    .map((part, i) => {
+      if (/^https?:\/\//.test(part)) {
+        return (
+          <a key={i} href={part} target='_blank' rel='noopener noreferrer'>
+            {part}
+          </a>
+        )
+      }
+      return part
+    })
 }
 
 function ChatIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width='18' height='18' viewBox='0 0 24 24' fill='none' aria-hidden='true'>
       <path
-        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        d='M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z'
+        stroke='currentColor'
+        strokeWidth='1.75'
+        strokeLinecap='round'
+        strokeLinejoin='round'
       />
     </svg>
   )
@@ -53,7 +50,7 @@ function ChatIcon() {
 
 export function ChatOpenButton({ onClick, title = 'Nhắn tin' }) {
   return (
-    <button type="button" className="chat-open-btn" onClick={onClick} title={title} aria-label={title}>
+    <button type='button' className='chat-open-btn' onClick={onClick} title={title} aria-label={title}>
       <ChatIcon />
     </button>
   )
@@ -203,30 +200,29 @@ export default function ChatPopup({
 
   const displayTeamName = teamNameProp || selectedRoom?.teamName || ''
   const displayMentorName = selectedRoom?.mentorName || mentorName || ''
-  const title = displayTeamName && displayMentorName
-    ? `${displayTeamName} · ${displayMentorName}`
-    : displayTeamName || displayMentorName || 'Chat'
+  const title =
+    displayTeamName && displayMentorName
+      ? `${displayTeamName} · ${displayMentorName}`
+      : displayTeamName || displayMentorName || 'Chat'
   const subtitle = selectedRoom?.eventTitle || eventTitle || ''
 
   return (
-    <div className="chat-popup">
-      <div className="chat-popup-header">
-        <div className="chat-popup-header-text">
-          <div className="chat-popup-title">{title}</div>
-          <div className="chat-popup-sub">
+    <div className='chat-popup'>
+      <div className='chat-popup-header'>
+        <div className='chat-popup-header-text'>
+          <div className='chat-popup-title'>{title}</div>
+          <div className='chat-popup-sub'>
             {subtitle}
-            {selectedRoomId && (
-              <span>{connected ? ' · Đã kết nối' : ' · Đang kết nối...'}</span>
-            )}
+            {selectedRoomId && <span>{connected ? ' · Đã kết nối' : ' · Đang kết nối...'}</span>}
           </div>
         </div>
-        <button type="button" className="chat-popup-close" onClick={onClose} aria-label="Đóng">
+        <button type='button' className='chat-popup-close' onClick={onClose} aria-label='Đóng'>
           ×
         </button>
       </div>
 
       {rooms.length > 1 && (
-        <div className="chat-popup-round">
+        <div className='chat-popup-round'>
           <select value={selectedRoomId} onChange={(e) => handleRoomChange(e.target.value)}>
             {rooms.map((room) => (
               <option key={room.roomId} value={room.roomId}>
@@ -238,11 +234,11 @@ export default function ChatPopup({
         </div>
       )}
 
-      <div className="chat-popup-body">
-        {loading && <div className="empty-state">Đang mở phòng chat...</div>}
+      <div className='chat-popup-body'>
+        {loading && <div className='empty-state'>Đang mở phòng chat...</div>}
 
         {!loading && !selectedRoomId && (
-          <div className="chat-popup-empty">
+          <div className='chat-popup-empty'>
             <p>{isMentorMode ? 'Chưa có phòng chat nào.' : 'Không thể mở phòng chat.'}</p>
           </div>
         )}
@@ -250,48 +246,47 @@ export default function ChatPopup({
         {!loading && selectedRoomId && (
           <>
             {roomClosed && (
-              <div className="form-message error chat-popup-closed">Phòng đã đóng — chỉ xem tin nhắn.</div>
+              <div className='form-message error chat-popup-closed'>Phòng đã đóng — chỉ xem tin nhắn.</div>
             )}
-            <div className="chat-messages chat-popup-messages">
-              {loadingMessages && <div className="empty-state">Đang tải tin nhắn...</div>}
+            <div className='chat-messages chat-popup-messages'>
+              {loadingMessages && <div className='empty-state'>Đang tải tin nhắn...</div>}
               {!loadingMessages && messages.length === 0 && (
-                <div className="empty-state">Gửi tin nhắn hoặc link cho mentor.</div>
+                <div className='empty-state'>Gửi tin nhắn hoặc link cho mentor.</div>
               )}
-              {!loadingMessages && messages.map((msg) => {
-                const isMentorMsg = String(msg.senderId) === String(selectedRoom?.mentorId || mentorId)
-                const isRight = isMentorMode ? isMentorMsg : !isMentorMsg
-                const isOwn = currentUserId && String(msg.senderId) === currentUserId
-                const showSender = !isRight || (!isOwn && !isMentorMsg)
-                return (
-                  <div
-                    key={msg.messageId}
-                    className={`chat-message-row${isRight ? ' chat-message-row--own' : ' chat-message-row--other'}`}
-                  >
-                    {showSender && (
-                      <div className="chat-message-sender">{msg.senderName || msg.senderId}</div>
-                    )}
-                    <div className="chat-message-bubble">{renderMessageContent(msg.content)}</div>
-                    <div className="chat-message-time">{formatDateTime(msg.createdAt)}</div>
-                  </div>
-                )
-              })}
+              {!loadingMessages &&
+                messages.map((msg) => {
+                  const isMentorMsg = String(msg.senderId) === String(selectedRoom?.mentorId || mentorId)
+                  const isRight = isMentorMode ? isMentorMsg : !isMentorMsg
+                  const isOwn = currentUserId && String(msg.senderId) === currentUserId
+                  const showSender = !isRight || (!isOwn && !isMentorMsg)
+                  return (
+                    <div
+                      key={msg.messageId}
+                      className={`chat-message-row${isRight ? ' chat-message-row--own' : ' chat-message-row--other'}`}
+                    >
+                      {showSender && <div className='chat-message-sender'>{msg.senderName || msg.senderId}</div>}
+                      <div className='chat-message-bubble'>{renderMessageContent(msg.content)}</div>
+                      <div className='chat-message-time'>{formatDateTime(msg.createdAt)}</div>
+                    </div>
+                  )
+                })}
               <div ref={messagesEndRef} />
             </div>
             {!roomClosed && (
-              <form className="chat-send-form chat-popup-send" onSubmit={handleSend}>
+              <form className='chat-send-form chat-popup-send' onSubmit={handleSend}>
                 <input
-                  type="text"
+                  type='text'
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
-                  placeholder="Nhập tin nhắn hoặc dán link..."
+                  placeholder='Nhập tin nhắn hoặc dán link...'
                   maxLength={2000}
                 />
-                <LoadingButton loading={sending} type="submit" className="btn btn-primary chat-send-btn">
+                <LoadingButton loading={sending} type='submit' className='btn btn-primary chat-send-btn'>
                   Gửi
                 </LoadingButton>
               </form>
             )}
-            <FormMessage message={error} type="error" />
+            <FormMessage message={error} type='error' />
           </>
         )}
       </div>

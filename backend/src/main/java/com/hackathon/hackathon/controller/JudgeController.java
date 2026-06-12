@@ -26,7 +26,7 @@ import com.hackathon.hackathon.service.JudgeService;
 
 @RestController
 @RequestMapping("/api/judge")
-@CrossOrigin("*")
+
 public class JudgeController {
 
     private final JudgeService judgeService;

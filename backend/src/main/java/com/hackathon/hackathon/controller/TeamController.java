@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(value = "/api/team", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
-@CrossOrigin("*")
+
 public class TeamController {
 
     @Autowired

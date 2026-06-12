@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(value = "/api/auth", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
-@CrossOrigin("*")
 public class AuthController {
 
     @Autowired

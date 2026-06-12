@@ -16,10 +16,7 @@ export function useRecaptcha() {
     widgetRef.current?.reset?.()
   }, [])
 
-  const RecaptchaField = useCallback(
-    () => createElement(RecaptchaWidget, { ref: widgetRef }),
-    []
-  )
+  const RecaptchaField = useCallback(() => createElement(RecaptchaWidget, { ref: widgetRef }), [])
 
   return { getCaptchaToken, resetCaptcha, RecaptchaField }
 }

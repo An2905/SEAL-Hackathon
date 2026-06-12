@@ -139,14 +139,9 @@ function DeleteUniversityModal({ university, allUniversities, onClose, onDeleted
 
   const linkedCount = Number(preview?.linkedUserCount ?? 0)
   const needsHandling = linkedCount > 0
-  const replacementOptions = allUniversities.filter(
-    (u) => u.universityId !== university?.universityId
-  )
+  const replacementOptions = allUniversities.filter((u) => u.universityId !== university?.universityId)
 
-  const canSubmit =
-    !loadingPreview &&
-    preview &&
-    (!needsHandling || replacement || clearLinked)
+  const canSubmit = !loadingPreview && preview && (!needsHandling || replacement || clearLinked)
 
   const handleDelete = async () => {
     if (!canSubmit) return
@@ -265,9 +260,7 @@ export default function StaffUniversitiesPage() {
   const filteredUniversities = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return universities
-    return universities.filter((u) =>
-      (u.universityName ?? '').toLowerCase().includes(q)
-    )
+    return universities.filter((u) => (u.universityName ?? '').toLowerCase().includes(q))
   }, [universities, search])
 
   const loadUniversities = useCallback(async () => {
@@ -318,9 +311,7 @@ export default function StaffUniversitiesPage() {
 
         {loading && <p className='hint'>Đang tải...</p>}
         <FormMessage message={error} type='error' />
-        {!loading && !error && universities.length === 0 && (
-          <p className='hint'>Chưa có trường nào.</p>
-        )}
+        {!loading && !error && universities.length === 0 && <p className='hint'>Chưa có trường nào.</p>}
         {!loading && !error && universities.length > 0 && filteredUniversities.length === 0 && (
           <p className='hint'>Không tìm thấy trường khớp với &quot;{search.trim()}&quot;.</p>
         )}
@@ -377,11 +368,7 @@ export default function StaffUniversitiesPage() {
         )}
       </div>
 
-      <EditUniversityModal
-        university={editing}
-        onClose={() => setEditing(null)}
-        onUpdated={loadUniversities}
-      />
+      <EditUniversityModal university={editing} onClose={() => setEditing(null)} onUpdated={loadUniversities} />
       <DeleteUniversityModal
         university={deleting}
         allUniversities={universities}

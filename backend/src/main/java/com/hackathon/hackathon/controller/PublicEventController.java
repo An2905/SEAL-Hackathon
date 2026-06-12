@@ -14,7 +14,7 @@ import com.hackathon.hackathon.service.EventService;
 
 @RestController
 @RequestMapping(value = "/api/events", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
-@CrossOrigin("*")
+
 public class PublicEventController {
 
     private final EventService eventService;
