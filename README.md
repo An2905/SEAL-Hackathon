@@ -126,7 +126,29 @@ The application will be accessible at `http://localhost:5173` (or the port indic
 
 ---
 
-## 📜 Project Structure & Rules
+## 📁 Project Structure
 
-- **Backend Rules**: Refer to `docs/rules/Rules.txt` and `docs/rules/AI Rules.txt` for specific coding standards, including the mandatory use of direct JDBC and manual JSON construction.
-- **API Proxies**: All frontend requests to `/api/*` are automatically proxied to the backend at `http://localhost:8080` via the Vite configuration.
+The project is structured as a monorepo containing the backend service, frontend application, database setup scripts, and technical documentation.
+
+```text
+SEAL-Hackathon/
+├── backend/                  # Spring Boot backend application
+│   ├── src/                  # Application source code and resource files
+│   └── pom.xml               # Maven dependencies and configuration
+├── database/                 # Database initialization scripts
+│   └── scripts/              # SQL schema definition and seeding scripts
+├── docs/                     # Technical specifications and guides
+│   ├── context/              # Architectural diagrams and workflows
+│   ├── functional-specs/     # Functional specifications
+│   └── rules/                # System development rules and protocols
+└── frontend/                 # React single-page application
+    ├── src/                  # React components, pages, and router definitions
+    └── vite.config.js        # Vite configuration and proxy setup
+```
+
+### Directory Overview
+
+*   **`backend/`**: Serves as the core API server powered by Spring Boot. It manages business logic, JWT-based security, WebSocket-based real-time communication, and direct database access.
+*   **`database/`**: Contains the SQL schema definitions and database seeding scripts required to initialize the local development database.
+*   **`docs/`**: Holds functional specifications, context models, and guidelines that describe the system design and project requirements.
+*   **`frontend/`**: Hosts the web client built using React and bundled with Vite. It communicates with the backend via a local API proxy.
