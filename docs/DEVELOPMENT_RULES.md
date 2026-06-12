@@ -10,48 +10,58 @@ Strictly adhere to the current codebase structure and style (refer to [TeamServi
 * Create **Response DTOs** under the `com.hackathon.hackathon.model.dto.response` package for structured JSON responses (e.g. `ErrorResponse` or custom API returns). Note that legacy endpoints still construct JSON strings manually in the service layer.
 * Do not create JPA/Hibernate **Entities** or Spring Data **Repositories**, as the project strictly uses raw JDBC.
 
-### 2. Service Layer
+### 2. Service Layer & Dependency Injection
 
-* All implementation logic must reside solely within the existing service files (e.g. [StaffService.java](file:///C:/Users/Ngo%20Minh%20Thuan/Documents/SU26/SEAL-Hackathon/backend/src/main/java/com/hackathon/hackathon/service/StaffService.java)). Do not create new services or helper classes.
-* Place methods within their predefined region sections (e.g. `//region CREATE EVENT`).
-* Helper methods (validation, duplicate checks) should be private methods within the same class, following the pattern in [TeamService.java](file:///C:/Users/Ngo%20Minh%20Thuan/Documents/SU26/SEAL-Hackathon/backend/src/main/java/com/hackathon/hackathon/service/TeamService.java) (e.g. `checkDuplicateTeamName`).
+* All core business logic resides within the service classes (e.g., [StaffService.java](backend/src/main/java/com/hackathon/hackathon/service/StaffService.java)). Do not create arbitrary helper classes; keep service logic organized.
+* Place methods within their predefined region sections (e.g., `//region CREATE EVENT`).
+* Helper validation or lookup methods should be private methods within the same class (e.g., `checkDuplicateTeamName`).
+* **Dependency Injection:** Inject dependencies using the `@Autowired` field annotation on private variables. Do not use constructor injection or Lombok `@RequiredArgsConstructor` (this is a team constraint).
 
 ### 3. Database Access (Raw JDBC)
 
 * Direct use of `DataSource`, `Connection`, `PreparedStatement`, and `ResultSet` is required.
 * Do not use Spring Data JPA, Hibernate, or `JdbcTemplate`.
-* Always release database resources properly using try-with-resources or explicit `close()`.
+* **Resource Management:** Always wrap database resources in try-with-resources statements to guarantee that connections, statements, and result sets are released properly to avoid database pool connection leaks.
 * For ID retrieval after insertion, use database-specific mechanisms (e.g. `Statement.RETURN_GENERATED_KEYS` or database-specific syntax).
 
 ### 4. JSON Serialization
 
-* Service methods return either a success message or error description.
-* If returning structured data or multiple IDs to the frontend, construct JSON strings manually (using `StringBuilder` concatenation, similar to `getMyTeam`) rather than using automatic Jackson/Gson serialization.
-  *(Note: This is the team's historical convention; though Jackson is available, follow the project patterns for existing raw endpoints).*
+* **Query (GET) Endpoints:** Return Response DTO objects directly. Spring's built-in Jackson parser automatically serializes these objects to JSON.
+* **Mutation (POST/PUT/DELETE) Endpoints:** Return a success message, status string, or ID (sometimes constructed manually using `StringBuilder` concatenation or DTO wrappers depending on the endpoint pattern).
 
 ### 5. Controller Layer
 
-* Controllers (e.g. [StaffController](file:///C:/Users/Ngo%20Minh%20Thuan/Documents/SU26/SEAL-Hackathon/backend/src/main/java/com/hackathon/hackathon/controller/StaffController.java)) should only act as thin entry points.
+* Controllers should only act as thin entry points.
 * Their single responsibility is delegating to the corresponding service method (e.g. returning `staffService.createEvent(authHeader, request)`), with no business logic.
+* **CORS Settings:** Centralized CORS configuration is managed globally in `CorsConfig.java`. Do not use `@CrossOrigin` annotations at the controller level.
+* **Exceptions:** Let business exceptions propagate. The centralized `GlobalExceptionHandler` will catch and format them into structured JSON error payloads.
 
 ### 6. Security & Authorization
 
-* Retrieve user ID and roles from the JWT token using `JwtUtil.extractClaims(authHeader.replace("Bearer ", ""))` and `claims.get("role", String.class)`.
-* Verify that the role is `COORDINATOR` (or `STAFF` as appropriate), returning an unauthorized message if not.
+* Role validation is handled in the Service layer using `authService.validateRole(authHeader, "ROLE_NAME")`.
+* Token verification and extraction are handled by the static utility `JwtUtil.extractClaims(token)`.
+* Failed validations automatically throw `UnauthorizedException` (401) or `ForbiddenException` (403), returning structured error JSON to the client.
+
+## Frontend Development & Tooling
+
+* **Formatting:** Code formatting is managed by Prettier. Run `npm run format` to auto-format your Javascript/CSS files locally before committing.
+* **Linting:** Code quality rules are checked by ESLint. Run `npm run lint` and verify there are **zero errors and zero warnings** before pushing. You can use `npm run lint:fix` to auto-resolve warnings.
+
+## Collaborative Workflow & Automation
+
+* **Git Commits:** Keep commit messages clear and descriptive.
+* **Pull Request Template:** When opening a PR, fill out the checkbox list in the Pull Request template to summarize your changes, verification results, and testing screenshots.
+* **CI/CD Quality Gates:** GitHub Actions run validation checks automatically on all PRs:
+  * Backend: Compiles the source files using `mvn clean compile`.
+  * Frontend: Audits dependencies, checks formatting, runs ESLint, and compiles the production bundle.
+* **Branch Protection:** Code cannot be merged directly to `main`. All updates must go through a Pull Request, pass all green status checks, and receive at least 1 approval.
 
 ## Testing Guidelines
 
 * No unit tests or shared Postman collections are strictly required.
-* Developers must test locally using their preferred REST client (e.g., Postman) by supplying the `Authorization: Bearer <token>` header obtained from `/api/auth/login` (using the pre-seeded `staff001@gmail.com` account).
-* Ensure coverage of at least 4 test cases:
-  1. Successful creation
-  2. Duplicate title/name
-  3. Total criteria weight ≠ 1.00
-  4. End date < Start date
-* Record response screenshots or notes to include in the PR description.
-
-## Git & Clean Code
-
-* Commit messages should be clear and concise (either English or Vietnamese, without rigid scopes/prefixes).
-* Do not reformat unrelated existing code.
-* Do not introduce new dependencies to `pom.xml`.
+* Developers must test locally using their preferred REST client (e.g., Postman) by supplying the `Authorization: Bearer <token>` header obtained from `/api/auth/login`.
+* Ensure coverage of at least 4 test cases for mutations:
+  1. Successful creation/update
+  2. Validation edge cases (e.g., duplicate title/name)
+  3. Total weight checks where applicable (e.g. weight ≠ 1.00)
+  4. Logical date boundaries (e.g. End date < Start date)
