@@ -4,6 +4,8 @@ import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.model.dto.request.AssignGroupTeamRequest;
 import com.hackathon.hackathon.model.dto.request.ChangeEventStatusRequest;
+import com.hackathon.hackathon.model.dto.request.CheckInMemberRequest;
+import com.hackathon.hackathon.model.dto.request.CheckInTeamRequest;
 import com.hackathon.hackathon.model.dto.request.CreateAwardRequest;
 import com.hackathon.hackathon.model.dto.request.CreateEventGroupRequest;
 import com.hackathon.hackathon.model.dto.request.CreateEventRequest;
@@ -12,6 +14,8 @@ import com.hackathon.hackathon.model.dto.request.UpdateAwardRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventGroupRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventRoundRequest;
+import com.hackathon.hackathon.model.dto.response.CheckInPageResponse;
+import com.hackathon.hackathon.model.dto.response.CheckInTeamResponse;
 import com.hackathon.hackathon.model.dto.response.CreateEventGroupResponse;
 import com.hackathon.hackathon.model.dto.response.CreateEventResponse;
 import com.hackathon.hackathon.model.dto.response.CreateEventRoundResponse;
@@ -27,10 +31,12 @@ import com.hackathon.hackathon.model.entity.Event;
 import com.hackathon.hackathon.model.entity.TeamRegistration;
 import com.hackathon.hackathon.model.mapper.EventMapper;
 import com.hackathon.hackathon.repository.AwardRepository;
+import com.hackathon.hackathon.repository.CheckInRepository;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.EventSetupRepository;
 import com.hackathon.hackathon.repository.EventSetupRepository.EventRoundSetupRow;
 import com.hackathon.hackathon.repository.EventSetupRepository.EventSetupRow;
+import io.jsonwebtoken.Claims;
 import java.io.ByteArrayOutputStream;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -60,6 +66,8 @@ public class EventService {
   @Autowired private AwardRepository awardRepository;
 
   @Autowired private EventMapper eventMapper;
+
+  @Autowired private CheckInRepository checkInRepository;
 
   // region CREATE EVENT
 
@@ -905,6 +913,101 @@ public class EventService {
     response.setRank(rank == null ? null : String.valueOf(rank));
     response.setTeamName(null);
     return response;
+  }
+
+  // endregion
+
+  // region CHECK-IN
+
+  public CheckInPageResponse getCheckInPage(String authHeader, String eventId) {
+    authService.validateRole(authHeader, "COORDINATOR");
+    String cleanEventId = requireCheckInEventId(eventId);
+    requireCheckInEventExists(cleanEventId);
+
+    CheckInPageResponse response = new CheckInPageResponse();
+    response.setEventId(cleanEventId);
+    response.setEventTitle(checkInRepository.findEventTitle(cleanEventId).orElse("—"));
+    response.setTeams(checkInRepository.findTeamsForCheckIn(cleanEventId));
+    return response;
+  }
+
+  public CheckInTeamResponse setTeamCheckIn(String authHeader, CheckInTeamRequest request) {
+    Claims claims = authService.validateRole(authHeader, "COORDINATOR");
+    String staffUserId = requireCheckInStaffUserId(claims);
+
+    if (request == null) {
+      throw new BadRequestException("Request body is required.");
+    }
+
+    String eventId = requireCheckInEventId(request.getEventId());
+    String teamId = requireCheckInTeamId(request.getTeamId());
+    requireCheckInEventExists(eventId);
+    requireCheckInRegistration(eventId, teamId);
+
+    return checkInRepository.applyTeamCheckIn(eventId, teamId, staffUserId, request.isChecked());
+  }
+
+  public CheckInTeamResponse setMemberCheckIn(String authHeader, CheckInMemberRequest request) {
+    Claims claims = authService.validateRole(authHeader, "COORDINATOR");
+    String staffUserId = requireCheckInStaffUserId(claims);
+
+    if (request == null) {
+      throw new BadRequestException("Request body is required.");
+    }
+
+    String eventId = requireCheckInEventId(request.getEventId());
+    String teamId = requireCheckInTeamId(request.getTeamId());
+    String userId = requireCheckInMemberUserId(request.getUserId());
+    requireCheckInEventExists(eventId);
+    requireCheckInRegistration(eventId, teamId);
+
+    return checkInRepository.applyMemberCheckIn(
+        eventId, teamId, userId, staffUserId, request.isChecked());
+  }
+
+  private String requireCheckInEventId(String eventId) {
+    String clean = trim(eventId);
+    if (clean.isEmpty()) {
+      throw new BadRequestException("Event ID is required.");
+    }
+    return clean;
+  }
+
+  private String requireCheckInTeamId(String teamId) {
+    String clean = trim(teamId);
+    if (clean.isEmpty()) {
+      throw new BadRequestException("Team ID is required.");
+    }
+    return clean;
+  }
+
+  private String requireCheckInMemberUserId(String userId) {
+    String clean = trim(userId);
+    if (clean.isEmpty()) {
+      throw new BadRequestException("User ID is required.");
+    }
+    return clean;
+  }
+
+  private String requireCheckInStaffUserId(Claims claims) {
+    String userId = claims.get("userId", String.class);
+    String clean = trim(userId);
+    if (clean.isEmpty()) {
+      throw new BadRequestException("Invalid staff session.");
+    }
+    return clean;
+  }
+
+  private void requireCheckInEventExists(String eventId) {
+    if (!eventRepository.existsById(eventId)) {
+      throw new BadRequestException("Event not found.");
+    }
+  }
+
+  private void requireCheckInRegistration(String eventId, String teamId) {
+    if (!checkInRepository.registrationExistsForCheckIn(eventId, teamId)) {
+      throw new BadRequestException("Team registration not found for this event.");
+    }
   }
 
   // endregion

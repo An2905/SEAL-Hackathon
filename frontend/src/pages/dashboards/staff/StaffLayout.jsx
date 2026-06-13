@@ -6,7 +6,6 @@ const STAFF_TABS = [
   { to: '/staff/accounts', label: 'Tài khoản' },
   { to: '/staff/events', label: 'Sự kiện' },
   { to: '/staff/assign', label: 'Phân công Judge / Mentor' },
-  { to: '/staff/announcements', label: 'Thông báo' },
   { to: '/staff/universities', label: 'Trường ĐH' }
 ]
 
