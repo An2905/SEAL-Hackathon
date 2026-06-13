@@ -19,7 +19,6 @@ export function ProfileModal({ isOpen, onClose, showStudentFields = false, showS
 		university: "",
 		studentId: "",
 		phone: "",
-		avatarUrl: "",
 	});
 
 	const handleChange = (e) =>
@@ -50,7 +49,7 @@ export function ProfileModal({ isOpen, onClose, showStudentFields = false, showS
 		<Modal
 			isOpen={isOpen}
 			onClose={onClose}
-			title="Cập nhật hồ sơ"
+			title="Chỉnh sửa hồ sơ"
 			subtitle="Cập nhật thông tin cá nhân của bạn."
 		>
 			<form className="form" onSubmit={handleSubmit}>
@@ -91,32 +90,26 @@ export function ProfileModal({ isOpen, onClose, showStudentFields = false, showS
 					</div>
 				)}
 				{showStaffFields && (
-					<>
-						<FormField label="Số điện thoại">
-							<input
-								name="phone"
-								type="tel"
-								value={form.phone}
-								onChange={handleChange}
-								required
-								placeholder="09xxxxxxxx"
-								autoComplete="tel"
-							/>
-						</FormField>
-						<FormField label="Ảnh đại diện (URL) — tùy chọn">
-							<input
-								name="avatarUrl"
-								type="text"
-								value={form.avatarUrl}
-								onChange={handleChange}
-								placeholder="Để trống nếu không dùng"
-							/>
-						</FormField>
-					</>
+					<FormField label="Số điện thoại">
+						<input
+							name="phone"
+							type="tel"
+							value={form.phone}
+							onChange={handleChange}
+							required
+							placeholder="09xxxxxxxx"
+							autoComplete="tel"
+						/>
+					</FormField>
 				)}
-				<LoadingButton loading={loading} type="submit">
-					Cập nhật
-				</LoadingButton>
+				<div className="form-actions">
+					<button type="button" className="btn btn-outline" onClick={onClose}>
+						Hủy
+					</button>
+					<LoadingButton loading={loading} type="submit" className="btn btn-primary">
+						Cập nhật
+					</LoadingButton>
+				</div>
 				<FormMessage message={message?.text} type={message?.type} />
 			</form>
 		</Modal>
@@ -199,9 +192,14 @@ export function PasswordModal({ isOpen, onClose }) {
 						minLength={6}
 					/>
 				</FormField>
-				<LoadingButton loading={loading} type="submit">
-					Cập nhật
-				</LoadingButton>
+				<div className="form-actions">
+					<button type="button" className="btn btn-outline" onClick={onClose}>
+						Hủy
+					</button>
+					<LoadingButton loading={loading} type="submit" className="btn btn-primary">
+						Cập nhật
+					</LoadingButton>
+				</div>
 				<FormMessage message={message?.text} type={message?.type} />
 			</form>
 		</Modal>

@@ -7,6 +7,7 @@ import com.hackathon.hackathon.model.dto.request.UpdateProfileRequest;
 import com.hackathon.hackathon.model.dto.request.UpdatePasswordRequest;
 import com.hackathon.hackathon.model.dto.request.StudentRegisterRequest;
 import com.hackathon.hackathon.model.dto.request.LoginRequest;
+import com.hackathon.hackathon.model.dto.response.AvatarUploadResponse;
 import com.hackathon.hackathon.model.dto.response.LoginResponse;
 import com.hackathon.hackathon.model.dto.response.ProfileUpdateResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
@@ -19,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping(value = "/api/auth", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
@@ -43,6 +45,12 @@ public class AuthController {
     public ResponseEntity<ProfileUpdateResponse> updateProfile(@RequestHeader("Authorization") String authHeader,
             @Valid @RequestBody UpdateProfileRequest request) {
         return ResponseEntity.ok(authService.updateProfile(authHeader, request));
+    }
+
+    @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<AvatarUploadResponse> uploadAvatar(@RequestHeader("Authorization") String authHeader,
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(authService.uploadAvatar(authHeader, file));
     }
 
     @PostMapping("/password/reset-otp")

@@ -1,6 +1,7 @@
 package com.hackathon.hackathon.service;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import com.hackathon.hackathon.model.dto.response.AvatarUploadResponse;
 import com.hackathon.hackathon.model.dto.response.LoginResponse;
 import com.hackathon.hackathon.model.dto.response.ProfileUpdateResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
@@ -8,10 +9,22 @@ import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.security.JwtUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpSession;
+
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.SecureRandom;
+
+import javax.imageio.ImageIO;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
@@ -132,7 +145,7 @@ public class AuthService {
         String token = JwtUtil.generateToken(user.getEmail(), user.getRole(), user.getUserId(),
                 user.getFullName());
 
-        return new LoginResponse("Login success", token);
+        return new LoginResponse("Login success", token, user.getAvatarUrl());
     }
 
     // #endregion
@@ -255,6 +268,63 @@ public class AuthService {
         if (!avatarUrl.matches(urlRegex)) {
             throw new BadRequestException("Avatar URL must start with http:// or https://");
         }
+    }
+
+    // #endregion
+    // #region UPLOAD AVATAR
+
+    public AvatarUploadResponse uploadAvatar(String authHeader, MultipartFile file) {
+        String email = extractEmailFromToken(authHeader);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadRequestException("User not found."));
+
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("No file uploaded.");
+        }
+        if (file.getSize() > 2 * 1024 * 1024) {
+            throw new BadRequestException("Avatar must be 2MB or smaller.");
+        }
+
+        BufferedImage original;
+        try (InputStream in = file.getInputStream()) {
+            original = ImageIO.read(in);
+        } catch (IOException e) {
+            throw new BadRequestException("Failed to read image.");
+        }
+        if (original == null) {
+            throw new BadRequestException("Unsupported image format. Use JPG, PNG, or GIF.");
+        }
+
+        BufferedImage square = cropToSquareAndResize(original, 400);
+
+        Path dir = Paths.get("uploads", "avatars");
+        try {
+            Files.createDirectories(dir);
+            Path target = dir.resolve(user.getUserId() + ".jpg");
+            ImageIO.write(square, "jpg", target.toFile());
+        } catch (IOException e) {
+            throw new BadRequestException("Failed to save image.");
+        }
+
+        String avatarUrl = "/api/uploads/avatars/" + user.getUserId() + ".jpg";
+        if (!userRepository.updateAvatarUrl(user.getUserId(), avatarUrl)) {
+            throw new BadRequestException("Failed to update avatar.");
+        }
+        return new AvatarUploadResponse("Avatar updated successfully.", avatarUrl);
+    }
+
+    private BufferedImage cropToSquareAndResize(BufferedImage src, int targetSize) {
+        int side = Math.min(src.getWidth(), src.getHeight());
+        int x = (src.getWidth() - side) / 2;
+        int y = (src.getHeight() - side) / 2;
+        BufferedImage cropped = src.getSubimage(x, y, side, side);
+
+        BufferedImage resized = new BufferedImage(targetSize, targetSize, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = resized.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.drawImage(cropped, 0, 0, targetSize, targetSize, null);
+        g.dispose();
+        return resized;
     }
 
     // #endregion

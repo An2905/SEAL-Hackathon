@@ -8,7 +8,8 @@ const STORAGE_KEYS = {
   token: 'hh_token',
   email: 'hh_email',
   role: 'hh_role',
-  fullName: 'hh_full_name'
+  fullName: 'hh_full_name',
+  avatarUrl: 'hh_avatar_url'
 }
 
 const ROLE_PATHS = {
@@ -32,11 +33,12 @@ export function AuthProvider({ children }) {
     token: localStorage.getItem(STORAGE_KEYS.token) || '',
     email: localStorage.getItem(STORAGE_KEYS.email) || '',
     role: localStorage.getItem(STORAGE_KEYS.role) || '',
-    fullName: localStorage.getItem(STORAGE_KEYS.fullName) || ''
+    fullName: localStorage.getItem(STORAGE_KEYS.fullName) || '',
+    avatarUrl: localStorage.getItem(STORAGE_KEYS.avatarUrl) || ''
   }))
 
   const saveAuth = useCallback((patch = {}) => {
-    const { token, email, role, fullName } = patch
+    const { token, email, role, fullName, avatarUrl } = patch
 
     let derivedFullName = fullName
     let derivedEmail = email
@@ -52,18 +54,20 @@ export function AuthProvider({ children }) {
     if (derivedEmail != null) localStorage.setItem(STORAGE_KEYS.email, derivedEmail)
     if (role != null) localStorage.setItem(STORAGE_KEYS.role, role)
     if (derivedFullName != null) localStorage.setItem(STORAGE_KEYS.fullName, derivedFullName)
+    if (avatarUrl != null) localStorage.setItem(STORAGE_KEYS.avatarUrl, avatarUrl)
 
     setAuthState((prev) => ({
       token: token != null ? token : prev.token,
       email: derivedEmail != null ? derivedEmail : prev.email,
       role: role != null ? role : prev.role,
-      fullName: derivedFullName != null ? derivedFullName : prev.fullName
+      fullName: derivedFullName != null ? derivedFullName : prev.fullName,
+      avatarUrl: avatarUrl != null ? avatarUrl : prev.avatarUrl
     }))
   }, [])
 
   const clearAuth = useCallback(() => {
     Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k))
-    setAuthState({ token: '', email: '', role: '', fullName: '' })
+    setAuthState({ token: '', email: '', role: '', fullName: '', avatarUrl: '' })
   }, [])
 
   const isLoggedIn = !!auth.token

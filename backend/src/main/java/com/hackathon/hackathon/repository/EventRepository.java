@@ -703,8 +703,6 @@ public List<GroupColleagueItemResponse> findJudgesByGroupAndRound(String groupId
     }
 
     public List<TeamTrackMentorItemResponse> findMentorsByGroupAndRound(String groupId, String roundId) {
-
-    public List<TeamTrackMentorItemResponse> findMentorsByGroupAndRound(String groupId, String roundId) {
         List<TeamTrackMentorItemResponse> mentors = new ArrayList<>();
         String sql = """
             SELECT u.user_id AS mentor_id, u.full_name AS mentor_name, u.email AS mentor_email

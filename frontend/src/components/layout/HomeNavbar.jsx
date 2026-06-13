@@ -1,17 +1,11 @@
 import { useAuth } from '../../context/AuthContext'
-import { useToast } from '../../context/ToastContext'
-import { useNavigate } from 'react-router-dom'
 import fptLogo from '../../assets/images/fpt-logo.png'
+import AccountDropdown from '../common/AccountDropdown'
+import { vietnameseRoleLabel, STUDENT_ROLES } from '../../utils/roleLabels'
 
 export default function HomeNavbar({ onOpenLogin, onOpenRegister }) {
-  const { auth, isLoggedIn, clearAuth, pathForRole, labelForRole } = useAuth()
-  const { showToast } = useToast()
-  const navigate = useNavigate()
-
-  const handleLogout = () => {
-    clearAuth()
-    showToast('Đã đăng xuất thành công', 'success')
-  }
+  const { auth, isLoggedIn } = useAuth()
+  const isStudentRole = STUDENT_ROLES.includes(auth.role)
 
   return (
     <nav className='navbar'>
@@ -51,18 +45,11 @@ export default function HomeNavbar({ onOpenLogin, onOpenRegister }) {
           </div>
         ) : (
           <div className='nav-user'>
-            <button className='btn btn-primary btn-sm' onClick={() => navigate(pathForRole(auth.role))}>
-              {labelForRole(auth.role)}
-            </button>
-            <div className='user-chip'>
-              <div className='avatar'>{((auth.fullName || auth.email)?.[0] || 'U').toUpperCase()}</div>
-              <div className='user-meta'>
-                <span className='user-email'>{auth.fullName || auth.email}</span>
-              </div>
-            </div>
-            <button className='btn btn-ghost btn-sm logout-btn' onClick={handleLogout}>
-              Đăng xuất
-            </button>
+            <AccountDropdown
+              roleLabel={vietnameseRoleLabel(auth.role)}
+              showStudentFields={isStudentRole}
+              showStaffFields={!isStudentRole}
+            />
           </div>
         )}
       </div>

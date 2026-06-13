@@ -257,6 +257,26 @@ public class UserRepository {
         return null;
     }
 
+    /// Update user's avatar URL by user ID
+    ///
+    /// Params: String userId, String avatarUrl
+    /// Excep: RuntimeException
+    /// Return: True if updated successfully, else False
+    public boolean updateAvatarUrl(String userId, String avatarUrl) {
+        String sql = "UPDATE users SET avatar_url = ? WHERE user_id = ?";
+
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, avatarUrl);
+            ps.setString(2, userId);
+
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException(sql, e);
+        }
+    }
+
     // #endregion
 
     // #region DELETE

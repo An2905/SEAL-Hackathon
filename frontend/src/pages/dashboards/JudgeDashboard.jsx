@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import DashboardShell from './DashboardShell'
+import DashboardLayout from '../../components/layout/DashboardLayout'
 import ComingSoonCards from '../../components/common/ComingSoonCards'
 import { useAuth } from '../../context/AuthContext'
 
@@ -14,11 +14,10 @@ export default function JudgeDashboard() {
   const { auth, pillLabelForRole } = useAuth()
   const guestLabel = pillLabelForRole(auth.role) || 'Khách'
   return (
-    <DashboardShell
-      roleLabel={guestLabel}
-      title="Khu vực Judge"
-      subtitle="Khách được phân công giám khảo — chấm điểm các đội thi. Cùng tài khoản có thể vào khu Mentor nếu được gán hướng dẫn."
-      role={guestLabel}
+    <DashboardLayout
+      roleLabel='Giám khảo'
+      moduleTitle="Khu vực Judge"
+      moduleSubtitle="Khách được phân công giám khảo — chấm điểm các đội thi. Cùng tài khoản có thể vào khu Mentor nếu được gán hướng dẫn."
       showStaffFields
     >
       <div className="action-row" style={{ marginBottom: '1rem' }}>
@@ -39,6 +38,6 @@ export default function JudgeDashboard() {
           <div className="kv"><span>Trạng thái phiên</span><span>Đã đăng nhập</span></div>
         </div>
       </div>
-    </DashboardShell>
+    </DashboardLayout>
   )
 }

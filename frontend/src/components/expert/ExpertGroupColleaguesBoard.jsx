@@ -1,3 +1,5 @@
+import LoadingState from '../common/LoadingState'
+
 function displayName(item) {
   return item?.fullName || item?.email || item?.userId || '—'
 }
@@ -38,7 +40,7 @@ function ExpertStaffRow({ title, count, people, roleLabel, emptyText }) {
 
 export default function ExpertGroupColleaguesBoard({ colleagues, loading, error }) {
   if (loading) {
-    return <div className='expert-staff-compact expert-staff-compact--loading'>Đang tải…</div>
+    return <LoadingState className='expert-staff-compact expert-staff-compact--loading' />
   }
 
   if (error) {

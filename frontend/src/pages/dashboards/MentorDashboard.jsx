@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import DashboardShell from './DashboardShell'
+import DashboardLayout from '../../components/layout/DashboardLayout'
 
 import {
   getAssignedEvents,
@@ -9,11 +9,16 @@ import {
   getGroupColleagues,
   getMentorAssignments
 } from '../../api/mentor'
-import ExpertGroupColleaguesBoard from '../../components/expert/ExpertGroupColleaguesBoard'import { useAuth } from '../../context/AuthContext'
+
+import ExpertGroupColleaguesBoard from '../../components/expert/ExpertGroupColleaguesBoard'
+import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 import ChatPopup from '../../components/chat/ChatPopup'
-import CollapsibleKvList from '../../components/common/CollapsibleList'
+import Pagination from '../../components/common/Pagination'
+import LoadingState from '../../components/common/LoadingState'
+
+const MENTOR_PAGE_SIZE = 5
 
 function formatDateTime(value) {
   if (!value) return '—'
@@ -40,11 +45,8 @@ function eventStatusPillClass(status) {
 
 function StatusBadge({ status }) {
   return (
-    <span className="status-picker" style={{ flexShrink: 0 }}>
-      <span
-        className={`status-pill ${eventStatusPillClass(status)}`}
-        style={{ cursor: 'default' }}
-      >
+    <span className='status-picker' style={{ flexShrink: 0 }}>
+      <span className={`status-pill ${eventStatusPillClass(status)}`} style={{ cursor: 'default' }}>
         {status || '—'}
       </span>
     </span>
@@ -74,17 +76,18 @@ const TEAM_STATUS_FILTERS = [
 ]
 
 export default function MentorDashboard() {
-  const { auth, pillLabelForRole } = useAuth()
-  const guestLabel = pillLabelForRole(auth.role) || 'Khách'
+  const { auth } = useAuth()
   const { showToast } = useToast()
 
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [eventsPage, setEventsPage] = useState(1)
 
   const [rounds, setRounds] = useState([])
   const [loadingRounds, setLoadingRounds] = useState(true)
   const [errorRounds, setErrorRounds] = useState(null)
+  const [roundsPage, setRoundsPage] = useState(1)
 
   const [assignments, setAssignments] = useState([])
   const [loadingAssignments, setLoadingAssignments] = useState(true)
@@ -95,6 +98,7 @@ export default function MentorDashboard() {
   const [teams, setTeams] = useState([])
   const [loadingTeams, setLoadingTeams] = useState(false)
   const [errorTeams, setErrorTeams] = useState(null)
+  const [teamsPage, setTeamsPage] = useState(1)
   const [colleagues, setColleagues] = useState(null)
   const [loadingColleagues, setLoadingColleagues] = useState(false)
   const [errorColleagues, setErrorColleagues] = useState(null)
@@ -146,7 +150,6 @@ export default function MentorDashboard() {
     }
   }, [showToast])
 
-
   useEffect(() => {
     if (!selectedAssignment) {
       setTeams([])
@@ -159,9 +162,9 @@ export default function MentorDashboard() {
     let cancelled = false
     setLoadingTeams(true)
     setErrorTeams(null)
+    setTeamsPage(1)
     setLoadingColleagues(true)
     setErrorColleagues(null)
-
     ;(async () => {
       try {
         const rows = await getAssignedTeams({
@@ -180,7 +183,6 @@ export default function MentorDashboard() {
         if (!cancelled) setLoadingTeams(false)
       }
     })()
-
     ;(async () => {
       try {
         const data = await getGroupColleagues({
@@ -204,15 +206,16 @@ export default function MentorDashboard() {
     }
   }, [selectedAssignment, teamStatusFilter])
   return (
-    <DashboardShell
-      roleLabel={guestLabel}
-      title='Khu vực Mentor'
-      subtitle='Khách được phân công mentor — đồng hành cùng các đội thí sinh. Cùng tài khoản có thể vào khu Judge nếu được gán chấm thi.'
-      role={guestLabel}
+    <DashboardLayout
+      roleLabel='Cố vấn'
+      moduleTitle='Khu vực Mentor'
+      moduleSubtitle='Khách được phân công mentor — đồng hành cùng các đội thí sinh. Cùng tài khoản có thể vào khu Judge nếu được gán chấm thi.'
       showStaffFields
     >
       <div className='action-row' style={{ marginBottom: '1rem' }}>
-        <Link className='btn btn-outline' to='/judge'>Chuyển sang khu Judge</Link>
+        <Link className='btn btn-outline' to='/judge'>
+          Chuyển sang khu Judge
+        </Link>
       </div>
       {/* ── Sự kiện được phân công ── */}
       <div className='section-title'>
@@ -221,24 +224,25 @@ export default function MentorDashboard() {
       </div>
 
       <div className='card'>
-        {loading && <div className='empty-state'>Đang tải danh sách…</div>}
+        {loading && <LoadingState text='Đang tải danh sách…' />}
         {!loading && error && <div className='empty-state'>{error}</div>}
         {!loading && !error && events.length === 0 && (
           <div className='empty-state'>Bạn chưa được phân công sự kiện nào.</div>
         )}
         {!loading && events.length > 0 && (
-          <CollapsibleKvList
-            items={events}
-            getItemKey={(ev) => ev.eventId}
-            renderItem={(ev) => (
-              <div className='kv'>
-                <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text)' }}>{ev.title || '—'}</div>
-                </span>
-                <StatusBadge status={ev.status} />
-              </div>
-            )}
-          />
+          <>
+            <div className='kv-list'>
+              {events.slice((eventsPage - 1) * MENTOR_PAGE_SIZE, eventsPage * MENTOR_PAGE_SIZE).map((ev) => (
+                <div className='kv' key={ev.eventId}>
+                  <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text)' }}>{ev.title || '—'}</div>
+                  </span>
+                  <StatusBadge status={ev.status} />
+                </div>
+              ))}
+            </div>
+            <Pagination total={events.length} pageSize={MENTOR_PAGE_SIZE} currentPage={eventsPage} onChange={setEventsPage} />
+          </>
         )}
       </div>
 
@@ -249,28 +253,29 @@ export default function MentorDashboard() {
       </div>
 
       <div className='card'>
-        {loadingRounds && <div className='empty-state'>Đang tải vòng thi…</div>}
+        {loadingRounds && <LoadingState text='Đang tải vòng thi…' />}
         {!loadingRounds && errorRounds && <div className='empty-state'>{errorRounds}</div>}
         {!loadingRounds && !errorRounds && rounds.length === 0 && (
           <div className='empty-state'>Hiện không có vòng nào đang diễn ra.</div>
         )}
         {!loadingRounds && rounds.length > 0 && (
-          <CollapsibleKvList
-            items={rounds}
-            getItemKey={(rd) => rd.roundId}
-            renderItem={(rd) => (
-              <div className='kv'>
-                <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text)' }}>{rd.roundName || '—'}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{rd.eventTitle || '—'}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2 }}>
-                    {formatDateTime(rd.startDate)} → {formatDateTime(rd.endDate)}
-                  </div>
-                </span>
-                <StatusBadge status={rd.roundStatus} />
-              </div>
-            )}
-          />
+          <>
+            <div className='kv-list'>
+              {rounds.slice((roundsPage - 1) * MENTOR_PAGE_SIZE, roundsPage * MENTOR_PAGE_SIZE).map((rd) => (
+                <div className='kv' key={rd.roundId}>
+                  <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text)' }}>{rd.roundName || '—'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{rd.eventTitle || '—'}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2 }}>
+                      {formatDateTime(rd.startDate)} → {formatDateTime(rd.endDate)}
+                    </div>
+                  </span>
+                  <StatusBadge status={rd.roundStatus} />
+                </div>
+              ))}
+            </div>
+            <Pagination total={rounds.length} pageSize={MENTOR_PAGE_SIZE} currentPage={roundsPage} onChange={setRoundsPage} />
+          </>
         )}
       </div>
 
@@ -281,10 +286,8 @@ export default function MentorDashboard() {
       </div>
 
       <div className='card'>
-        {loadingAssignments && <div className='empty-state'>Đang tải phân công bảng…</div>}
-        {!loadingAssignments && errorAssignments && (
-          <div className='empty-state'>{errorAssignments}</div>
-        )}
+        {loadingAssignments && <LoadingState text='Đang tải phân công bảng…' />}
+        {!loadingAssignments && errorAssignments && <div className='empty-state'>{errorAssignments}</div>}
         {!loadingAssignments && !errorAssignments && assignments.length === 0 && (
           <div className='empty-state'>Bạn chưa được phân công bảng nào.</div>
         )}
@@ -306,15 +309,10 @@ export default function MentorDashboard() {
                   </button>
                 )
               })}
-
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <ExpertGroupColleaguesBoard
-                colleagues={colleagues}
-                loading={loadingColleagues}
-                error={errorColleagues}
-              />
+              <ExpertGroupColleaguesBoard colleagues={colleagues} loading={loadingColleagues} error={errorColleagues} />
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
@@ -331,49 +329,50 @@ export default function MentorDashboard() {
               ))}
             </div>
 
-            {loadingTeams && <div className='empty-state'>Đang tải danh sách đội…</div>}
+            {loadingTeams && <LoadingState text='Đang tải danh sách đội…' />}
             {!loadingTeams && errorTeams && <div className='empty-state'>{errorTeams}</div>}
             {!loadingTeams && !errorTeams && teams.length === 0 && (
               <div className='empty-state'>Không có đội nào trong bảng này.</div>
             )}
             {!loadingTeams && teams.length > 0 && (
-              <CollapsibleKvList
-                items={teams}
-                getItemKey={(team) => team.teamId || team.registrationId}
-                renderItem={(team) => (
-                  <div className='kv' style={{ alignItems: 'flex-start' }}>
-                    <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text)' }}>{team.teamName || '—'}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
-                        Trưởng nhóm: {team.leaderName || '—'}
-                        {team.leaderEmail ? ` · ${team.leaderEmail}` : ''}
-                      </div>
-                      {team.members?.length > 0 && (
-                        <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>
-                          Thành viên:{' '}
-                          {team.members
-                            .map((m) => m.fullName || m.email || '—')
-                            .filter(Boolean)
-                            .join(', ')}
+              <>
+                <div className='kv-list'>
+                  {teams.slice((teamsPage - 1) * MENTOR_PAGE_SIZE, teamsPage * MENTOR_PAGE_SIZE).map((team) => (
+                    <div className='kv' style={{ alignItems: 'flex-start' }} key={team.teamId || team.registrationId}>
+                      <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text)' }}>{team.teamName || '—'}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
+                          Trưởng nhóm: {team.leaderName || '—'}
+                          {team.leaderEmail ? ` · ${team.leaderEmail}` : ''}
                         </div>
-                      )}
-                      {team.enrollCode && (
-                        <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2 }}>
-                          Mã đội: {team.enrollCode}
-                        </div>
-                      )}
-                    </span>
-                    <span className='status-picker' style={{ flexShrink: 0 }}>
-                      <span
-                        className={`status-pill ${registrationStatusPillClass(team.registrationStatus)}`}
-                        style={{ cursor: 'default' }}
-                      >
-                        {team.registrationStatus || '—'}
+                        {team.members?.length > 0 && (
+                          <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>
+                            Thành viên:{' '}
+                            {team.members
+                              .map((m) => m.fullName || m.email || '—')
+                              .filter(Boolean)
+                              .join(', ')}
+                          </div>
+                        )}
+                        {team.enrollCode && (
+                          <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2 }}>
+                            Mã đội: {team.enrollCode}
+                          </div>
+                        )}
                       </span>
-                    </span>
-                  </div>
-                )}
-              />
+                      <span className='status-picker' style={{ flexShrink: 0 }}>
+                        <span
+                          className={`status-pill ${registrationStatusPillClass(team.registrationStatus)}`}
+                          style={{ cursor: 'default' }}
+                        >
+                          {team.registrationStatus || '—'}
+                        </span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <Pagination total={teams.length} pageSize={MENTOR_PAGE_SIZE} currentPage={teamsPage} onChange={setTeamsPage} />
+              </>
             )}
           </>
         )}
@@ -395,7 +394,7 @@ export default function MentorDashboard() {
           </div>
           <div className='kv'>
             <span>Vai trò</span>
-            <span>Mentor</span>
+            <span>Cố vấn</span>
           </div>
           <div className='kv'>
             <span>Trạng thái phiên</span>
@@ -405,13 +404,11 @@ export default function MentorDashboard() {
       </div>
 
       {!chatOpen && (
-        <button type="button" className="chat-fab" onClick={() => setChatOpen(true)}>
+        <button type='button' className='chat-fab' onClick={() => setChatOpen(true)}>
           Chat đội
         </button>
       )}
-      {chatOpen && (
-        <ChatPopup open mode="mentor" onClose={() => setChatOpen(false)} />
-      )}
-    </DashboardShell>
+      {chatOpen && <ChatPopup open mode='mentor' onClose={() => setChatOpen(false)} />}
+    </DashboardLayout>
   )
 }

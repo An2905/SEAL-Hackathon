@@ -20,6 +20,7 @@ public class UserMapper {
         user.setRole(rs.getString("role"));
         user.setStatus(rs.getString("status"));
         user.setCreatedAt(rs.getString("created_at"));
+        user.setAvatarUrl(rs.getString("avatar_url"));
         return user;
     }
 

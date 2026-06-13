@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import FormField from '../../../components/common/FormField'
 import FormMessage from '../../../components/common/FormMessage'
+import LoadingState from '../../../components/common/LoadingState'
 import LoadingButton from '../../../components/common/LoadingButton'
 import { getAllEvents, getEventDetail } from '../../../api/event'
 import { getAllAccounts, assignJudge, assignMentor } from '../../../api/staff'
@@ -345,9 +346,7 @@ export default function StaffAssignPage() {
         </FormField>
 
         {loadingDetail && (
-          <div className='empty-state' style={{ marginTop: 12 }}>
-            Đang tải thông tin sự kiện…
-          </div>
+          <LoadingState text='Đang tải thông tin sự kiện…' style={{ marginTop: 12 }} />
         )}
 
         {ready && <EventAssignStatsPanel detail={detail} />}

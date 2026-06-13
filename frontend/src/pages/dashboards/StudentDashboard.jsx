@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import DashboardShell from './DashboardShell'
+import DashboardLayout from '../../components/layout/DashboardLayout'
 import FormField from '../../components/common/FormField'
 import FormMessage from '../../components/common/FormMessage'
 import LoadingButton from '../../components/common/LoadingButton'
@@ -15,7 +15,10 @@ import {
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 import ChatPopup, { ChatOpenButton } from '../../components/chat/ChatPopup'
-import CollapsibleKvList, { CollapsibleListToggle, useCollapsibleList } from '../../components/common/CollapsibleList'
+import Pagination from '../../components/common/Pagination'
+import LoadingState from '../../components/common/LoadingState'
+
+const PAGE_SIZE = 5
 
 function formatDateTime(value) {
   if (!value) return '—'
@@ -61,6 +64,8 @@ function eventStatusLabel(status) {
 // ─── Team Info Card ───────────────────────────────────────────────────────────
 function TeamInfoCard({ data, onRefresh }) {
   const { showToast } = useToast()
+  const [membersPage, setMembersPage] = useState(1)
+  const members = data.members || []
 
   const handleCopyEnroll = async () => {
     const code = data.enrollCode
@@ -97,11 +102,9 @@ function TeamInfoCard({ data, onRefresh }) {
       <div className="section-title" style={{ margin: '22px 0 10px' }}>
         <h2 style={{ fontSize: 16 }}>Thành viên</h2>
       </div>
-      <CollapsibleKvList
-        items={data.members || []}
-        getItemKey={(m) => m.userId}
-        renderItem={(m) => (
-          <div className="member-row">
+      <div className="kv-list">
+        {members.slice((membersPage - 1) * PAGE_SIZE, membersPage * PAGE_SIZE).map((m) => (
+          <div className="member-row" key={m.userId}>
             <div className="avatar">{(m.fullName?.[0] || m.email?.[0] || 'U').toUpperCase()}</div>
             <div className="member-info">
               <div className="member-name">
@@ -111,8 +114,9 @@ function TeamInfoCard({ data, onRefresh }) {
               <div className="member-meta">{m.email || ''}</div>
             </div>
           </div>
-        )}
-      />
+        ))}
+      </div>
+      <Pagination total={members.length} pageSize={PAGE_SIZE} currentPage={membersPage} onChange={setMembersPage} />
 
       <div className="card-actions" style={{ marginTop: 18 }}>
         <button className="btn btn-outline" onClick={handleCopyEnroll}>Sao chép mã enroll</button>
@@ -215,6 +219,7 @@ function JoinTeamForm({ onSuccess }) {
 }
 
 function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
+  const [mentorsPage, setMentorsPage] = useState(1)
   const status = (registration.registrationStatus || '').toUpperCase()
   const state = mentorState || {}
 
@@ -228,9 +233,7 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
 
   if (state.loading) {
     return (
-      <div className="empty-state" style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }}>
-        Đang tải mentor…
-      </div>
+      <LoadingState text="Đang tải mentor…" style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }} />
     )
   }
 
@@ -256,11 +259,9 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-dim)', marginBottom: 8 }}>
         Mentor bảng
       </div>
-      <CollapsibleKvList
-        items={mentors}
-        getItemKey={(m) => m.mentorId}
-        renderItem={(m) => (
-          <div className="member-row">
+      <div className="kv-list">
+        {mentors.slice((mentorsPage - 1) * PAGE_SIZE, mentorsPage * PAGE_SIZE).map((m) => (
+          <div className="member-row" key={m.mentorId}>
             <div className="avatar">{(m.mentorName?.[0] || 'M').toUpperCase()}</div>
             <div className="member-info">
               <div className="member-name" style={{ display: 'flex', alignItems: 'center' }}>
@@ -280,8 +281,9 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
               <div className="member-meta">{m.mentorEmail || ''}</div>
             </div>
           </div>
-        )}
-      />
+        ))}
+      </div>
+      <Pagination total={mentors.length} pageSize={PAGE_SIZE} currentPage={mentorsPage} onChange={setMentorsPage} />
     </div>
   )
 }
@@ -352,7 +354,7 @@ function TeamEventsPanel({ refreshKey, onOpenChat }) {
         <div className="card-title">Sự kiện & mentor</div>
       </div>
       <p className="card-sub">Các hackathon đội đã đăng ký — bảng và mentor được gán sau khi BTC duyệt và phân bảng.</p>
-      {loading && <div className="empty-state">Đang tải…</div>}
+      {loading && <LoadingState />}
       {!loading && error && <div className="empty-state">{error}</div>}
       {!loading && !error && list.length === 0 && (
         <div className="empty-state">Đội chưa đăng ký sự kiện nào.</div>
@@ -365,7 +367,8 @@ function TeamEventsPanel({ refreshKey, onOpenChat }) {
 }
 
 function TeamEventsList({ list, mentorsByEvent, onOpenChat }) {
-  const { visibleItems, hasMore, expanded, hiddenCount, toggle } = useCollapsibleList(list)
+  const [page, setPage] = useState(1)
+  const visibleItems = list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
     <>
@@ -437,12 +440,7 @@ function TeamEventsList({ list, mentorsByEvent, onOpenChat }) {
           )
         })}
       </div>
-      <CollapsibleListToggle
-        hasMore={hasMore}
-        expanded={expanded}
-        hiddenCount={hiddenCount}
-        onToggle={toggle}
-      />
+      <Pagination total={list.length} pageSize={PAGE_SIZE} currentPage={page} onChange={setPage} />
     </>
   )
 }
@@ -528,6 +526,8 @@ function DeleteMemberForm({ onSuccess }) {
 
 // ─── Activity Log ─────────────────────────────────────────────────────────────
 function ActivityLog({ activities }) {
+  const [page, setPage] = useState(1)
+
   if (!activities.length) {
     return (
       <div className="empty-state">
@@ -535,17 +535,19 @@ function ActivityLog({ activities }) {
       </div>
     )
   }
+
   return (
-    <CollapsibleKvList
-      items={activities}
-      getItemKey={(a, i) => `${a.at?.getTime?.() ?? i}-${a.text}`}
-      renderItem={(a) => (
-        <div className="kv">
-          <span>{a.at.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
-          <span>{a.text}</span>
-        </div>
-      )}
-    />
+    <>
+      <div className="kv-list">
+        {activities.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((a, i) => (
+          <div className="kv" key={`${a.at?.getTime?.() ?? i}-${a.text}`}>
+            <span>{a.at.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
+            <span>{a.text}</span>
+          </div>
+        ))}
+      </div>
+      <Pagination total={activities.length} pageSize={PAGE_SIZE} currentPage={page} onChange={setPage} />
+    </>
   )
 }
 
@@ -585,11 +587,10 @@ export default function StudentDashboard() {
   const refreshRegistrations = () => setRegistrationsRefreshKey((k) => k + 1)
 
   return (
-    <DashboardShell
-      roleLabel="Student"
-      title="Tài khoản sinh viên"
-      subtitle="Quản lý đội thi và đăng ký sự kiện hackathon ngay tại đây."
-      role="STUDENT"
+    <DashboardLayout
+      roleLabel="Sinh viên"
+      moduleTitle="Tài khoản sinh viên"
+      moduleSubtitle="Quản lý đội thi và đăng ký sự kiện hackathon ngay tại đây."
       showStudentFields
     >
       <div className="section-title">
@@ -598,7 +599,7 @@ export default function StudentDashboard() {
       </div>
 
       {teamState === 'loading' && (
-        <div className="empty-state">Đang tải thông tin đội...</div>
+        <LoadingState text="Đang tải thông tin đội..." />
       )}
 
       {teamState === 'has-team' && teamData && (
@@ -652,6 +653,6 @@ export default function StudentDashboard() {
 
       <div className="section-title"><h2>Hoạt động gần đây</h2></div>
       <ActivityLog activities={activities} />
-    </DashboardShell>
+    </DashboardLayout>
   )
 }

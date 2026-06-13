@@ -36,7 +36,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister, onSwit
         setMessage({ text: localizeError(result.message), type: 'error' })
         return
       }
-      saveAuth({ token: result.token, email: form.email, role: result.role })
+      saveAuth({ token: result.token, email: form.email, role: result.role, avatarUrl: result.avatarUrl })
       setMessage({ text: 'Đăng nhập thành công, đang chuyển hướng...', type: 'success' })
       const displayName = localStorage.getItem('hh_full_name') || form.email
       showToast(`Chào mừng ${displayName}!`, 'success')

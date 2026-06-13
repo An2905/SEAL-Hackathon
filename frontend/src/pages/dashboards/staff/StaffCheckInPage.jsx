@@ -6,8 +6,9 @@ import DashboardShell from '../DashboardShell'
 
 import FormMessage from '../../../components/common/FormMessage'
 
-import CollapsibleKvList, { CollapsibleListToggle, useCollapsibleList } from '../../../components/common/CollapsibleList'
+import Pagination from '../../../components/common/Pagination'
 import FullWidthSearchBar from '../../../components/common/FullWidthSearchBar'
+import LoadingState from '../../../components/common/LoadingState'
 
 import { getCheckInPage, setMemberCheckIn, setTeamCheckIn } from '../../../api/checkIn'
 
@@ -15,7 +16,7 @@ import { useToast } from '../../../context/ToastContext'
 
 import { localizeError } from '../../../utils/errors'
 
-
+const PAGE_SIZE = 5
 
 function formatDateTime(value) {
 
@@ -104,6 +105,7 @@ function isTeamPartiallyChecked(team) {
 function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }) {
   const { showToast } = useToast()
   const [open, setOpen] = useState(false)
+  const [membersPage, setMembersPage] = useState(1)
 
   const teamCheckboxRef = useRef(null)
 
@@ -281,91 +283,51 @@ function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }
             </div>
 
           ) : (
-            <CollapsibleKvList
-              items={members}
-              getItemKey={(m) => m.userId}
-
-              renderItem={(m) => {
-
-                const memberBusy = busyKey === `member:${team.teamId}:${m.userId}`
-
-                return (
-
-                  <div className='kv checkin-member-row' style={{ alignItems: 'flex-start' }}>
-
-                    <label className='checkin-checkbox-label'>
-
-                      <input
-
-                        type='checkbox'
-
-                        className='checkin-checkbox'
-
-                        checked={Boolean(m.checkedIn)}
-
-                        disabled={memberBusy || Boolean(busyKey)}
-
-                        onChange={async (e) => {
-
-                          const checked = e.target.checked
-
-                          try {
-
-                            await handleMemberCheck(m, checked)
-
-                          } catch (err) {
-
-                            e.target.checked = !checked
-
-                          }
-
-                        }}
-
-                      />
-
-                    </label>
-
-                    <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-
-                      <div style={{ fontWeight: 600, color: 'var(--text)' }}>
-
-                        {m.fullName || '—'}
-
-                        {m.leader && (
-
-                          <span className='leader-tag' style={{ marginLeft: 8 }}>
-
-                            Leader
-
-                          </span>
-
-                        )}
-
-                      </div>
-
-                      <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{m.email || '—'}</div>
-
-                    </span>
-
-                    <span
-
-                      className={`status-pill ${m.checkedIn ? 'status-active' : 'status-pending'}`}
-
-                      style={{ cursor: 'default', flexShrink: 0 }}
-
-                    >
-
-                      {m.checkedIn ? 'Đã check-in' : 'Chưa check-in'}
-
-                    </span>
-
-                  </div>
-
-                )
-
-              }}
-
-            />
+            <>
+              <div className='kv-list'>
+                {members.slice((membersPage - 1) * PAGE_SIZE, membersPage * PAGE_SIZE).map((m) => {
+                  const memberBusy = busyKey === `member:${team.teamId}:${m.userId}`
+                  return (
+                    <div className='kv checkin-member-row' key={m.userId} style={{ alignItems: 'flex-start' }}>
+                      <label className='checkin-checkbox-label'>
+                        <input
+                          type='checkbox'
+                          className='checkin-checkbox'
+                          checked={Boolean(m.checkedIn)}
+                          disabled={memberBusy || Boolean(busyKey)}
+                          onChange={async (e) => {
+                            const checked = e.target.checked
+                            try {
+                              await handleMemberCheck(m, checked)
+                            } catch (err) {
+                              e.target.checked = !checked
+                            }
+                          }}
+                        />
+                      </label>
+                      <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text)' }}>
+                          {m.fullName || '—'}
+                          {m.leader && (
+                            <span className='leader-tag' style={{ marginLeft: 8 }}>
+                              Leader
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{m.email || '—'}</div>
+                      </span>
+                      <span
+                        className={`status-pill ${m.checkedIn ? 'status-active' : 'status-pending'}`}
+                        style={{ cursor: 'default', flexShrink: 0 }}
+                      >
+                        {m.checkedIn ? 'Đã check-in' : 'Chưa check-in'}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+              <Pagination total={members.length} pageSize={PAGE_SIZE} currentPage={membersPage} onChange={setMembersPage} />
+            </>
           )}
 
         </div>
@@ -477,29 +439,17 @@ export default function StaffCheckInPage() {
 
   )
 
-  const {
+  const [teamsPage, setTeamsPage] = useState(1)
 
-    visibleItems: visibleTeams,
-
-    hasMore: hasMoreTeams,
-
-    expanded: teamsExpanded,
-
-    hiddenCount: hiddenTeamCount,
-
-    toggle: toggleTeams,
-
-    setExpanded: setTeamsExpanded
-
-  } = useCollapsibleList(filteredTeams)
+  const visibleTeams = filteredTeams.slice((teamsPage - 1) * PAGE_SIZE, teamsPage * PAGE_SIZE)
 
 
 
   useEffect(() => {
 
-    setTeamsExpanded(false)
+    setTeamsPage(1)
 
-  }, [searchQuery, setTeamsExpanded])
+  }, [searchQuery])
 
 
 
@@ -507,7 +457,7 @@ export default function StaffCheckInPage() {
 
     <DashboardShell
 
-      roleLabel='Staff'
+      roleLabel='Nhân viên'
 
       title='Check-in sự kiện'
 
@@ -521,7 +471,7 @@ export default function StaffCheckInPage() {
 
       <div className='action-row' style={{ marginBottom: 16 }}>
 
-        <Link className='btn btn-outline' to='/staff/events'>
+        <Link className='btn btn-outline' to='/staff?tab=events'>
 
           ← Quay lại danh sách sự kiện
 
@@ -557,7 +507,7 @@ export default function StaffCheckInPage() {
 
         {error && <FormMessage message={error} type='error' />}
 
-        {loading && <div className='empty-state'>Đang tải danh sách đội…</div>}
+        {loading && <LoadingState text='Đang tải danh sách đội…' />}
 
         {!loading && !error && teams.length === 0 && (
 
@@ -637,15 +587,15 @@ export default function StaffCheckInPage() {
 
                 </div>
 
-                <CollapsibleListToggle
+                <Pagination
 
-                  hasMore={hasMoreTeams}
+                  total={filteredTeams.length}
 
-                  expanded={teamsExpanded}
+                  pageSize={PAGE_SIZE}
 
-                  hiddenCount={hiddenTeamCount}
+                  currentPage={teamsPage}
 
-                  onToggle={toggleTeams}
+                  onChange={setTeamsPage}
 
                 />
 

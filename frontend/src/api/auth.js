@@ -1,4 +1,4 @@
-import { apiFetch, parseLoginResponse } from './client'
+import { apiFetch, apiUpload, parseLoginResponse } from './client'
 
 export async function login({ email, password, captchaToken }) {
   const text = await apiFetch('/api/auth/login', {
@@ -60,15 +60,11 @@ export async function verifyAndResetPassword({ email, otp, newPassword }) {
   return true
 }
 
-export async function updateProfile({ fullName, email, university, studentId, phone, avatarUrl }) {
+export async function updateProfile({ fullName, email, university, studentId, phone }) {
   const body = { fullName, university, studentId, phone }
   const trimmedEmail = (email ?? '').trim()
   if (trimmedEmail) {
     body.email = trimmedEmail
-  }
-  const trimmedAvatar = (avatarUrl ?? '').trim()
-  if (trimmedAvatar) {
-    body.avatarUrl = trimmedAvatar
   }
 
   const text = await apiFetch('/api/auth/profile', {
@@ -85,6 +81,15 @@ export async function updateProfile({ fullName, email, university, studentId, ph
   }
 
   return { newToken }
+}
+
+export async function uploadAvatar(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const text = await apiUpload('/api/auth/avatar', formData)
+  const obj = JSON.parse(text)
+  if (!obj.avatarUrl) throw new Error(obj.message || 'Cập nhật ảnh đại diện thất bại')
+  return obj.avatarUrl
 }
 
 export async function updatePassword({ oldPassword, newPassword, confirmPassword }) {
