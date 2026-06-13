@@ -3,7 +3,8 @@ import FormField from '../../../components/common/FormField'
 import FormMessage from '../../../components/common/FormMessage'
 import LoadingButton from '../../../components/common/LoadingButton'
 import Modal from '../../../components/common/Modal'
-import CollapsibleKvList from '../../../components/common/CollapsibleList'
+import Pagination from '../../../components/common/Pagination'
+import LoadingState from '../../../components/common/LoadingState'
 import {
   createUniversity,
   deleteUniversity,
@@ -139,9 +140,14 @@ function DeleteUniversityModal({ university, allUniversities, onClose, onDeleted
 
   const linkedCount = Number(preview?.linkedUserCount ?? 0)
   const needsHandling = linkedCount > 0
-  const replacementOptions = allUniversities.filter((u) => u.universityId !== university?.universityId)
+  const replacementOptions = allUniversities.filter(
+    (u) => u.universityId !== university?.universityId
+  )
 
-  const canSubmit = !loadingPreview && preview && (!needsHandling || replacement || clearLinked)
+  const canSubmit =
+    !loadingPreview &&
+    preview &&
+    (!needsHandling || replacement || clearLinked)
 
   const handleDelete = async () => {
     if (!canSubmit) return
@@ -249,6 +255,8 @@ function DeleteUniversityModal({ university, allUniversities, onClose, onDeleted
   )
 }
 
+const UNIVERSITIES_PAGE_SIZE = 5
+
 export default function StaffUniversitiesPage() {
   const [universities, setUniversities] = useState([])
   const [loading, setLoading] = useState(true)
@@ -256,11 +264,14 @@ export default function StaffUniversitiesPage() {
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)
+  const [page, setPage] = useState(1)
 
   const filteredUniversities = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return universities
-    return universities.filter((u) => (u.universityName ?? '').toLowerCase().includes(q))
+    return universities.filter((u) =>
+      (u.universityName ?? '').toLowerCase().includes(q)
+    )
   }, [universities, search])
 
   const loadUniversities = useCallback(async () => {
@@ -278,6 +289,10 @@ export default function StaffUniversitiesPage() {
   useEffect(() => {
     loadUniversities()
   }, [loadUniversities])
+
+  useEffect(() => {
+    setPage(1)
+  }, [search])
 
   return (
     <>
@@ -309,66 +324,80 @@ export default function StaffUniversitiesPage() {
           />
         </FormField>
 
-        {loading && <p className='hint'>Đang tải...</p>}
+        {loading && <LoadingState text='Đang tải...' className='hint' />}
         <FormMessage message={error} type='error' />
-        {!loading && !error && universities.length === 0 && <p className='hint'>Chưa có trường nào.</p>}
+        {!loading && !error && universities.length === 0 && (
+          <p className='hint'>Chưa có trường nào.</p>
+        )}
         {!loading && !error && universities.length > 0 && filteredUniversities.length === 0 && (
           <p className='hint'>Không tìm thấy trường khớp với &quot;{search.trim()}&quot;.</p>
         )}
         {!loading && filteredUniversities.length > 0 && (
-          <CollapsibleKvList
-            items={filteredUniversities}
-            getItemKey={(u) => u.universityId}
-            renderItem={(u) => {
-              const linked = Number(u.linkedUserCount) || 0
-              return (
-                <div className='kv'>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600 }}>{u.universityName}</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        padding: '3px 8px',
-                        borderRadius: 'var(--radius)',
-                        background: linked > 0 ? 'rgba(234, 179, 8, 0.15)' : 'var(--bg)',
-                        border: '1px solid var(--border)',
-                        color: linked > 0 ? '#b45309' : 'var(--text-mute)'
-                      }}
-                    >
-                      {linked} SV
-                    </span>
-                    <button
-                      type='button'
-                      className='btn btn-outline'
-                      style={{ fontSize: 12, padding: '4px 10px' }}
-                      onClick={() => setEditing(u)}
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      type='button'
-                      className='btn btn-outline'
-                      style={{
-                        fontSize: 12,
-                        padding: '4px 10px',
-                        color: 'var(--danger, #dc2626)',
-                        borderColor: 'var(--danger, #dc2626)'
-                      }}
-                      onClick={() => setDeleting(u)}
-                    >
-                      Xóa
-                    </button>
-                  </div>
-                </div>
-              )
-            }}
-          />
+          <>
+            <div className='kv-list'>
+              {filteredUniversities
+                .slice((page - 1) * UNIVERSITIES_PAGE_SIZE, page * UNIVERSITIES_PAGE_SIZE)
+                .map((u) => {
+                  const linked = Number(u.linkedUserCount) || 0
+                  return (
+                    <div className='kv' key={u.universityId}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600 }}>{u.universityName}</div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span
+                          style={{
+                            fontSize: 12,
+                            padding: '3px 8px',
+                            borderRadius: 'var(--radius)',
+                            background: linked > 0 ? 'rgba(234, 179, 8, 0.15)' : 'var(--bg)',
+                            border: '1px solid var(--border)',
+                            color: linked > 0 ? '#b45309' : 'var(--text-mute)'
+                          }}
+                        >
+                          {linked} SV
+                        </span>
+                        <button
+                          type='button'
+                          className='btn btn-outline'
+                          style={{ fontSize: 12, padding: '4px 10px' }}
+                          onClick={() => setEditing(u)}
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          type='button'
+                          className='btn btn-outline'
+                          style={{
+                            fontSize: 12,
+                            padding: '4px 10px',
+                            color: 'var(--danger, #dc2626)',
+                            borderColor: 'var(--danger, #dc2626)'
+                          }}
+                          onClick={() => setDeleting(u)}
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+            <Pagination
+              total={filteredUniversities.length}
+              pageSize={UNIVERSITIES_PAGE_SIZE}
+              currentPage={page}
+              onChange={setPage}
+            />
+          </>
         )}
       </div>
 
-      <EditUniversityModal university={editing} onClose={() => setEditing(null)} onUpdated={loadUniversities} />
+      <EditUniversityModal
+        university={editing}
+        onClose={() => setEditing(null)}
+        onUpdated={loadUniversities}
+      />
       <DeleteUniversityModal
         university={deleting}
         allUniversities={universities}

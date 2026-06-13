@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import FormField from '../../../components/common/FormField'
 import FormMessage from '../../../components/common/FormMessage'
+import LoadingState from '../../../components/common/LoadingState'
 import LoadingButton from '../../../components/common/LoadingButton'
 import { getAllEvents, getEventDetail } from '../../../api/event'
 import { getAllAccounts, assignJudge, assignMentor } from '../../../api/staff'
 import { useToast } from '../../../context/ToastContext'
 import { localizeError } from '../../../utils/errors'
+
+
+function groupLabel(g) {
+  const round = g.roundName ? `${g.roundName} · ` : ''
+  return `${round}${g.name || '—'}`
+}
 
 const EXCLUDED_EVENT_STATUSES = new Set(['BUILDING', 'COMPLETED'])
 
@@ -105,7 +112,9 @@ function AssignJudgeForm({ judges, rounds, groups, disabled }) {
         <div className='card-title'>Phân công Giám khảo</div>
       </div>
       <p className='card-sub'>
-        Mỗi judge được gán vào một <strong>bảng</strong> trong một <strong>vòng</strong>.
+        Mỗi judge được gán vào một{' '}
+        <strong>bảng</strong> trong một{' '}
+        <strong>vòng</strong>.
       </p>
       <form className='form' onSubmit={submit}>
         <FormField label='Giám khảo'>
@@ -192,7 +201,9 @@ function AssignMentorForm({ mentors, rounds, groups, disabled }) {
         <div className='card-title'>Phân công Mentor</div>
       </div>
       <p className='card-sub'>
-        Mỗi mentor được gán vào một <strong>bảng</strong> trong một <strong>vòng</strong>.
+        Mỗi mentor được gán vào một{' '}
+        <strong>bảng</strong> trong một{' '}
+        <strong>vòng</strong>.
       </p>
       <form className='form' onSubmit={submit}>
         <FormField label='Mentor'>
@@ -323,7 +334,9 @@ export default function StaffAssignPage() {
         </div>
         <FormField label='Sự kiện'>
           <select value={eventId} onChange={(e) => setEventId(e.target.value)}>
-            <option value=''>{assignableEvents.length ? '— Chọn sự kiện —' : '— Không có sự kiện khả dụng —'}</option>
+            <option value=''>
+              {assignableEvents.length ? '— Chọn sự kiện —' : '— Không có sự kiện khả dụng —'}
+            </option>
             {assignableEvents.map((ev) => (
               <option key={ev.eventId} value={ev.eventId}>
                 {ev.title} ({eventStatusLabel(ev.status)})
@@ -333,9 +346,7 @@ export default function StaffAssignPage() {
         </FormField>
 
         {loadingDetail && (
-          <div className='empty-state' style={{ marginTop: 12 }}>
-            Đang tải thông tin sự kiện…
-          </div>
+          <LoadingState text='Đang tải thông tin sự kiện…' style={{ marginTop: 12 }} />
         )}
 
         {ready && <EventAssignStatsPanel detail={detail} />}
