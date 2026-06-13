@@ -24,6 +24,7 @@ import com.hackathon.hackathon.model.dto.response.EventCriteriaResponse;
 import com.hackathon.hackathon.model.dto.response.EventDetailResponse;
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
+import com.hackathon.hackathon.model.dto.response.StaffEmailFilterResponse;
 import com.hackathon.hackathon.model.dto.response.StaffUniversityItemResponse;
 import com.hackathon.hackathon.model.dto.response.UniversityResponse;
 import com.hackathon.hackathon.service.EventService;
@@ -218,5 +219,39 @@ public class StaffController {
       @RequestHeader("Authorization") String authHeader,
       @RequestBody CheckInMemberRequest request) {
     return ResponseEntity.ok(eventService.setMemberCheckIn(authHeader, request));
+  }
+
+  @GetMapping("/emails/filter")
+  public ResponseEntity<StaffEmailFilterResponse> filterEmails(
+      @RequestHeader("Authorization") String authHeader,
+      @RequestParam(required = false) String audiences,
+      @RequestParam(required = false) String eventId,
+      @RequestParam(required = false) String roundId,
+      @RequestParam(required = false) String groupId,
+      @RequestParam(required = false) String teamId,
+      @RequestParam(required = false) String userRole,
+      @RequestParam(required = false, defaultValue = "APPROVED") String registrationStatus,
+      @RequestParam(required = false) String emailContains,
+      @RequestParam(required = false) String nameContains,
+      @RequestParam(required = false) String teamNameContains,
+      @RequestParam(required = false, defaultValue = "APPROVED") String accountStatus,
+      @RequestParam(required = false, defaultValue = "comma") String separator,
+      @RequestParam(required = false, defaultValue = "true") boolean includeCopyText) {
+    return ResponseEntity.ok(
+        staffService.filterEmails(
+            authHeader,
+            audiences,
+            eventId,
+            roundId,
+            groupId,
+            teamId,
+            userRole,
+            registrationStatus,
+            emailContains,
+            nameContains,
+            teamNameContains,
+            accountStatus,
+            separator,
+            includeCopyText));
   }
 }
