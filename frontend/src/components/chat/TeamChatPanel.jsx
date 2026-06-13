@@ -2,12 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import FormField from '../common/FormField'
 import FormMessage from '../common/FormMessage'
 import LoadingButton from '../common/LoadingButton'
-import {
-  chatErrorMessage,
-  createChatRoom,
-  getChatMessages,
-  listChatRooms
-} from '../../api/chat'
+import { chatErrorMessage, createChatRoom, getChatMessages, listChatRooms } from '../../api/chat'
 import { getTeamRegistrations, getTeamTrackMentors, getTeamRounds } from '../../api/team'
 import { useChatStomp } from '../../hooks/useChatStomp'
 import { localizeError } from '../../utils/errors'
@@ -194,77 +189,81 @@ export default function TeamChatPanel({ isLeader }) {
   }
 
   return (
-    <div className="card team-chat-panel">
-      <div className="card-head">
+    <div className='card team-chat-panel'>
+      <div className='card-head'>
         <div>
-          <div className="card-title">Chat mentor &amp; đội</div>
-          <div className="card-sub">
-            {connected ? 'Realtime đã kết nối' : 'Đang kết nối WebSocket...'}
-          </div>
+          <div className='card-title'>Chat mentor &amp; đội</div>
+          <div className='card-sub'>{connected ? 'Realtime đã kết nối' : 'Đang kết nối WebSocket...'}</div>
         </div>
       </div>
 
       {isLeader && (
-        <form className="chat-create-form" onSubmit={handleCreateRoom}>
-          <div className="chat-create-grid">
-            <FormField label="Sự kiện">
+        <form className='chat-create-form' onSubmit={handleCreateRoom}>
+          <div className='chat-create-grid'>
+            <FormField label='Sự kiện'>
               <select
                 value={form.eventId}
                 onChange={(e) => setForm({ eventId: e.target.value, roundId: '', mentorId: '' })}
               >
-                <option value="">-- Chọn event --</option>
+                <option value=''>-- Chọn event --</option>
                 {registrations.map((r) => (
-                  <option key={r.eventId} value={r.eventId}>{r.eventTitle}</option>
+                  <option key={r.eventId} value={r.eventId}>
+                    {r.eventTitle}
+                  </option>
                 ))}
               </select>
             </FormField>
-            <FormField label="Round">
+            <FormField label='Round'>
               <select
                 value={form.roundId}
                 onChange={(e) => setForm((f) => ({ ...f, roundId: e.target.value }))}
                 disabled={!form.eventId}
               >
-                <option value="">-- Chọn round --</option>
+                <option value=''>-- Chọn round --</option>
                 {rounds.map((r) => (
-                  <option key={r.roundId} value={r.roundId}>{r.name}</option>
+                  <option key={r.roundId} value={r.roundId}>
+                    {r.name}
+                  </option>
                 ))}
               </select>
             </FormField>
-            <FormField label="Mentor">
+            <FormField label='Mentor'>
               <select
                 value={form.mentorId}
                 onChange={(e) => setForm((f) => ({ ...f, mentorId: e.target.value }))}
                 disabled={!form.eventId}
               >
-                <option value="">-- Chọn mentor --</option>
+                <option value=''>-- Chọn mentor --</option>
                 {mentors.map((m) => (
-                  <option key={m.mentorId} value={m.mentorId}>{m.mentorName}</option>
+                  <option key={m.mentorId} value={m.mentorId}>
+                    {m.mentorName}
+                  </option>
                 ))}
               </select>
             </FormField>
           </div>
-          <LoadingButton loading={creating} type="submit">Tạo phòng chat</LoadingButton>
-          <FormMessage message={formError} type="error" />
+          <LoadingButton loading={creating} type='submit'>
+            Tạo phòng chat
+          </LoadingButton>
+          <FormMessage message={formError} type='error' />
         </form>
       )}
 
-      <div className="chat-layout">
-        <div className="chat-room-list">
-          {loadingRooms && <div className="empty-state">Đang tải phòng...</div>}
-          {!loadingRooms && rooms.length === 0 && (
-            <div className="empty-state">Chưa có phòng chat.</div>
-          )}
+      <div className='chat-layout'>
+        <div className='chat-room-list'>
+          {loadingRooms && <div className='empty-state'>Đang tải phòng...</div>}
+          {!loadingRooms && rooms.length === 0 && <div className='empty-state'>Chưa có phòng chat.</div>}
           {rooms.map((room) => (
             <button
               key={room.roomId}
-              type="button"
+              type='button'
               className={`chat-room-item${room.roomId === selectedRoomId ? ' active' : ''}`}
               onClick={() => setSelectedRoomId(room.roomId)}
             >
-              <div className="chat-room-item-title">
+              <div className='chat-room-item-title'>
                 {room.eventTitle || 'Sự kiện'} · {room.roundName || 'Vòng thi'}
               </div>
-              <div className="chat-room-item-sub">
+              <div className='chat-room-item-sub'>
                 Mentor: {room.mentorName || room.mentorId}
                 {room.status === 'CLOSED' ? ' · Đã đóng' : ''}
               </div>
@@ -272,39 +271,40 @@ export default function TeamChatPanel({ isLeader }) {
           ))}
         </div>
 
-        <div className="chat-main">
-          {!selectedRoomId && <div className="empty-state">Chọn một phòng chat.</div>}
+        <div className='chat-main'>
+          {!selectedRoomId && <div className='empty-state'>Chọn một phòng chat.</div>}
           {selectedRoomId && (
             <>
-              {roomClosed && (
-                <div className="form-message error">Phòng đã đóng — chỉ xem, không gửi tin.</div>
-              )}
-              <div className="chat-messages">
-                {loadingMessages && <div className="empty-state">Đang tải tin nhắn...</div>}
-                {!loadingMessages && messages.map((msg) => (
-                  <div key={msg.messageId} className="chat-message-row">
-                    <div className="chat-message-meta">
-                      <strong>{msg.senderName || msg.senderId}</strong>
-                      <span>{formatDateTime(msg.createdAt)}</span>
+              {roomClosed && <div className='form-message error'>Phòng đã đóng — chỉ xem, không gửi tin.</div>}
+              <div className='chat-messages'>
+                {loadingMessages && <div className='empty-state'>Đang tải tin nhắn...</div>}
+                {!loadingMessages &&
+                  messages.map((msg) => (
+                    <div key={msg.messageId} className='chat-message-row'>
+                      <div className='chat-message-meta'>
+                        <strong>{msg.senderName || msg.senderId}</strong>
+                        <span>{formatDateTime(msg.createdAt)}</span>
+                      </div>
+                      <div className='chat-message-content'>{msg.content}</div>
                     </div>
-                    <div className="chat-message-content">{msg.content}</div>
-                  </div>
-                ))}
+                  ))}
                 <div ref={messagesEndRef} />
               </div>
               {!roomClosed && (
-                <form className="chat-send-form" onSubmit={handleSend}>
+                <form className='chat-send-form' onSubmit={handleSend}>
                   <input
-                    type="text"
+                    type='text'
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
-                    placeholder="Nhập tin nhắn..."
+                    placeholder='Nhập tin nhắn...'
                     maxLength={2000}
                   />
-                  <LoadingButton loading={sending} type="submit">Gửi</LoadingButton>
+                  <LoadingButton loading={sending} type='submit'>
+                    Gửi
+                  </LoadingButton>
                 </form>
               )}
-              <FormMessage message={error} type="error" />
+              <FormMessage message={error} type='error' />
             </>
           )}
         </div>

@@ -73,9 +73,13 @@ export default function JudgeCriteriaPanel({ roundId, roundName }) {
     <div className='criteria-manager'>
       <div className='criteria-manager-head'>
         <div>
-          <h3 className='section-subtitle' style={{ margin: 0 }}>Tiêu chí chấm điểm</h3>
+          <h3 className='section-subtitle' style={{ margin: 0 }}>
+            Tiêu chí chấm điểm
+          </h3>
           {roundName ? (
-            <p className='muted' style={{ margin: '4px 0 0', fontSize: 13 }}>Vòng: {roundName}</p>
+            <p className='muted' style={{ margin: '4px 0 0', fontSize: 13 }}>
+              Vòng: {roundName}
+            </p>
           ) : null}
         </div>
         {data ? (

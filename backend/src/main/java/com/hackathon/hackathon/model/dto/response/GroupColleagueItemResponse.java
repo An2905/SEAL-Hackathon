@@ -8,9 +8,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class GroupColleagueItemResponse {
-    private String userId;
-    private String fullName;
-    private String email;
-    private String role;
-    private boolean self;
+  private String userId;
+  private String fullName;
+  private String email;
+  private String role;
+  private boolean self;
 }

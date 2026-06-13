@@ -112,7 +112,9 @@ export async function getScoreBySubmission(submissionId) {
 // POST /api/judge/scores
 export async function submitScore(payload) {
   const text = await apiFetch('/api/judge/scores', { method: 'POST', body: payload })
-  return String(text ?? '').trim().replace(/^"|"$/g, '')
+  return String(text ?? '')
+    .trim()
+    .replace(/^"|"$/g, '')
 }
 
 // PUT /api/judge/scores?scoreId=

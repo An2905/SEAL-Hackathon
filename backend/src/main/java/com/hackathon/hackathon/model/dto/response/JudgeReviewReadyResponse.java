@@ -8,6 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class JudgeReviewReadyResponse {
-    private boolean reviewEnabled;
-    private String submissionDeadline;
+  private boolean reviewEnabled;
+  private String submissionDeadline;
 }

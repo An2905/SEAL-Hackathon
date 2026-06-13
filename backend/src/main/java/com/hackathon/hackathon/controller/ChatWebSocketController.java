@@ -12,14 +12,13 @@ import org.springframework.stereotype.Controller;
 @Controller
 public class ChatWebSocketController {
 
-    @Autowired
-    private ChatService chatService;
+  @Autowired private ChatService chatService;
 
-    @MessageMapping("/chat.send")
-    public void sendMessage(@Payload SendChatMessageRequest request, Principal principal) {
-        if (!(principal instanceof StompUserPrincipal user)) {
-            return;
-        }
-        chatService.sendMessage(user.getUserId(), request);
+  @MessageMapping("/chat.send")
+  public void sendMessage(@Payload SendChatMessageRequest request, Principal principal) {
+    if (!(principal instanceof StompUserPrincipal user)) {
+      return;
     }
+    chatService.sendMessage(user.getUserId(), request);
+  }
 }

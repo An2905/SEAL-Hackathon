@@ -4,11 +4,11 @@ import lombok.Data;
 
 @Data
 public class EventTeamResponse {
-    private String teamId;
+  private String teamId;
 
-    private String teamName;
+  private String teamName;
 
-    private String status;
+  private String status;
 
-    private String registrationId;
+  private String registrationId;
 }

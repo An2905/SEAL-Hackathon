@@ -109,7 +109,6 @@ export default function MentorDashboard() {
     }
   }, [showToast])
 
-
   useEffect(() => {
     if (!selectedAssignment) {
       setTeams([])
@@ -124,7 +123,6 @@ export default function MentorDashboard() {
     setErrorTeams(null)
     setLoadingColleagues(true)
     setErrorColleagues(null)
-
     ;(async () => {
       try {
         const rows = await getAssignedTeams({
@@ -143,7 +141,6 @@ export default function MentorDashboard() {
         if (!cancelled) setLoadingTeams(false)
       }
     })()
-
     ;(async () => {
       try {
         const data = await getGroupColleagues({
@@ -175,7 +172,9 @@ export default function MentorDashboard() {
       showStaffFields
     >
       <div className='action-row' style={{ marginBottom: '1rem' }}>
-        <Link className='btn btn-outline' to='/judge'>Chuyển sang khu Judge</Link>
+        <Link className='btn btn-outline' to='/judge'>
+          Chuyển sang khu Judge
+        </Link>
       </div>
       {/* ── Sự kiện được phân công ── */}
       <div className='section-title'>
@@ -245,9 +244,7 @@ export default function MentorDashboard() {
 
       <div className='card'>
         {loadingAssignments && <div className='empty-state'>Đang tải phân công bảng…</div>}
-        {!loadingAssignments && errorAssignments && (
-          <div className='empty-state'>{errorAssignments}</div>
-        )}
+        {!loadingAssignments && errorAssignments && <div className='empty-state'>{errorAssignments}</div>}
         {!loadingAssignments && !errorAssignments && assignments.length === 0 && (
           <div className='empty-state'>Bạn chưa được phân công bảng nào.</div>
         )}
@@ -269,15 +266,10 @@ export default function MentorDashboard() {
                   </button>
                 )
               })}
-
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <ExpertGroupColleaguesBoard
-                colleagues={colleagues}
-                loading={loadingColleagues}
-                error={errorColleagues}
-              />
+              <ExpertGroupColleaguesBoard colleagues={colleagues} loading={loadingColleagues} error={errorColleagues} />
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
@@ -368,13 +360,11 @@ export default function MentorDashboard() {
       </div>
 
       {!chatOpen && (
-        <button type="button" className="chat-fab" onClick={() => setChatOpen(true)}>
+        <button type='button' className='chat-fab' onClick={() => setChatOpen(true)}>
           Chat đội
         </button>
       )}
-      {chatOpen && (
-        <ChatPopup open mode="mentor" onClose={() => setChatOpen(false)} />
-      )}
+      {chatOpen && <ChatPopup open mode='mentor' onClose={() => setChatOpen(false)} />}
     </DashboardShell>
   )
 }

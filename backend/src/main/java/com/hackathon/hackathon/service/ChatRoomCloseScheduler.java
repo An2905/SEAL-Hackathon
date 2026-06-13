@@ -8,11 +8,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class ChatRoomCloseScheduler {
 
-    @Autowired
-    private ChatRepository chatRepository;
+  @Autowired private ChatRepository chatRepository;
 
-    @Scheduled(fixedRate = 60000)
-    public void closeExpiredRooms() {
-        chatRepository.closeExpiredRooms();
-    }
+  @Scheduled(fixedRate = 60000)
+  public void closeExpiredRooms() {
+    chatRepository.closeExpiredRooms();
+  }
 }

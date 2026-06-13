@@ -15,7 +15,7 @@ const RecaptchaWidget = forwardRef(function RecaptchaWidget(_props, ref) {
       if (widgetIdRef.current != null && window.grecaptcha) {
         window.grecaptcha.reset(widgetIdRef.current)
       }
-    },
+    }
   }))
 
   useEffect(() => {
@@ -30,7 +30,7 @@ const RecaptchaWidget = forwardRef(function RecaptchaWidget(_props, ref) {
       .then(() => {
         if (cancelled || !containerRef.current || widgetIdRef.current != null) return
         widgetIdRef.current = window.grecaptcha.render(containerRef.current, {
-          sitekey: RECAPTCHA_SITE_KEY,
+          sitekey: RECAPTCHA_SITE_KEY
         })
       })
       .catch((err) => {
@@ -44,22 +44,14 @@ const RecaptchaWidget = forwardRef(function RecaptchaWidget(_props, ref) {
   }, [])
 
   if (!RECAPTCHA_SITE_KEY || loadError === 'RECAPTCHA_NOT_CONFIGURED') {
-    return (
-      <p className="form-message error">
-        Captcha chưa được cấu hình (VITE_RECAPTCHA_SITE_KEY).
-      </p>
-    )
+    return <p className='form-message error'>Captcha chưa được cấu hình (VITE_RECAPTCHA_SITE_KEY).</p>
   }
 
   if (loadError) {
-    return (
-      <p className="form-message error">
-        Không tải được captcha. Vui lòng tải lại trang.
-      </p>
-    )
+    return <p className='form-message error'>Không tải được captcha. Vui lòng tải lại trang.</p>
   }
 
-  return <div ref={containerRef} className="recaptcha-wrap" />
+  return <div ref={containerRef} className='recaptcha-wrap' />
 })
 
 export default RecaptchaWidget

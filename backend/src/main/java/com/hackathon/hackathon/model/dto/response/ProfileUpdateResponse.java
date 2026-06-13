@@ -8,6 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProfileUpdateResponse {
-    private String message;
-    private String newToken;
+  private String message;
+  private String newToken;
 }

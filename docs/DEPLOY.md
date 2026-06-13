@@ -1,40 +1,44 @@
-# Deploy
+# Deployment Guide
 
-| Môi trường | URL / Ghi chú |
-|------------|----------------|
+| Environment | URL / Notes |
+|-------------|-------------|
 | Frontend | https://sealhackathon.vercel.app/ (Vercel) |
 | Backend | Railway + profile `prod` |
-| DB | Railway MySQL |
+| Database | Railway MySQL |
 
-## Local (mặc định)
+## Local Environment (Default)
 
-- `application.properties` — MySQL `localhost:3306/hackathon`, port `8080`
-- `backend/.env.properties` — `JWT_SECRET_KEY`, `RECAPTCHA_SECRET`, `BREVO_API_KEY`
-- `mvnw spring-boot:run` trong `backend/`
-- FE: `npm run dev` trong `frontend/` (proxy `/api` → 8080)
+- **Configuration:** `application.properties` connects to MySQL at `localhost:3306/hackathon` on port `8080`.
+- **Environment variables:** Configured in `backend/.env.properties` (local only, not committed):
+  - `JWT_SECRET_KEY`
+  - `RECAPTCHA_SECRET`
+  - `BREVO_API_KEY`
+- **Backend Startup:** Run `./mvnw spring-boot:run` in the `backend/` directory.
+- **Frontend Startup:** Run `npm run dev` in the `frontend/` directory. (Vite API proxy will route `/api` request to port `8080`).
 
-## Railway Backend
+## Railway Deployment (Backend)
 
-1. Service **Root Directory**: `backend`
-2. Thêm MySQL, link variables: `MYSQLHOST`, `MYSQLPORT`, `MYSQLUSER`, `MYSQLPASSWORD`, `MYSQLDATABASE`
-3. Variables:
+1. Create a Railway service with **Root Directory** set to `backend`.
+2. Provision a MySQL database and link variables: `MYSQLHOST`, `MYSQLPORT`, `MYSQLUSER`, `MYSQLPASSWORD`, `MYSQLDATABASE`.
+3. Add environment variables:
    - `SPRING_PROFILES_ACTIVE` = `prod`
    - `JWT_SECRET_KEY`, `RECAPTCHA_SECRET`, `BREVO_API_KEY` (optional)
-4. Import `database/scripts/schema.sql` + `seeding.sql`
-5. Generate domain → test `GET /api/universities/all`
+4. Initialize the database by importing `database/scripts/schema.sql` followed by `seeding.sql`.
+5. Generate a public domain and verify connection by testing `GET /api/universities/all`.
 
-Config: `application-prod.properties` + `CorsConfig` (profile `prod`, CORS cho Vercel).
+*Note:* Configuration details are managed in `application-prod.properties` and `CorsConfig.java` (enabled under `prod` profile to configure CORS origins for Vercel).
 
-## Vercel Frontend
+## Vercel Deployment (Frontend)
 
-Environment (Production):
+Configure the following environment variables on Vercel:
 
-- `VITE_API_BASE` = URL Railway backend (không có `/` cuối)
-- `VITE_RECAPTCHA_SITE_KEY` = site key
+- `VITE_API_BASE` = URL of your Railway backend service (no trailing slash `/`).
+- `VITE_RECAPTCHA_SITE_KEY` = ReCAPTCHA public site key.
 
-Redeploy sau khi đổi env.
+*Note:* Trigger a redeploy after updating environment variables on Vercel.
 
-## reCAPTCHA domains
+## reCAPTCHA Domains
 
+Configure reCAPTCHA to allow validation for:
 - `sealhackathon.vercel.app`
 - `localhost`

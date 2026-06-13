@@ -16,79 +16,54 @@ import {
 // Returns: [{ eventId, title, description, startDate, endDate, status, createdAt? }, ...]
 
 export async function getAssignedEvents() {
-
   const text = await apiFetch('/api/mentor/events', { method: 'GET' })
 
   try {
-
     const data = JSON.parse(text)
 
     if (!Array.isArray(data)) return []
 
     return data.map(mapEventRow)
-
   } catch {
-
     throw new Error(text || 'Không thể tải sự kiện được phân công')
-
   }
-
 }
-
-
 
 // GET /api/mentor/events/current-rounds
 
 // Response: [{ eventId, eventTitle, roundId, roundName, startDate, endDate, roundStatus }]
 
 export async function getAssignedCurrentRounds() {
-
   const text = await apiFetch('/api/mentor/events/current-rounds', { method: 'GET' })
 
   try {
-
     const data = JSON.parse(text)
 
     return Array.isArray(data) ? data : []
-
   } catch {
-
     throw new Error(text || 'Không thể tải vòng hiện tại')
-
   }
-
 }
-
-
 
 // GET /api/mentor/assignments
 
 // Response: [{ eventId, eventTitle, roundId, roundName, groupId, groupName }, ...]
 
 export async function getMentorAssignments() {
-
   const text = await apiFetch('/api/mentor/assignments', { method: 'GET' })
 
   try {
-
     const data = JSON.parse(text)
 
     if (!Array.isArray(data)) return []
 
     return data.map(mapMentorAssignmentRow)
-
   } catch {
-
     throw new Error(text || 'Không thể tải phân công bảng')
-
   }
-
 }
 
-
-
 // GET /api/mentor/teams?eventId&roundId&groupId&registrationStatus
-
 
 // GET /api/mentor/colleagues?eventId&roundId&groupId
 export async function getGroupColleagues({ eventId, roundId, groupId }) {
@@ -116,15 +91,10 @@ export async function getAssignedTeams({ eventId, roundId, groupId, registration
   const gid = String(groupId ?? '').trim()
 
   if (!eid || !rid || !gid) {
-
     throw new Error('Thiếu thông tin sự kiện, vòng hoặc bảng')
-
   }
 
-
-
   const params = new URLSearchParams({
-
     eventId: eid,
 
     roundId: rid,
@@ -132,26 +102,17 @@ export async function getAssignedTeams({ eventId, roundId, groupId, registration
     groupId: gid,
 
     registrationStatus: registrationStatus || 'APPROVED'
-
   })
-
-
 
   const text = await apiFetch(`/api/mentor/teams?${params.toString()}`, { method: 'GET' })
 
   try {
-
     const data = JSON.parse(text)
 
     if (!Array.isArray(data)) return []
 
     return data.map(mapMentorAssignedTeamRow)
-
   } catch {
-
     throw new Error(text || 'Không thể tải danh sách đội')
-
   }
-
 }
-

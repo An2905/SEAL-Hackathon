@@ -23,10 +23,7 @@ export function eventStatusPillClass(status) {
 export function StatusBadge({ status }) {
   return (
     <span className='status-picker' style={{ flexShrink: 0 }}>
-      <span
-        className={`status-pill ${eventStatusPillClass(status)}`}
-        style={{ cursor: 'default' }}
-      >
+      <span className={`status-pill ${eventStatusPillClass(status)}`} style={{ cursor: 'default' }}>
         {status || '—'}
       </span>
     </span>

@@ -50,16 +50,19 @@ export function useChatStomp({ roomId, onMessage }) {
     }
   }, [roomId])
 
-  const sendMessage = useCallback((content) => {
-    const client = clientRef.current
-    if (!client?.connected) {
-      throw new Error('WebSocket chưa kết nối')
-    }
-    client.publish({
-      destination: '/app/chat.send',
-      body: JSON.stringify({ roomId, content })
-    })
-  }, [roomId])
+  const sendMessage = useCallback(
+    (content) => {
+      const client = clientRef.current
+      if (!client?.connected) {
+        throw new Error('WebSocket chưa kết nối')
+      }
+      client.publish({
+        destination: '/app/chat.send',
+        body: JSON.stringify({ roomId, content })
+      })
+    },
+    [roomId]
+  )
 
   return { connected, sendMessage }
 }

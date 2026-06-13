@@ -23,9 +23,7 @@ function ExpertColleaguesRow({ title, count, people, roleLabel, emptyText }) {
   return (
     <div className={`expert-colleagues-row expert-colleagues-row--${roleLabel.toLowerCase()}`}>
       <div className='expert-colleagues-row-label'>
-        <span className={`expert-colleagues-pill expert-colleagues-pill--${roleLabel.toLowerCase()}`}>
-          {title}
-        </span>
+        <span className={`expert-colleagues-pill expert-colleagues-pill--${roleLabel.toLowerCase()}`}>{title}</span>
         <span className='expert-colleagues-count'>{count}</span>
       </div>
       <div className='expert-colleagues-track'>
@@ -33,11 +31,7 @@ function ExpertColleaguesRow({ title, count, people, roleLabel, emptyText }) {
           <span className='expert-colleagues-empty'>{emptyText}</span>
         ) : (
           people.map((person) => (
-            <ExpertColleagueCard
-              key={`${roleLabel}-${person.userId}`}
-              person={person}
-              roleLabel={roleLabel}
-            />
+            <ExpertColleagueCard key={`${roleLabel}-${person.userId}`} person={person} roleLabel={roleLabel} />
           ))
         )}
       </div>

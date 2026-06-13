@@ -4,5 +4,5 @@ import lombok.Data;
 
 @Data
 public class CreateUniversityRequest {
-    private String universityName;
+  private String universityName;
 }

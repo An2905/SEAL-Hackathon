@@ -4,6 +4,6 @@ import lombok.Data;
 
 @Data
 public class OpenChatRoomRequest {
-    private String eventId;
-    private String mentorId;
+  private String eventId;
+  private String mentorId;
 }

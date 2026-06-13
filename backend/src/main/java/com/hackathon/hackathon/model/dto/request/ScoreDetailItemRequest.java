@@ -7,12 +7,12 @@ import lombok.Data;
 
 @Data
 public class ScoreDetailItemRequest {
-    @NotBlank(message = "Criteria ID is required.")
-    private String criteriaId;
+  @NotBlank(message = "Criteria ID is required.")
+  private String criteriaId;
 
-    @NotNull(message = "Score is required.")
-    @DecimalMin(value = "0.0", message = "Score must be non-negative.")
-    private Double score;
+  @NotNull(message = "Score is required.")
+  @DecimalMin(value = "0.0", message = "Score must be non-negative.")
+  private Double score;
 
-    private String feedback;
+  private String feedback;
 }

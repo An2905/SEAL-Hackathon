@@ -8,10 +8,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DeleteUniversityPreviewResponse {
-    private String universityId;
-    private String universityName;
-    private String linkedUserCount;
-    private boolean canDeleteDirectly;
-    private boolean requiresUserHandling;
-    private String message;
+  private String universityId;
+  private String universityName;
+  private String linkedUserCount;
+  private boolean canDeleteDirectly;
+  private boolean requiresUserHandling;
+  private String message;
 }
