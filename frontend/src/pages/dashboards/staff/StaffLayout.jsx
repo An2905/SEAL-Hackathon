@@ -3,7 +3,6 @@ import StaffOverviewPage from './StaffOverviewPage'
 import StaffAccountsPage from './StaffAccountsPage'
 import StaffEventsPage from './StaffEventsPage'
 import StaffAssignPage from './StaffAssignPage'
-import StaffAnnouncementsPage from './StaffAnnouncementsPage'
 import StaffUniversitiesPage from './StaffUniversitiesPage'
 
 const TABS = [
@@ -11,7 +10,6 @@ const TABS = [
   { key: 'events', label: 'Sự kiện', content: <StaffEventsPage /> },
   { key: 'accounts', label: 'Tài khoản', content: <StaffAccountsPage /> },
   { key: 'assign', label: 'Phân công', content: <StaffAssignPage /> },
-  { key: 'announcements', label: 'Thông báo', content: <StaffAnnouncementsPage /> },
   { key: 'universities', label: 'Trường ĐH', content: <StaffUniversitiesPage /> }
 ]
 

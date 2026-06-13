@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 /**
  * Pagination
  *
@@ -90,8 +92,6 @@ function buildPages(current, total) {
   pages.push(total)
   return pages
 }
-
-import { useState } from 'react'
 
 const wrapStyle = {
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
