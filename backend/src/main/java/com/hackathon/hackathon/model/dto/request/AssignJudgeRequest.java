@@ -4,9 +4,9 @@ import lombok.Data;
 
 @Data
 public class AssignJudgeRequest {
-    private String judgeId;
+  private String judgeId;
 
-    private String roundId;
+  private String roundId;
 
-    private String groupId;
+  private String groupId;
 }

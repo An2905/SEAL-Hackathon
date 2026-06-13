@@ -3,13 +3,13 @@ name: Backend CI
 on:
   pull_request:
     branches:
-      - main
+      - Main
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
   push:
     branches:
-      - main
+      - Main
     paths:
       - 'backend/**'
 
@@ -29,10 +29,15 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Compile Backend
+      - name: Check Java Formatting (Spotless)
         run: |
           cd backend
           chmod +x mvnw
+          ./mvnw spotless:check
+
+      - name: Compile Backend
+        run: |
+          cd backend
           ./mvnw clean compile
 
       - name: Package Backend (Skip Tests)

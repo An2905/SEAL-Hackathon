@@ -4,7 +4,7 @@ import lombok.Data;
 
 @Data
 public class AssignMentorGroupRequest {
-    private String userId;
-    private String roundId;
-    private String groupId;
+  private String userId;
+  private String roundId;
+  private String groupId;
 }

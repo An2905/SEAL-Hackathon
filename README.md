@@ -2,7 +2,6 @@
 
 [![Backend CI](https://github.com/nmt2103/SEAL-Hackathon/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/nmt2103/SEAL-Hackathon/actions/workflows/backend-ci.yml)
 [![Frontend CI](https://github.com/nmt2103/SEAL-Hackathon/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/nmt2103/SEAL-Hackathon/actions/workflows/frontend-ci.yml)
-[![Security Scan](https://github.com/nmt2103/SEAL-Hackathon/actions/workflows/security.yml/badge.svg)](https://github.com/nmt2103/SEAL-Hackathon/actions/workflows/security.yml)
 
 A comprehensive, production-ready monorepo platform designed to automate event coordination, team registration, mentoring, real-time communication, and academic research-based grading for the annual Software Engineering Agile League (SEAL) hackathon.
 

@@ -4,6 +4,6 @@ import lombok.Data;
 
 @Data
 public class SendAllAnnouncementRequest {
-    private String title;
-    private String content;
+  private String title;
+  private String content;
 }

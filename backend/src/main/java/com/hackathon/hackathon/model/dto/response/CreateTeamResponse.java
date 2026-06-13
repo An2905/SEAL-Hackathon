@@ -8,8 +8,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateTeamResponse {
-    private String message;
-    private String teamId;
-    private String teamName;
-    private String enrollCode;
+  private String message;
+  private String teamId;
+  private String teamName;
+  private String enrollCode;
 }

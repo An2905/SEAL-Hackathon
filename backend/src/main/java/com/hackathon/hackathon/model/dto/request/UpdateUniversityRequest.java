@@ -4,6 +4,6 @@ import lombok.Data;
 
 @Data
 public class UpdateUniversityRequest {
-    private String universityId;
-    private String universityName;
+  private String universityId;
+  private String universityName;
 }
