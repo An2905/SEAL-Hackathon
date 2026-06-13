@@ -5,6 +5,7 @@ import Modal from '../../../components/common/Modal'
 import FormField from '../../../components/common/FormField'
 import LoadingButton from '../../../components/common/LoadingButton'
 import FormMessage from '../../../components/common/FormMessage'
+import LoadingState from '../../../components/common/LoadingState'
 import { getCriteriaByRound, createCriteria, updateCriteria, deleteCriteria } from '../../../api/criteriaApi'
 
 const weightColor = (pct) => {
@@ -263,7 +264,7 @@ function RoundCriteriaModal({ round, isOpen, onClose }) {
       {pageError ? <FormMessage message={pageError} type='error' /> : null}
 
       {loading ? (
-        <div className='empty-state'>Đang tải tiêu chí…</div>
+        <LoadingState text='Đang tải tiêu chí…' />
       ) : (
         <>
           <WeightBar total={totalWeight} />
@@ -340,7 +341,10 @@ function RoundCriteriaModal({ round, isOpen, onClose }) {
 }
 
 export default function CriteriaManager({ rounds = [] }) {
-  const sortedRounds = useMemo(() => [...rounds].sort((a, b) => Number(a.roundOrder) - Number(b.roundOrder)), [rounds])
+  const sortedRounds = useMemo(
+    () => [...rounds].sort((a, b) => Number(a.roundOrder) - Number(b.roundOrder)),
+    [rounds]
+  )
 
   const [activeRound, setActiveRound] = useState(null)
 
@@ -381,7 +385,11 @@ export default function CriteriaManager({ rounds = [] }) {
         ))}
       </div>
 
-      <RoundCriteriaModal round={activeRound} isOpen={!!activeRound} onClose={() => setActiveRound(null)} />
+      <RoundCriteriaModal
+        round={activeRound}
+        isOpen={!!activeRound}
+        onClose={() => setActiveRound(null)}
+      />
     </section>
   )
 }

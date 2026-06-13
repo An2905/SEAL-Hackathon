@@ -1,9 +1,10 @@
-/* eslint-disable no-unused-vars */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import DashboardShell from './DashboardShell'
 import FormMessage from '../../components/common/FormMessage'
 import Modal from '../../components/common/Modal'
+import ConfirmModal from '../../components/common/ConfirmModal'
+import LoadingState from '../../components/common/LoadingState'
 import PendingTeamsBadge from '../../components/common/PendingTeamsBadge'
 import { getEventDetail, countPendingTeams } from '../../api/event'
 import { changeTeamRegistrationStatus, getAllAccounts } from '../../api/staff'
@@ -34,10 +35,11 @@ import LoadingButton from '../../components/common/LoadingButton'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 import CriteriaManager from './staff/CriteriaManager'
-import CollapsibleKvList, { CollapsibleSimpleList } from '../../components/common/CollapsibleList'
+import Pagination from '../../components/common/Pagination'
 
 const REGISTRATION_STATUSES = ['PENDING', 'APPROVED', 'REJECTED']
 const EVENT_STATUSES = ['BUILDING', 'UPCOMING', 'ONGOING', 'COMPLETED']
+const PAGE_SIZE = 5
 
 function eventStatusPillClass(status) {
   const key = (status || '').toUpperCase()
@@ -300,6 +302,7 @@ function EventBoardCreateGroupModal({ eventId, rounds, isOpen, onClose, onCreate
   )
 }
 
+
 function filterAssignmentsForGroup(assignments, group) {
   if (!group?.groupId) return []
   return (assignments ?? []).filter(
@@ -308,7 +311,10 @@ function filterAssignmentsForGroup(assignments, group) {
 }
 
 function GroupStaffAssignmentsPanel({ eventId, mentors = [], judges = [] }) {
-  const renderStaffName = (item, nameKey, emailKey, idKey) => item[nameKey] || item[emailKey] || item[idKey] || '—'
+  const [mentorsPage, setMentorsPage] = useState(1)
+  const [judgesPage, setJudgesPage] = useState(1)
+  const renderStaffName = (item, nameKey, emailKey, idKey) =>
+    item[nameKey] || item[emailKey] || item[idKey] || '—'
 
   return (
     <div className='event-group-staff-panel' style={{ marginBottom: 16 }}>
@@ -317,20 +323,24 @@ function GroupStaffAssignmentsPanel({ eventId, mentors = [], judges = [] }) {
         {mentors.length === 0 ? (
           <p className='muted'>Chưa phân công mentor.</p>
         ) : (
-          <CollapsibleSimpleList
-            items={mentors}
-            getItemKey={(m) => m.mentorId || `${m.roundId}-${m.groupId}`}
-            renderItem={(m) => (
-              <li className='simple-list-item event-group-staff-item'>
-                <span className='event-group-staff-name'>
-                  {renderStaffName(m, 'mentorName', 'mentorEmail', 'mentorId')}
-                </span>
-                {m.mentorEmail && m.mentorName ? (
-                  <span className='event-group-staff-email'>{m.mentorEmail}</span>
-                ) : null}
-              </li>
-            )}
-          />
+          <>
+            <ul className='simple-list'>
+              {mentors.slice((mentorsPage - 1) * PAGE_SIZE, mentorsPage * PAGE_SIZE).map((m) => (
+                <li
+                  className='simple-list-item event-group-staff-item'
+                  key={m.mentorId || `${m.roundId}-${m.groupId}`}
+                >
+                  <span className='event-group-staff-name'>
+                    {renderStaffName(m, 'mentorName', 'mentorEmail', 'mentorId')}
+                  </span>
+                  {m.mentorEmail && m.mentorName ? (
+                    <span className='event-group-staff-email'>{m.mentorEmail}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            <Pagination total={mentors.length} pageSize={PAGE_SIZE} currentPage={mentorsPage} onChange={setMentorsPage} />
+          </>
         )}
       </div>
 
@@ -339,18 +349,24 @@ function GroupStaffAssignmentsPanel({ eventId, mentors = [], judges = [] }) {
         {judges.length === 0 ? (
           <p className='muted'>Chưa phân công judge.</p>
         ) : (
-          <CollapsibleSimpleList
-            items={judges}
-            getItemKey={(j) => j.judgeId || `${j.roundId}-${j.groupId}`}
-            renderItem={(j) => (
-              <li className='simple-list-item event-group-staff-item'>
-                <span className='event-group-staff-name'>
-                  {renderStaffName(j, 'judgeName', 'judgeEmail', 'judgeId')}
-                </span>
-                {j.judgeEmail && j.judgeName ? <span className='event-group-staff-email'>{j.judgeEmail}</span> : null}
-              </li>
-            )}
-          />
+          <>
+            <ul className='simple-list'>
+              {judges.slice((judgesPage - 1) * PAGE_SIZE, judgesPage * PAGE_SIZE).map((j) => (
+                <li
+                  className='simple-list-item event-group-staff-item'
+                  key={j.judgeId || `${j.roundId}-${j.groupId}`}
+                >
+                  <span className='event-group-staff-name'>
+                    {renderStaffName(j, 'judgeName', 'judgeEmail', 'judgeId')}
+                  </span>
+                  {j.judgeEmail && j.judgeName ? (
+                    <span className='event-group-staff-email'>{j.judgeEmail}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            <Pagination total={judges.length} pageSize={PAGE_SIZE} currentPage={judgesPage} onChange={setJudgesPage} />
+          </>
         )}
       </div>
 
@@ -376,13 +392,14 @@ function EventBoardGroupDetailModal({
   onClose,
   onUpdated,
   onDeleted
-}) {
-  const { showToast } = useToast()
+}) {  const { showToast } = useToast()
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [teamsLoading, setTeamsLoading] = useState(false)
   const [teamActionId, setTeamActionId] = useState('')
   const [assignedTeams, setAssignedTeams] = useState([])
+  const [assignedTeamsPage, setAssignedTeamsPage] = useState(1)
   const [availableTeams, setAvailableTeams] = useState([])
   const [teamCount, setTeamCount] = useState(0)
   const [selectedTeamId, setSelectedTeamId] = useState('')
@@ -396,6 +413,7 @@ function EventBoardGroupDetailModal({
   const syncTeamsState = useCallback(
     (data, notifyParent = false) => {
       setAssignedTeams(data?.assigned ?? [])
+      setAssignedTeamsPage(1)
       setAvailableTeams(data?.available ?? [])
       setTeamCount(data?.teamCount ?? 0)
       setSelectedTeamId('')
@@ -443,9 +461,13 @@ function EventBoardGroupDetailModal({
     return () => {
       cancelled = true
     }
-  }, [isOpen, group, eventId, syncTeamsState])
+  }, [isOpen, group, eventId])
 
-  const groupRound = useMemo(() => rounds.find((r) => r.roundId === group?.roundId) ?? null, [group?.roundId, rounds])
+
+  const groupRound = useMemo(
+    () => rounds.find((r) => r.roundId === group?.roundId) ?? null,
+    [group?.roundId, rounds]
+  )
 
   const roundLabel = useMemo(() => {
     if (!group) return '—'
@@ -453,9 +475,12 @@ function EventBoardGroupDetailModal({
     return groupRound ? roundDisplayLabel(groupRound) : '—'
   }, [group, groupRound])
 
+
   const isFirstRound = Number(groupRound?.roundOrder ?? 1) <= 1
   const addTeamLabel = isFirstRound ? 'Thêm đội đã duyệt' : 'Thêm đội winner vòng trước'
-  const noTeamsHint = isFirstRound ? 'Không còn đội khả dụng' : 'Không còn đội winner vòng trước khả dụng'
+  const noTeamsHint = isFirstRound
+    ? 'Không còn đội khả dụng'
+    : 'Không còn đội winner vòng trước khả dụng'
 
   const groupMentors = useMemo(() => filterAssignmentsForGroup(assignedMentors, group), [assignedMentors, group])
   const groupJudges = useMemo(() => filterAssignmentsForGroup(assignedJudges, group), [assignedJudges, group])
@@ -527,10 +552,6 @@ function EventBoardGroupDetailModal({
 
   const handleDelete = async () => {
     if (!group?.groupId) return
-    const label = group.name || 'bảng thi'
-    if (!window.confirm(`Xóa "${label}"? Phân công mentor/judge liên quan cũng sẽ bị gỡ.`)) {
-      return
-    }
     setDeleting(true)
     setError('')
     try {
@@ -541,9 +562,11 @@ function EventBoardGroupDetailModal({
       })
       onDeleted?.(group.groupId)
       showToast('Đã xóa bảng thi', 'success')
+      setConfirmDeleteOpen(false)
       onClose()
     } catch (err) {
       setError(localizeError(err.message))
+      setConfirmDeleteOpen(false)
     } finally {
       setDeleting(false)
     }
@@ -552,6 +575,7 @@ function EventBoardGroupDetailModal({
   const busy = saving || deleting || addingTeam || Boolean(teamActionId)
 
   return (
+    <>
     <Modal
       isOpen={isOpen}
       onClose={onClose}
@@ -589,40 +613,42 @@ function EventBoardGroupDetailModal({
 
           <GroupStaffAssignmentsPanel eventId={eventId} mentors={groupMentors} judges={groupJudges} />
 
-          <div className='event-group-teams-panel' style={{ marginBottom: 16 }}>
-            {' '}
-            <h4 className='section-subtitle'>Đội trong bảng</h4>
+          <div className='event-group-teams-panel' style={{ marginBottom: 16 }}>            <h4 className='section-subtitle'>Đội trong bảng</h4>
             {teamsLoading ? (
-              <p className='muted'>Đang tải danh sách đội…</p>
+              <LoadingState text='Đang tải danh sách đội…' className='muted' />
             ) : assignedTeams.length === 0 ? (
               <p className='muted'>Chưa có đội nào trong bảng.</p>
             ) : (
-              <CollapsibleSimpleList
-                items={assignedTeams}
-                getItemKey={(team) => team.teamId}
-                renderItem={(team) => (
-                  <li
-                    className='simple-list-item'
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: 8
-                    }}
-                  >
-                    <span>{team.teamName || team.teamId}</span>
-                    <button
-                      type='button'
-                      className='btn btn-ghost btn-sm'
-                      onClick={() => handleRemoveTeam(team.teamId)}
-                      disabled={busy}
+              <>
+                <ul className='simple-list'>
+                  {assignedTeams.slice((assignedTeamsPage - 1) * PAGE_SIZE, assignedTeamsPage * PAGE_SIZE).map((team) => (
+                    <li
+                      className='simple-list-item'
+                      key={team.teamId}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 8
+                      }}
                     >
-                      {teamActionId === team.teamId ? '…' : 'Gỡ'}
-                    </button>
-                  </li>
-                )}
-              />
+                      <span>{team.teamName || team.teamId}</span>
+                      <button
+                        type='button'
+                        className='btn btn-ghost btn-sm'
+                        onClick={() => handleRemoveTeam(team.teamId)}
+                        disabled={busy}
+                      >
+                        {teamActionId === team.teamId ? '…' : 'Gỡ'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <Pagination total={assignedTeams.length} pageSize={PAGE_SIZE} currentPage={assignedTeamsPage} onChange={setAssignedTeamsPage} />
+              </>
             )}
+
+
             <div style={{ marginTop: 12 }}>
               <FormField label={addTeamLabel}>
                 <div
@@ -639,8 +665,7 @@ function EventBoardGroupDetailModal({
                     disabled={busy || teamsLoading || availableTeams.length === 0}
                     style={{ flex: '1 1 200px', minWidth: 0 }}
                   >
-                    <option value=''>{availableTeams.length === 0 ? noTeamsHint : 'Chọn đội…'}</option>{' '}
-                    {availableTeams.map((team) => (
+                    <option value=''>{availableTeams.length === 0 ? noTeamsHint : 'Chọn đội…'}</option>                    {availableTeams.map((team) => (
                       <option key={team.teamId} value={team.teamId}>
                         {team.teamName || team.teamId}
                       </option>
@@ -692,14 +717,25 @@ function EventBoardGroupDetailModal({
                   Đóng
                 </button>
               </div>
-              <button type='button' className='btn btn-danger btn-sm' onClick={handleDelete} disabled={busy}>
-                {deleting ? '…' : 'Xóa bảng'}
+              <button type='button' className='btn btn-danger btn-sm' onClick={() => setConfirmDeleteOpen(true)} disabled={busy}>
+                Xóa bảng
               </button>
             </div>
           </form>
         </>
       )}
     </Modal>
+    <ConfirmModal
+      isOpen={confirmDeleteOpen}
+      onClose={() => setConfirmDeleteOpen(false)}
+      onConfirm={handleDelete}
+      title='Xóa bảng thi'
+      message={`Xóa "${group?.name || 'bảng thi'}"? Phân công mentor/judge liên quan cũng sẽ bị gỡ.`}
+      confirmLabel='Xóa'
+      loading={deleting}
+      danger
+    />
+    </>
   )
 }
 
@@ -708,6 +744,7 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({
     name: '',
@@ -776,19 +813,17 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
 
   const handleDelete = async () => {
     if (!round?.roundId) return
-    const label = round.name || roundDisplayLabel(round)
-    if (!window.confirm(`Xóa "${label}"? Các bảng và phân công liên quan cũng sẽ bị gỡ.`)) {
-      return
-    }
     setDeleting(true)
     setError('')
     try {
       await deleteEventRound({ eventId, roundId: round.roundId })
       onDeleted?.(round.roundId)
       showToast('Đã xóa vòng thi', 'success')
+      setConfirmDeleteOpen(false)
       onClose()
     } catch (err) {
       setError(localizeError(err.message))
+      setConfirmDeleteOpen(false)
     } finally {
       setDeleting(false)
     }
@@ -800,6 +835,7 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
     phase === 'ongoing' ? 'Đang diễn ra' : phase === 'upcoming' ? 'Sắp diễn ra' : phase === 'past' ? 'Đã kết thúc' : '—'
 
   return (
+    <>
     <Modal
       isOpen={isOpen}
       onClose={onClose}
@@ -808,7 +844,7 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
       className='modal-wide'
     >
       {loadingDetail ? (
-        <div className='empty-state'>Đang tải thông tin vòng…</div>
+        <LoadingState text='Đang tải thông tin vòng…' />
       ) : (
         <>
           <div className='kv-list' style={{ marginBottom: 16 }}>
@@ -912,14 +948,25 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
                   Đóng
                 </button>
               </div>
-              <button type='button' className='btn btn-danger btn-sm' onClick={handleDelete} disabled={busy}>
-                {deleting ? '…' : 'Xóa vòng'}
+              <button type='button' className='btn btn-danger btn-sm' onClick={() => setConfirmDeleteOpen(true)} disabled={busy}>
+                Xóa vòng
               </button>
             </div>
           </form>
         </>
       )}
     </Modal>
+    <ConfirmModal
+      isOpen={confirmDeleteOpen}
+      onClose={() => setConfirmDeleteOpen(false)}
+      onConfirm={handleDelete}
+      title='Xóa vòng thi'
+      message={`Xóa "${round?.name || roundDisplayLabel(round)}"? Các bảng và phân công liên quan cũng sẽ bị gỡ.`}
+      confirmLabel='Xóa'
+      loading={deleting}
+      danger
+    />
+    </>
   )
 }
 
@@ -957,6 +1004,7 @@ function EventBoardSection({
     () => [...(event?.rounds ?? [])].sort((a, b) => Number(a.roundOrder) - Number(b.roundOrder)),
     [event?.rounds]
   )
+
 
   const groupsByRound = useMemo(() => {
     const map = new Map()
@@ -1008,6 +1056,7 @@ function EventBoardSection({
               <div className='event-board-row-groups'>
                 {groups.length ? (
                   <div className='event-board-groups-track'>
+
                     {groups.map((group) => {
                       const staffCounts = staffCountByGroup.get(`${group.roundId}:${group.groupId}`) ?? {
                         mentors: 0,
@@ -1030,8 +1079,7 @@ function EventBoardSection({
                           </div>
                         </button>
                       )
-                    })}{' '}
-                  </div>
+                    })}                  </div>
                 ) : (
                   <div className='event-board-groups-empty'>Chưa có bảng thi</div>
                 )}
@@ -1056,6 +1104,7 @@ function EventBoardSection({
           </div>
         </div>
       )}
+
       <div className='event-board-row event-board-row-add'>
         <div className='event-board-row-round'>
           <button type='button' className='event-board-add-btn' onClick={() => setRoundModalOpen(true)}>
@@ -1069,6 +1118,7 @@ function EventBoardSection({
         </div>
         <div className='event-board-row-winner' />
       </div>
+
       <EventBoardCreateRoundModal
         eventId={event.eventId}
         isOpen={roundModalOpen}
@@ -1093,6 +1143,7 @@ function EventBoardSection({
         onUpdated={onRoundUpdated}
         onDeleted={onRoundDeleted}
       />
+
       <EventBoardGroupDetailModal
         eventId={event.eventId}
         group={groupDetailGroup}
@@ -1106,8 +1157,7 @@ function EventBoardSection({
         }}
         onUpdated={onGroupUpdated}
         onDeleted={onGroupDeleted}
-      />{' '}
-    </section>
+      />    </section>
   )
 }
 
@@ -1168,6 +1218,24 @@ function buildSetupWarnings(event) {
   }
 
   return warnings
+}
+
+function StatRow({ label, count, badgeCount, setupWarning, onOpen }) {
+  return (
+    <div className='event-stat-row'>
+      <PendingTeamsBadge count={badgeCount} />
+      <SetupWarningBadge title={setupWarning} />
+      <button type='button' className='event-stat-row-trigger' onClick={onOpen} aria-haspopup='dialog'>
+        <span className='event-stat-row-label'>{label}</span>
+        <span className='event-stat-row-value'>
+          <span className='event-stat-row-count'>{count ?? '0'}</span>
+          <span className='event-stat-row-action' aria-hidden='true'>
+            ›
+          </span>
+        </span>
+      </button>
+    </div>
+  )
 }
 
 function registrationStatusPillClass(status) {
@@ -1260,28 +1328,30 @@ function TeamRegistrationStatusPicker({ team, onUpdated }) {
 }
 
 function TeamsDropdownContent({ teams, onUpdated }) {
+  const [page, setPage] = useState(1)
   if (!teams.length) {
     return <div className='event-stat-dropdown-empty'>Chưa có đội nào tham gia.</div>
   }
   return (
-    <CollapsibleKvList
-      items={teams}
-      getItemKey={(team) => team.registrationId || team.teamId}
-      renderItem={(team) => (
-        <div className='kv'>
-          <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-            <div style={{ fontWeight: 600 }}>{team.teamName || '—'}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-mute)' }}></div>
-          </span>
-          <TeamRegistrationStatusPicker team={team} onUpdated={onUpdated} />
-        </div>
-      )}
-    />
+    <>
+      <div className='kv-list'>
+        {teams.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((team) => (
+          <div className='kv' key={team.registrationId || team.teamId}>
+            <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+              <div style={{ fontWeight: 600 }}>{team.teamName || '—'}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-mute)' }}></div>
+            </span>
+            <TeamRegistrationStatusPicker team={team} onUpdated={onUpdated} />
+          </div>
+        ))}
+      </div>
+      <Pagination total={teams.length} pageSize={PAGE_SIZE} currentPage={page} onChange={setPage} />
+    </>
   )
 }
 
-function StaffActionLink({ eventId, path, focus, children }) {
-  const qs = new URLSearchParams({ eventId: String(eventId) })
+function StaffActionLink({ eventId, tab, focus, children }) {
+  const qs = new URLSearchParams({ eventId: String(eventId), tab })
   if (focus) qs.set('focus', focus)
   return (
     <div
@@ -1292,7 +1362,7 @@ function StaffActionLink({ eventId, path, focus, children }) {
       }}
     >
       <Link
-        to={`${path}?${qs.toString()}`}
+        to={`/staff?${qs.toString()}`}
         className='btn btn-outline'
         style={{ width: '100%', fontSize: 12, justifyContent: 'center' }}
       >
@@ -1304,7 +1374,7 @@ function StaffActionLink({ eventId, path, focus, children }) {
 
 function AssignPanelLink({ eventId, focus, children }) {
   return (
-    <StaffActionLink eventId={eventId} path='/staff/assign' focus={focus}>
+    <StaffActionLink eventId={eventId} tab='assign' focus={focus}>
       {children}
     </StaffActionLink>
   )
@@ -1312,7 +1382,7 @@ function AssignPanelLink({ eventId, focus, children }) {
 
 function SetupPanelLink({ eventId, focus, children }) {
   return (
-    <StaffActionLink eventId={eventId} path='/staff/setup' focus={focus}>
+    <StaffActionLink eventId={eventId} tab='events' focus={focus}>
       {children}
     </StaffActionLink>
   )
@@ -1321,16 +1391,16 @@ function SetupPanelLink({ eventId, focus, children }) {
 function StatItemDeleteButton({ itemLabel, onDelete, confirmMessage }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
-  const handleClick = async () => {
-    const message = confirmMessage ?? `Xóa "${itemLabel}"? Phân công mentor/judge liên quan cũng sẽ bị gỡ.`
-    if (!window.confirm(message)) {
-      return
-    }
+  const message = confirmMessage ?? `Xóa "${itemLabel}"? Phân công mentor/judge liên quan cũng sẽ bị gỡ.`
+
+  const handleConfirm = async () => {
     setLoading(true)
     try {
       await onDelete()
       showToast('Đã xóa thành công', 'success')
+      setConfirmOpen(false)
     } catch (err) {
       showToast(localizeError(err.message), 'error')
     } finally {
@@ -1339,14 +1409,26 @@ function StatItemDeleteButton({ itemLabel, onDelete, confirmMessage }) {
   }
 
   return (
-    <button
-      type='button'
-      className='btn btn-danger btn-sm event-stat-item-delete'
-      onClick={handleClick}
-      disabled={loading}
-    >
-      {loading ? '…' : 'Xóa'}
-    </button>
+    <>
+      <button
+        type='button'
+        className='btn btn-danger btn-sm event-stat-item-delete'
+        onClick={() => setConfirmOpen(true)}
+        disabled={loading}
+      >
+        {loading ? '…' : 'Xóa'}
+      </button>
+      <ConfirmModal
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={handleConfirm}
+        title='Xóa mục'
+        message={message}
+        confirmLabel='Xóa'
+        loading={loading}
+        danger
+      />
+    </>
   )
 }
 
@@ -1560,7 +1642,7 @@ function RoundStatItem({ eventId, round, onUpdated, onDeleted }) {
       {editOpen ? (
         <form className='event-stat-item-edit' onSubmit={handleSave}>
           {loadingDetail ? (
-            <div className='event-stat-dropdown-empty'>Đang tải…</div>
+            <LoadingState className='event-stat-dropdown-empty' />
           ) : (
             <>
               <FormField label='Tên vòng *'>
@@ -1649,18 +1731,26 @@ function RoundStatItem({ eventId, round, onUpdated, onDeleted }) {
 }
 
 function GroupsDropdownContent({ eventId, groups, onGroupDeleted, onGroupUpdated }) {
+  const [page, setPage] = useState(1)
   return (
     <>
       {!groups.length ? (
         <div className='event-stat-dropdown-empty'>Chưa có bảng thi nào.</div>
       ) : (
-        <CollapsibleKvList
-          items={groups}
-          getItemKey={(group) => group.groupId}
-          renderItem={(group) => (
-            <GroupStatItem eventId={eventId} group={group} onUpdated={onGroupUpdated} onDeleted={onGroupDeleted} />
-          )}
-        />
+        <>
+          <div className='kv-list'>
+            {groups.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((group) => (
+              <GroupStatItem
+                key={group.groupId}
+                eventId={eventId}
+                group={group}
+                onUpdated={onGroupUpdated}
+                onDeleted={onGroupDeleted}
+              />
+            ))}
+          </div>
+          <Pagination total={groups.length} pageSize={PAGE_SIZE} currentPage={page} onChange={setPage} />
+        </>
       )}
       <SetupPanelLink eventId={eventId} focus='group'>
         + Thêm bảng thi
@@ -1670,18 +1760,26 @@ function GroupsDropdownContent({ eventId, groups, onGroupDeleted, onGroupUpdated
 }
 
 function RoundsDropdownContent({ eventId, rounds, onRoundDeleted, onRoundUpdated }) {
+  const [page, setPage] = useState(1)
   return (
     <>
       {!rounds.length ? (
         <div className='event-stat-dropdown-empty'>Chưa có vòng thi nào.</div>
       ) : (
-        <CollapsibleKvList
-          items={rounds}
-          getItemKey={(round) => round.roundId}
-          renderItem={(round) => (
-            <RoundStatItem eventId={eventId} round={round} onUpdated={onRoundUpdated} onDeleted={onRoundDeleted} />
-          )}
-        />
+        <>
+          <div className='kv-list'>
+            {rounds.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((round) => (
+              <RoundStatItem
+                key={round.roundId}
+                eventId={eventId}
+                round={round}
+                onUpdated={onRoundUpdated}
+                onDeleted={onRoundDeleted}
+              />
+            ))}
+          </div>
+          <Pagination total={rounds.length} pageSize={PAGE_SIZE} currentPage={page} onChange={setPage} />
+        </>
       )}
       <SetupPanelLink eventId={eventId} focus='round'>
         + Thêm vòng thi
@@ -1789,7 +1887,7 @@ function MentorStatItem({ eventId, assignment, rounds, groups, onUpdated, onDele
       {editOpen ? (
         <form className='event-stat-item-edit' onSubmit={handleSave}>
           {loadingAccounts ? (
-            <div className='event-stat-dropdown-empty'>Đang tải…</div>
+            <LoadingState className='event-stat-dropdown-empty' />
           ) : (
             <>
               <FormField label='Vòng *'>
@@ -1971,7 +2069,7 @@ function JudgeStatItem({ eventId, assignment, rounds, groups, onUpdated, onDelet
       {editOpen ? (
         <form className='event-stat-item-edit' onSubmit={handleSave}>
           {loadingAccounts ? (
-            <div className='event-stat-dropdown-empty'>Đang tải…</div>
+            <LoadingState className='event-stat-dropdown-empty' />
           ) : (
             <>
               <FormField label='Vòng *'>
@@ -2050,25 +2148,28 @@ function JudgeStatItem({ eventId, assignment, rounds, groups, onUpdated, onDelet
 }
 
 function MentorsDropdownContent({ eventId, assignedMentors = [], rounds = [], groups = [], onUpdated, onDeleted }) {
+  const [page, setPage] = useState(1)
   return (
     <>
       {!assignedMentors.length ? (
         <div className='event-stat-dropdown-empty'>Chưa phân công mentor nào.</div>
       ) : (
-        <CollapsibleKvList
-          items={assignedMentors}
-          getItemKey={(m) => `${m.roundId}-${m.groupId}-${m.mentorId}`}
-          renderItem={(m) => (
-            <MentorStatItem
-              eventId={eventId}
-              assignment={m}
-              rounds={rounds}
-              groups={groups}
-              onUpdated={onUpdated}
-              onDeleted={onDeleted}
-            />
-          )}
-        />
+        <>
+          <div className='kv-list'>
+            {assignedMentors.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((m) => (
+              <MentorStatItem
+                key={`${m.roundId}-${m.groupId}-${m.mentorId}`}
+                eventId={eventId}
+                assignment={m}
+                rounds={rounds}
+                groups={groups}
+                onUpdated={onUpdated}
+                onDeleted={onDeleted}
+              />
+            ))}
+          </div>
+          <Pagination total={assignedMentors.length} pageSize={PAGE_SIZE} currentPage={page} onChange={setPage} />
+        </>
       )}
       <AssignPanelLink eventId={eventId} focus='mentor'>
         + Thêm mentor
@@ -2078,25 +2179,28 @@ function MentorsDropdownContent({ eventId, assignedMentors = [], rounds = [], gr
 }
 
 function JudgesDropdownContent({ eventId, assignedJudges = [], rounds = [], groups = [], onUpdated, onDeleted }) {
+  const [page, setPage] = useState(1)
   return (
     <>
       {!assignedJudges.length ? (
         <div className='event-stat-dropdown-empty'>Chưa phân công judge nào.</div>
       ) : (
-        <CollapsibleKvList
-          items={assignedJudges}
-          getItemKey={(j) => `${j.roundId}-${j.groupId}-${j.judgeId}`}
-          renderItem={(j) => (
-            <JudgeStatItem
-              eventId={eventId}
-              assignment={j}
-              rounds={rounds}
-              groups={groups}
-              onUpdated={onUpdated}
-              onDeleted={onDeleted}
-            />
-          )}
-        />
+        <>
+          <div className='kv-list'>
+            {assignedJudges.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((j) => (
+              <JudgeStatItem
+                key={`${j.roundId}-${j.groupId}-${j.judgeId}`}
+                eventId={eventId}
+                assignment={j}
+                rounds={rounds}
+                groups={groups}
+                onUpdated={onUpdated}
+                onDeleted={onDeleted}
+              />
+            ))}
+          </div>
+          <Pagination total={assignedJudges.length} pageSize={PAGE_SIZE} currentPage={page} onChange={setPage} />
+        </>
       )}
       <AssignPanelLink eventId={eventId} focus='judge'>
         + Thêm judge
@@ -2431,6 +2535,7 @@ function AwardsDropdownContent({ eventId, awards = [], onAwardCreated, onAwardUp
   const [createOpen, setCreateOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ title: '', rank: '' })
+  const [page, setPage] = useState(1)
 
   const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
 
@@ -2459,13 +2564,20 @@ function AwardsDropdownContent({ eventId, awards = [], onAwardCreated, onAwardUp
       {!awards.length ? (
         <div className='event-stat-dropdown-empty'>Chưa có giải thưởng nào.</div>
       ) : (
-        <CollapsibleKvList
-          items={awards}
-          getItemKey={(award) => award.awardId}
-          renderItem={(award) => (
-            <AwardStatItem eventId={eventId} award={award} onUpdated={onAwardUpdated} onDeleted={onAwardDeleted} />
-          )}
-        />
+        <>
+          <div className='kv-list'>
+            {awards.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((award) => (
+              <AwardStatItem
+                key={award.awardId}
+                eventId={eventId}
+                award={award}
+                onUpdated={onAwardUpdated}
+                onDeleted={onAwardDeleted}
+              />
+            ))}
+          </div>
+          <Pagination total={awards.length} pageSize={PAGE_SIZE} currentPage={page} onChange={setPage} />
+        </>
       )}
       {createOpen ? (
         <form className='event-stat-item-edit' style={{ marginTop: 12 }} onSubmit={handleCreate}>
@@ -2520,6 +2632,7 @@ export default function EventDetailsPage() {
   const [event, setEvent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [statPopup, setStatPopup] = useState(null)
 
   const loadEvent = useCallback(async () => {
     setLoading(true)
@@ -2788,15 +2901,109 @@ export default function EventDetailsPage() {
     })
   }
 
+  const pendingTeamsCount = countPendingTeams(event?.teams)
+  const setupWarnings = event ? buildSetupWarnings(event) : {}
+
+  const statPopupMeta = event
+    ? {
+        teams: {
+          title: 'Đội tham gia',
+          count: event.totalTeams
+        },
+        groups: {
+          title: 'Bảng thi',
+          count: event.totalGroups
+        },
+        rounds: {
+          title: 'Vòng thi',
+          count: event.totalRounds
+        },
+        mentors: {
+          title: 'Mentor',
+          count: String(event.assignedMentors?.length ?? 0)
+        },
+        judges: {
+          title: 'Judge',
+          count: String(event.assignedJudges?.length ?? 0)
+        },
+        awards: {
+          title: 'Giải thưởng',
+          count: event.totalAwards
+        }
+      }
+    : {}
+
+  function renderStatPopupBody() {
+    if (!event || !statPopup) return null
+    switch (statPopup) {
+      case 'teams':
+        return <TeamsDropdownContent teams={event.teams} onUpdated={handleTeamRegistrationUpdated} />
+      case 'groups':
+        return (
+          <GroupsDropdownContent
+            eventId={event.eventId}
+            groups={event.groups}
+            onGroupDeleted={handleGroupDeleted}
+            onGroupUpdated={handleGroupUpdated}
+          />
+        )
+      case 'rounds':
+        return (
+          <RoundsDropdownContent
+            eventId={event.eventId}
+            rounds={event.rounds}
+            onRoundDeleted={handleRoundDeleted}
+            onRoundUpdated={handleRoundUpdated}
+          />
+        )
+      case 'mentors':
+        return (
+          <MentorsDropdownContent
+            eventId={event.eventId}
+            assignedMentors={event.assignedMentors}
+            rounds={event.rounds}
+            groups={event.groups}
+            onUpdated={handleMentorUpdated}
+            onDeleted={handleMentorDeleted}
+          />
+        )
+      case 'judges':
+        return (
+          <JudgesDropdownContent
+            eventId={event.eventId}
+            assignedJudges={event.assignedJudges}
+            rounds={event.rounds}
+            groups={event.groups}
+            onUpdated={handleJudgeUpdated}
+            onDeleted={handleJudgeDeleted}
+          />
+        )
+      case 'awards':
+        return (
+          <AwardsDropdownContent
+            eventId={event.eventId}
+            awards={event.awards}
+            onAwardCreated={handleAwardCreated}
+            onAwardUpdated={handleAwardUpdated}
+            onAwardDeleted={handleAwardDeleted}
+          />
+        )
+      default:
+        return null
+    }
+  }
+
+  const activeStat = statPopup ? statPopupMeta[statPopup] : null
+
   return (
-    <DashboardShell roleLabel='Staff' title='Chi tiết sự kiện' subtitle='Thông tin đầy đủ của hackathon.' role='Staff'>
+    <DashboardShell roleLabel='Nhân viên' title='Chi tiết sự kiện' subtitle='Thông tin đầy đủ của hackathon.' role='Staff'>
       <div className='action-row' style={{ marginBottom: 16 }}>
-        <Link to='/staff' className='btn btn-ghost'>
+        <Link to='/staff?tab=events' className='btn btn-ghost'>
           ← Quay lại danh sách
         </Link>
       </div>
 
-      {loading && <div className='empty-state'>Đang tải chi tiết sự kiện…</div>}
+      {loading && <LoadingState text='Đang tải chi tiết sự kiện…' />}
 
       {error && !loading && <FormMessage message={error} type='error' />}
 
@@ -2834,6 +3041,7 @@ export default function EventDetailsPage() {
           />
 
           <div style={{ marginTop: 24 }}>
+
             <CriteriaManager rounds={event.rounds ?? []} />
           </div>
         </div>

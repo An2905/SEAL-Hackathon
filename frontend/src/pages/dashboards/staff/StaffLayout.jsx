@@ -1,54 +1,18 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import DashboardShell from '../DashboardShell'
+import DashboardLayout from '../../../components/layout/DashboardLayout'
+import StaffOverviewPage from './StaffOverviewPage'
+import StaffAccountsPage from './StaffAccountsPage'
+import StaffEventsPage from './StaffEventsPage'
+import StaffAssignPage from './StaffAssignPage'
+import StaffUniversitiesPage from './StaffUniversitiesPage'
 
-const STAFF_TABS = [
-  { to: '/staff', label: 'Tổng quan', end: true },
-  { to: '/staff/accounts', label: 'Tài khoản' },
-  { to: '/staff/events', label: 'Sự kiện' },
-  { to: '/staff/assign', label: 'Phân công Judge / Mentor' },
-  { to: '/staff/universities', label: 'Trường ĐH' }
+const TABS = [
+  { key: 'overview', label: 'Tổng quan', content: <StaffOverviewPage /> },
+  { key: 'events', label: 'Sự kiện', content: <StaffEventsPage /> },
+  { key: 'accounts', label: 'Tài khoản', content: <StaffAccountsPage /> },
+  { key: 'assign', label: 'Phân công', content: <StaffAssignPage /> },
+  { key: 'universities', label: 'Trường ĐH', content: <StaffUniversitiesPage /> }
 ]
 
 export default function StaffLayout() {
-  return (
-    <DashboardShell
-      roleLabel='Staff'
-      title='Bảng điều khiển Coordinator'
-      subtitle='Quản lý tài khoản, sự kiện và phân công giám khảo / mentor.'
-      role='Staff'
-    >
-      <nav className='staff-subnav' style={subnavStyle}>
-        {STAFF_TABS.map((t) => (
-          <NavLink
-            key={t.to}
-            to={t.to}
-            end={t.end}
-            className='btn btn-outline'
-            style={({ isActive }) => ({
-              fontSize: 13,
-              padding: '6px 14px',
-              ...(isActive ? activeStyle : null)
-            })}
-          >
-            {t.label}
-          </NavLink>
-        ))}
-      </nav>
-
-      <Outlet />
-    </DashboardShell>
-  )
-}
-
-const subnavStyle = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 8,
-  marginBottom: 18
-}
-
-const activeStyle = {
-  background: 'var(--accent, #2563eb)',
-  color: '#fff',
-  borderColor: 'var(--accent, #2563eb)'
+  return <DashboardLayout roleLabel='Nhân viên' showStaffFields tabs={TABS} />
 }

@@ -1,34 +1,21 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import DashboardShell from './DashboardShell'
 import FormField from '../../components/common/FormField'
 import FormMessage from '../../components/common/FormMessage'
 import Modal from '../../components/common/Modal'
-import PendingTeamsBadge from '../../components/common/PendingTeamsBadge'
 import LoadingButton from '../../components/common/LoadingButton'
-import CollapsibleKvList from '../../components/common/CollapsibleList'
-import FullWidthSearchBar from '../../components/common/FullWidthSearchBar'
+import Pagination from '../../components/common/Pagination'
+import LoadingState from '../../components/common/LoadingState'
 import {
   createStaffAccount,
   createEvent,
-  changeEventStatus,
   changeAccountStatus,
   getAllAccounts,
-  normalizeAccountUserId,
-  exportEventsExcel
+  normalizeAccountUserId
 } from '../../api/staff'
-import { getAllEvents, attachPendingTeamsToEvents } from '../../api/event'
 import { useToast } from '../../context/ToastContext'
-import { useAuth } from '../../context/AuthContext'
 import { localizeError } from '../../utils/errors'
 import { roleUiLabel } from '../../utils/roleLabels'
-
-const EVENT_STATUSES = [
-  { value: 'BUILDING', label: 'Đang thiết lập (BUILDING)' },
-  { value: 'UPCOMING', label: 'Sắp diễn ra (UPCOMING)' },
-  { value: 'ONGOING', label: 'Đang diễn ra (ONGOING)' },
-  { value: 'COMPLETED', label: 'Đã kết thúc (COMPLETED)' }
-]
 
 const ACCOUNT_ROLE_FILTERS = [
   { value: 'ALL', label: 'Tất cả' },
@@ -151,10 +138,10 @@ export function CreateStaffAccountForm({ open, onClose, onSuccess }) {
       await createStaffAccount({ email, fullName, role: form.role })
       const createdLabel = roleUiLabel(form.role) || 'Khách'
       setMessage({
-        text: `Đã tạo tài khoản ${createdLabel} cho ${email}.`,
+        text: `Đã tạo tài khoản ${createdLabel} cho ${email}. Mật khẩu tạm đã được gửi qua email.`,
         type: 'success'
       })
-      showToast(`Đã tạo tài khoản ${createdLabel}`, 'success')
+      showToast('Đã tạo tài khoản & gửi email mời', 'success')
       setForm({ email: '', fullName: '', role: form.role })
       onSuccess?.(`Tạo tài khoản ${createdLabel} — ${email}`)
       onClose?.()
@@ -170,7 +157,7 @@ export function CreateStaffAccountForm({ open, onClose, onSuccess }) {
       isOpen={open}
       onClose={onClose}
       title='Tạo tài khoản Khách'
-      subtitle='Khách có thể được phân công làm Mentor và/hoặc Judge theo từng sự kiện. Hệ thống sinh mật khẩu tạm khi tạo tài khoản.'
+      subtitle='Khách có thể được phân công làm Mentor và/hoặc Judge theo từng sự kiện. Hệ thống sinh mật khẩu tạm và gửi email mời.'
     >
       <form className='form' onSubmit={handleSubmit}>
         <FormField label='Họ và tên'>
@@ -201,7 +188,7 @@ export function CreateStaffAccountForm({ open, onClose, onSuccess }) {
           </select>
         </FormField>
         <LoadingButton loading={loading} type='submit'>
-          Tạo tài khoản
+          Tạo tài khoản &amp; gửi email
         </LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
       </form>
@@ -313,10 +300,22 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
           />
         </FormField>
         <FormField label='Ngày bắt đầu'>
-          <input type='datetime-local' name='startDate' value={form.startDate} onChange={handle} disabled={loading} />
+          <input
+            type='datetime-local'
+            name='startDate'
+            value={form.startDate}
+            onChange={handle}
+            disabled={loading}
+          />
         </FormField>
         <FormField label='Ngày kết thúc'>
-          <input type='datetime-local' name='endDate' value={form.endDate} onChange={handle} disabled={loading} />
+          <input
+            type='datetime-local'
+            name='endDate'
+            value={form.endDate}
+            onChange={handle}
+            disabled={loading}
+          />
         </FormField>
         <FormField label='Số đội tối đa'>
           <input
@@ -330,7 +329,14 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
           />
         </FormField>
         <FormField label='Số vòng thi dự kiến'>
-          <input type='number' name='numRounds' value={form.numRounds} onChange={handle} min={1} disabled={loading} />
+          <input
+            type='number'
+            name='numRounds'
+            value={form.numRounds}
+            onChange={handle}
+            min={1}
+            disabled={loading}
+          />
         </FormField>
         <LoadingButton loading={loading} type='submit'>
           Tạo sự kiện
@@ -352,280 +358,9 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
   )
 }
 
-// ─── Event Status Picker ──────────────────────────────────────────────────────
-function eventStatusPillClass(status) {
-  const key = (status || '').toUpperCase()
-  if (key === 'BUILDING') return 'status-pending'
-  if (key === 'UPCOMING') return 'status-pending'
-  if (key === 'ONGOING') return 'status-active'
-  if (key === 'COMPLETED') return 'status-default'
-  if (key === 'CANCELLED') return 'status-rejected'
-  return 'status-default'
-}
-
-function EventStatusPicker({ event, onUpdated }) {
-  const { showToast } = useToast()
-  const [open, setOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const eventId = event?.eventId ?? ''
-
-  const handleSelect = async (e) => {
-    const next = e.target.value
-    setOpen(false)
-    const currentStatus = String(event.status ?? '')
-      .trim()
-      .toUpperCase()
-    if (next === currentStatus) return
-    if (!eventId) {
-      showToast('Không xác định được sự kiện — vui lòng tải lại danh sách', 'error')
-      return
-    }
-    setSaving(true)
-    try {
-      await changeEventStatus({ eventId, newStatus: next })
-      onUpdated(eventId, next)
-      showToast(`Đã cập nhật trạng thái sự kiện → ${next}`, 'success')
-    } catch (err) {
-      showToast(localizeError(err.message), 'error')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  if (open) {
-    return (
-      <div className='status-picker'>
-        <select
-          className='status-picker-select'
-          value={event.status}
-          onChange={handleSelect}
-          onBlur={() => setOpen(false)}
-          disabled={saving}
-          autoFocus
-        >
-          {EVENT_STATUSES.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.value}
-            </option>
-          ))}
-        </select>
-      </div>
-    )
-  }
-
-  return (
-    <div className='status-picker'>
-      <button
-        type='button'
-        className={`status-pill ${eventStatusPillClass(event.status)}`}
-        onClick={() => !saving && setOpen(true)}
-        disabled={saving}
-        title='Nhấn để đổi trạng thái sự kiện'
-        style={{ alignSelf: 'center', flexShrink: 0 }}
-      >
-        {event.status}
-      </button>
-    </div>
-  )
-}
-
-function formatEventDate(value) {
-  if (!value) return '—'
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return String(value)
-  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
-
-// ─── Events List Section ──────────────────────────────────────────────────────
-export function EventsListSection({ refreshKey = 0, onStatusChanged, onPendingTotalChange }) {
-  const { showToast } = useToast()
-  const [status, setStatus] = useState('ALL')
-  const [searchInput, setSearchInput] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [events, setEvents] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [exporting, setExporting] = useState(false)
-  const [error, setError] = useState(null)
-  const [loaded, setLoaded] = useState(false)
-
-  const handleExport = async () => {
-    setExporting(true)
-    try {
-      const blob = await exportEventsExcel()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'events.xlsx'
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-      showToast('Xuất Excel thành công', 'success')
-    } catch (err) {
-      showToast(localizeError(err.message), 'error')
-    } finally {
-      setExporting(false)
-    }
-  }
-
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const data = await getAllEvents(status)
-        const enriched = await attachPendingTeamsToEvents(data)
-        if (!cancelled) {
-          setEvents(enriched)
-          setLoaded(true)
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(localizeError(err.message))
-          setEvents([])
-          showToast('Không tải được danh sách sự kiện', 'error')
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [status, refreshKey, showToast])
-
-  const totalPending = events.reduce((sum, ev) => sum + (Number(ev.pendingTeams) || 0), 0)
-  useEffect(() => {
-    onPendingTotalChange?.(totalPending)
-  }, [totalPending, onPendingTotalChange])
-
-  const handleEventStatusUpdated = (eventId, newStatus) => {
-    setEvents((prev) => prev.map((ev) => (ev.eventId === eventId ? { ...ev, status: newStatus } : ev)))
-    onStatusChanged?.(eventId, newStatus)
-  }
-
-  const filteredEvents = useMemo(() => {
-    if (!searchQuery) return events
-    return events.filter((ev) => {
-      const haystack = [ev.title, ev.description, ev.status].filter(Boolean).join(' ').toLowerCase()
-      return haystack.includes(searchQuery)
-    })
-  }, [events, searchQuery])
-
-  return (
-    <div className='card'>
-      <div className='card-head'>
-        <div className='card-title'>Danh sách sự kiện</div>
-        <LoadingButton
-          loading={exporting}
-          className='btn btn-success btn-sm'
-          onClick={handleExport}
-          type='button'
-          style={{ marginLeft: 'auto' }}
-        >
-          Xuất Excel
-        </LoadingButton>
-      </div>
-      <p className='card-sub'>
-        Xem tất cả hackathon trong hệ thống. Nhấn badge trạng thái để đổi — chỉ Staff có quyền thao tác.
-      </p>
-
-      <FormField label='Lọc theo trạng thái'>
-        <select name='status' value={status} onChange={(e) => setStatus(e.target.value)} disabled={loading}>
-          <option value='ALL'>Tất cả</option>
-          {EVENT_STATUSES.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-      </FormField>
-
-      <FullWidthSearchBar
-        value={searchInput}
-        onChange={setSearchInput}
-        onSearch={() => setSearchQuery(searchInput.trim().toLowerCase())}
-        placeholder='Tên sự kiện, mô tả…'
-        disabled={loading}
-      />
-
-      {error && <FormMessage message={error} type='error' />}
-      {loading && (
-        <div className='empty-state' style={{ marginTop: 12 }}>
-          Đang tải danh sách…
-        </div>
-      )}
-      {!loading && loaded && events.length === 0 && !error && (
-        <div className='empty-state' style={{ marginTop: 12 }}>
-          Chưa có sự kiện nào khớp với bộ lọc.
-        </div>
-      )}
-
-      {!loading && events.length > 0 && filteredEvents.length === 0 && (
-        <div className='empty-state' style={{ marginTop: 12 }}>
-          Không tìm thấy sự kiện khớp với &quot;{searchInput.trim()}&quot;.
-        </div>
-      )}
-
-      {!loading && filteredEvents.length > 0 && (
-        <>
-          <div className='card-sub' style={{ marginTop: 12, marginBottom: 6 }}>
-            {searchQuery ? (
-              <>
-                Hiển thị <strong>{filteredEvents.length}</strong> / {events.length} sự kiện
-              </>
-            ) : (
-              <>
-                Tổng cộng <strong>{events.length}</strong> sự kiện
-              </>
-            )}
-          </div>
-          <CollapsibleKvList
-            key={`${searchQuery}|${status}`}
-            items={filteredEvents}
-            getItemKey={(ev) => ev.eventId}
-            renderItem={(ev) => (
-              <div className={`kv event-list-item${Number(ev.pendingTeams) > 0 ? ' has-pending-badge' : ''}`}>
-                <PendingTeamsBadge count={ev.pendingTeams} />
-                <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text)' }}>{ev.title || '—'}</div>
-                  {ev.description && (
-                    <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{ev.description}</div>
-                  )}
-                  <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>
-                    {ev.startDate || ev.endDate
-                      ? ` · ${formatEventDate(ev.startDate)} → ${formatEventDate(ev.endDate)}`
-                      : ''}
-                  </div>
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, alignSelf: 'center' }}>
-                  <Link
-                    to={`/staff/events/${ev.eventId}`}
-                    className='btn btn-outline'
-                    style={{ fontSize: 12, padding: '4px 10px' }}
-                  >
-                    Chi tiết
-                  </Link>
-                  <Link
-                    to={`/staff/events/${ev.eventId}/check-in`}
-                    className='btn btn-outline'
-                    style={{ fontSize: 12, padding: '4px 10px' }}
-                  >
-                    CheckIn
-                  </Link>
-                  <EventStatusPicker event={ev} onUpdated={handleEventStatusUpdated} />
-                </span>
-              </div>
-            )}
-          />
-        </>
-      )}
-    </div>
-  )
-}
-
 // ─── Accounts List Section ────────────────────────────────────────────────────
+const ACCOUNTS_PAGE_SIZE = 5
+
 export function AccountsListSection({ refreshKey = 0 }) {
   const { showToast } = useToast()
   const [role, setRole] = useState('ALL')
@@ -634,6 +369,7 @@ export function AccountsListSection({ refreshKey = 0 }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [loaded, setLoaded] = useState(false)
+  const [page, setPage] = useState(1)
 
   const fetchAccounts = useCallback(
     async (selectedRole, input = '') => {
@@ -656,16 +392,18 @@ export function AccountsListSection({ refreshKey = 0 }) {
 
   useEffect(() => {
     fetchAccounts(role, search)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setPage(1)
   }, [fetchAccounts, refreshKey])
 
   const handleRoleChange = (e) => {
     const next = e.target.value
     setRole(next)
+    setPage(1)
     fetchAccounts(next, search)
   }
   const handleSearchSubmit = (e) => {
     e.preventDefault()
+    setPage(1)
     fetchAccounts(role, search)
   }
   const handleStatusUpdated = (userId, newStatus) => {
@@ -705,9 +443,7 @@ export function AccountsListSection({ refreshKey = 0 }) {
 
       {error && <FormMessage message={error} type='error' />}
       {loading && (
-        <div className='empty-state' style={{ marginTop: 12 }}>
-          Đang tải danh sách…
-        </div>
+        <LoadingState text='Đang tải danh sách…' style={{ marginTop: 12 }} />
       )}
       {!loading && loaded && accounts.length === 0 && !error && (
         <div className='empty-state' style={{ marginTop: 12 }}>
@@ -720,11 +456,9 @@ export function AccountsListSection({ refreshKey = 0 }) {
           <div className='card-sub' style={{ marginTop: 12, marginBottom: 6 }}>
             Tổng cộng <strong>{accounts.length}</strong> tài khoản
           </div>
-          <CollapsibleKvList
-            items={accounts}
-            getItemKey={(a) => resolveAccountUserId(a) || a.email}
-            renderItem={(a) => (
-              <div className='kv'>
+          <div className='kv-list'>
+            {accounts.slice((page - 1) * ACCOUNTS_PAGE_SIZE, page * ACCOUNTS_PAGE_SIZE).map((a) => (
+              <div className='kv' key={resolveAccountUserId(a) || a.email}>
                 <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
                   <div style={{ fontWeight: 600, color: 'var(--text)' }}>{a.fullName || '—'}</div>
                   <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{a.email}</div>
@@ -742,59 +476,12 @@ export function AccountsListSection({ refreshKey = 0 }) {
                   <AccountStatusPicker account={a} onUpdated={handleStatusUpdated} />
                 </span>
               </div>
-            )}
-          />
+            ))}
+          </div>
+          <Pagination total={accounts.length} pageSize={ACCOUNTS_PAGE_SIZE} currentPage={page} onChange={setPage} />
         </>
       )}
     </div>
   )
 }
 
-// ─── Staff Dashboard — default export ────────────────────────────────────────
-export default function StaffDashboard() {
-  const { auth } = useAuth()
-  const [refreshKey, setRefreshKey] = useState(0)
-  const [pendingTotal, setPendingTotal] = useState(0)
-  const [showCreateAccountModal, setShowCreateAccountModal] = useState(false)
-  const [accountsRefreshKey, setAccountsRefreshKey] = useState(0)
-
-  return (
-    <DashboardShell
-      roleLabel='Staff'
-      title='Bảng điều khiển Coordinator'
-      subtitle={`Xin chào${
-        auth.fullName ? ', ' + auth.fullName : ''
-      }! Quản lý sự kiện, tài khoản và phân công nhân sự tại đây.`}
-      role='Staff'
-    >
-      <div className='section-title'>
-        <h2>Sự kiện</h2>
-        {pendingTotal > 0 && <span className='hint'>{pendingTotal} đội đang chờ duyệt</span>}
-      </div>
-      <EventsListSection
-        refreshKey={refreshKey}
-        onStatusChanged={() => setRefreshKey((k) => k + 1)}
-        onPendingTotalChange={setPendingTotal}
-      />
-
-      <div className='section-title' style={{ marginTop: 32 }}>
-        <h2>Tạo tài khoản</h2>
-      </div>
-      <div style={{ marginBottom: 16 }}>
-        <button type='button' className='btn btn-primary' onClick={() => setShowCreateAccountModal(true)}>
-          Tạo tài khoản Khách
-        </button>
-      </div>
-      <CreateStaffAccountForm
-        open={showCreateAccountModal}
-        onClose={() => setShowCreateAccountModal(false)}
-        onSuccess={() => setAccountsRefreshKey((k) => k + 1)}
-      />
-
-      <div className='section-title' style={{ marginTop: 32 }}>
-        <h2>Danh sách tài khoản</h2>
-      </div>
-      <AccountsListSection refreshKey={accountsRefreshKey} />
-    </DashboardShell>
-  )
-}
