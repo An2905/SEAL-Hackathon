@@ -4,9 +4,9 @@ import lombok.Data;
 
 @Data
 public class MentorAssignedTeamMemberResponse {
-    private String userId;
-    private String fullName;
-    private String email;
-    private String userRole;
-    private String teamRole;
+  private String userId;
+  private String fullName;
+  private String email;
+  private String userRole;
+  private String teamRole;
 }

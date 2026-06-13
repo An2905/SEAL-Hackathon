@@ -4,6 +4,6 @@ import lombok.Data;
 
 @Data
 public class SendChatMessageRequest {
-    private String roomId;
-    private String content;
+  private String roomId;
+  private String content;
 }

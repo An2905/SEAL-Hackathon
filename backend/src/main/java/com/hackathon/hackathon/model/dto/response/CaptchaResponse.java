@@ -8,6 +8,6 @@ import lombok.Data;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class CaptchaResponse {
 
-    @JsonProperty("success")
-    private boolean success;
+  @JsonProperty("success")
+  private boolean success;
 }

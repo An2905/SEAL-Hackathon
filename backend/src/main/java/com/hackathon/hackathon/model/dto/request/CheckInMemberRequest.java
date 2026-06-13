@@ -4,8 +4,8 @@ import lombok.Data;
 
 @Data
 public class CheckInMemberRequest {
-    private String eventId;
-    private String teamId;
-    private String userId;
-    private boolean checked;
+  private String eventId;
+  private String teamId;
+  private String userId;
+  private boolean checked;
 }

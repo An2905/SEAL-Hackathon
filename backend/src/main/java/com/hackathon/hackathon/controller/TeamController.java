@@ -1,21 +1,20 @@
 package com.hackathon.hackathon.controller;
 
-import com.hackathon.hackathon.model.dto.request.DeleteTeamMemberRequest;
-import com.hackathon.hackathon.model.dto.request.JoinTeamRequest;
 import com.hackathon.hackathon.model.dto.request.CreateTeamRequest;
-import com.hackathon.hackathon.service.TeamService;
+import com.hackathon.hackathon.model.dto.request.DeleteTeamMemberRequest;
 import com.hackathon.hackathon.model.dto.request.JoinEventRequest;
+import com.hackathon.hackathon.model.dto.request.JoinTeamRequest;
 import com.hackathon.hackathon.model.dto.request.SubmitProjectRequest;
 import com.hackathon.hackathon.model.dto.response.CreateTeamResponse;
+import com.hackathon.hackathon.model.dto.response.EventRoundResponse;
 import com.hackathon.hackathon.model.dto.response.JoinTeamResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.dto.response.MyTeamResponse;
-import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
 import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
 import com.hackathon.hackathon.model.dto.response.TeamSubmissionsResponse;
-import com.hackathon.hackathon.model.dto.response.EventRoundResponse;
+import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
+import com.hackathon.hackathon.service.TeamService;
 import java.util.List;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,78 +22,71 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(value = "/api/team", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
-
 public class TeamController {
 
-    @Autowired
-    private TeamService teamService;
+  @Autowired private TeamService teamService;
 
-    @PutMapping("/create")
-    public ResponseEntity<CreateTeamResponse> createTeam(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestBody CreateTeamRequest request) {
-        return ResponseEntity.ok(teamService.createTeam(authHeader, request));
-    }
+  @PutMapping("/create")
+  public ResponseEntity<CreateTeamResponse> createTeam(
+      @RequestHeader("Authorization") String authHeader, @RequestBody CreateTeamRequest request) {
+    return ResponseEntity.ok(teamService.createTeam(authHeader, request));
+  }
 
-    @PutMapping("/join")
-    public ResponseEntity<JoinTeamResponse> joinTeam(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestBody JoinTeamRequest request) {
-        return ResponseEntity.ok(teamService.joinTeam(authHeader, request));
-    }
+  @PutMapping("/join")
+  public ResponseEntity<JoinTeamResponse> joinTeam(
+      @RequestHeader("Authorization") String authHeader, @RequestBody JoinTeamRequest request) {
+    return ResponseEntity.ok(teamService.joinTeam(authHeader, request));
+  }
 
-    @DeleteMapping("/delete-member")
-    public ResponseEntity<MessageResponse> deleteTeamMember(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestBody DeleteTeamMemberRequest request) {
-        return ResponseEntity.ok(teamService.deleteTeamMember(authHeader, request));
-    }
+  @DeleteMapping("/delete-member")
+  public ResponseEntity<MessageResponse> deleteTeamMember(
+      @RequestHeader("Authorization") String authHeader,
+      @RequestBody DeleteTeamMemberRequest request) {
+    return ResponseEntity.ok(teamService.deleteTeamMember(authHeader, request));
+  }
 
-    @PutMapping("/join-event")
-    public ResponseEntity<MessageResponse> joinEvent(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestBody JoinEventRequest request) {
-        return ResponseEntity.ok(teamService.joinEvent(authHeader, request));
-    }
+  @PutMapping("/join-event")
+  public ResponseEntity<MessageResponse> joinEvent(
+      @RequestHeader("Authorization") String authHeader, @RequestBody JoinEventRequest request) {
+    return ResponseEntity.ok(teamService.joinEvent(authHeader, request));
+  }
 
-    @GetMapping("/me")
-    public ResponseEntity<MyTeamResponse> getMyTeam(
-            @RequestHeader("Authorization") String authHeader) {
-        return ResponseEntity.ok(teamService.getMyTeam(authHeader));
-    }
+  @GetMapping("/me")
+  public ResponseEntity<MyTeamResponse> getMyTeam(
+      @RequestHeader("Authorization") String authHeader) {
+    return ResponseEntity.ok(teamService.getMyTeam(authHeader));
+  }
 
-    @PutMapping("/submit-project")
-    public ResponseEntity<MessageResponse> submitProject(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestBody SubmitProjectRequest request) {
-        return ResponseEntity.ok(teamService.submitProject(authHeader, request));
-    }
+  @PutMapping("/submit-project")
+  public ResponseEntity<MessageResponse> submitProject(
+      @RequestHeader("Authorization") String authHeader,
+      @RequestBody SubmitProjectRequest request) {
+    return ResponseEntity.ok(teamService.submitProject(authHeader, request));
+  }
 
-    @GetMapping("/mentors")
-    public ResponseEntity<TeamTrackMentorsResponse> getTeamTrackMentors(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestParam("eventId") String eventId) {
-        return ResponseEntity.ok(teamService.getTeamTrackMentors(authHeader, eventId));
-    }
+  @GetMapping("/mentors")
+  public ResponseEntity<TeamTrackMentorsResponse> getTeamTrackMentors(
+      @RequestHeader("Authorization") String authHeader, @RequestParam("eventId") String eventId) {
+    return ResponseEntity.ok(teamService.getTeamTrackMentors(authHeader, eventId));
+  }
 
-    @GetMapping("/registrations")
-    public ResponseEntity<List<TeamEventRegistrationResponse>> getTeamEventRegistrations(
-            @RequestHeader("Authorization") String authHeader) {
-        return ResponseEntity.ok(teamService.getTeamEventRegistrations(authHeader));
-    }
+  @GetMapping("/registrations")
+  public ResponseEntity<List<TeamEventRegistrationResponse>> getTeamEventRegistrations(
+      @RequestHeader("Authorization") String authHeader) {
+    return ResponseEntity.ok(teamService.getTeamEventRegistrations(authHeader));
+  }
 
-    @GetMapping("/submissions")
-    public ResponseEntity<TeamSubmissionsResponse> getTeamSubmissions(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestParam("eventId") String eventId,
-            @RequestParam(value = "roundId", required = false) String roundId) {
-        return ResponseEntity.ok(teamService.getTeamSubmissions(authHeader, eventId, roundId));
-    }
+  @GetMapping("/submissions")
+  public ResponseEntity<TeamSubmissionsResponse> getTeamSubmissions(
+      @RequestHeader("Authorization") String authHeader,
+      @RequestParam("eventId") String eventId,
+      @RequestParam(value = "roundId", required = false) String roundId) {
+    return ResponseEntity.ok(teamService.getTeamSubmissions(authHeader, eventId, roundId));
+  }
 
-    @GetMapping("/rounds")
-    public ResponseEntity<List<EventRoundResponse>> getTeamRounds(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestParam("eventId") String eventId) {
-        return ResponseEntity.ok(teamService.getTeamRounds(authHeader, eventId));
-    }
+  @GetMapping("/rounds")
+  public ResponseEntity<List<EventRoundResponse>> getTeamRounds(
+      @RequestHeader("Authorization") String authHeader, @RequestParam("eventId") String eventId) {
+    return ResponseEntity.ok(teamService.getTeamRounds(authHeader, eventId));
+  }
 }

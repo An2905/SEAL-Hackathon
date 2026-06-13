@@ -8,6 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class JoinTeamResponse {
-    private String message;
-    private String teamId;
+  private String message;
+  private String teamId;
 }

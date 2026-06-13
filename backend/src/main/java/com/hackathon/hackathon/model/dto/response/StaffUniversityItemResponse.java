@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StaffUniversityItemResponse {
-    private String universityId;
-    private String universityName;
-    private String linkedUserCount;
+  private String universityId;
+  private String universityName;
+  private String linkedUserCount;
 }

@@ -8,8 +8,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AnnouncementResponse {
-    private String announcementId;
-    private String totalRecipients;
-    private String createdAt;
-    private String status;
+  private String announcementId;
+  private String totalRecipients;
+  private String createdAt;
+  private String status;
 }
