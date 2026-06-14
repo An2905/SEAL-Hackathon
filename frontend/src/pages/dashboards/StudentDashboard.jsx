@@ -78,11 +78,11 @@ function TeamInfoCard({ data, onRefresh }) {
   }
 
   return (
-    <div className="card team-info-card">
-      <div className="card-head">
+    <div className='card team-info-card'>
+      <div className='card-head'>
         <div>
-          <div className="card-title">{data.teamName}</div>
-          <div className="card-sub" style={{ margin: 0 }}>
+          <div className='card-title'>{data.teamName}</div>
+          <div className='card-sub' style={{ margin: 0 }}>
             {data.isLeader ? 'Bạn là leader của đội này' : 'Bạn đang là thành viên của đội'}
           </div>
         </div>
@@ -91,36 +91,59 @@ function TeamInfoCard({ data, onRefresh }) {
         </span>
       </div>
 
-      <div className="kv-list">
-        <div className="kv"><span>Tên đội</span><span>{data.teamName}</span></div>
-        <div className="kv"><span>Mã enroll</span><span><code>{data.enrollCode}</code></span></div>
-        <div className="kv"><span>Leader</span><span>{data.leaderName} ({data.leaderEmail})</span></div>
-        <div className="kv"><span>Trạng thái</span><span>{data.status}</span></div>
-        <div className="kv"><span>Số thành viên</span><span>{data.memberCount} / 5</span></div>
+      <div className='kv-list'>
+        <div className='kv'>
+          <span>Tên đội</span>
+          <span>{data.teamName}</span>
+        </div>
+        <div className='kv'>
+          <span>Mã enroll</span>
+          <span>
+            <code>{data.enrollCode}</code>
+          </span>
+        </div>
+        <div className='kv'>
+          <span>Leader</span>
+          <span>
+            {data.leaderName} ({data.leaderEmail})
+          </span>
+        </div>
+        <div className='kv'>
+          <span>Trạng thái</span>
+          <span>{data.status}</span>
+        </div>
+        <div className='kv'>
+          <span>Số thành viên</span>
+          <span>{data.memberCount} / 5</span>
+        </div>
       </div>
 
-      <div className="section-title" style={{ margin: '22px 0 10px' }}>
+      <div className='section-title' style={{ margin: '22px 0 10px' }}>
         <h2 style={{ fontSize: 16 }}>Thành viên</h2>
       </div>
-      <div className="kv-list">
+      <div className='kv-list'>
         {members.slice((membersPage - 1) * PAGE_SIZE, membersPage * PAGE_SIZE).map((m) => (
-          <div className="member-row" key={m.userId}>
-            <div className="avatar">{(m.fullName?.[0] || m.email?.[0] || 'U').toUpperCase()}</div>
-            <div className="member-info">
-              <div className="member-name">
+          <div className='member-row' key={m.userId}>
+            <div className='avatar'>{(m.fullName?.[0] || m.email?.[0] || 'U').toUpperCase()}</div>
+            <div className='member-info'>
+              <div className='member-name'>
                 {m.fullName || '(Chưa có tên)'}
-                {m.isLeader && <span className="leader-tag">Leader</span>}
+                {m.isLeader && <span className='leader-tag'>Leader</span>}
               </div>
-              <div className="member-meta">{m.email || ''}</div>
+              <div className='member-meta'>{m.email || ''}</div>
             </div>
           </div>
         ))}
       </div>
       <Pagination total={members.length} pageSize={PAGE_SIZE} currentPage={membersPage} onChange={setMembersPage} />
 
-      <div className="card-actions" style={{ marginTop: 18 }}>
-        <button className="btn btn-outline" onClick={handleCopyEnroll}>Sao chép mã enroll</button>
-        <button className="btn btn-ghost" onClick={onRefresh}>Làm mới</button>
+      <div className='card-actions' style={{ marginTop: 18 }}>
+        <button className='btn btn-outline' onClick={handleCopyEnroll}>
+          Sao chép mã enroll
+        </button>
+        <button className='btn btn-ghost' onClick={onRefresh}>
+          Làm mới
+        </button>
       </div>
     </div>
   )
@@ -160,18 +183,30 @@ function CreateTeamForm({ onSuccess }) {
   }
 
   return (
-    <div className="card">
-      <div className="card-head"><div className="card-title">Tạo đội mới</div></div>
-      <p className="card-sub">Tạo đội của riêng bạn. Hệ thống sẽ sinh mã <strong>enrollCode</strong> để mời thành viên khác.</p>
-      <form className="form" onSubmit={handleSubmit}>
-        <FormField label="Tên đội">
-          <input name="teamName" value={teamName} onChange={e => setTeamName(e.target.value)}
-            required maxLength={100} placeholder="VD: Code Hunters" />
+    <div className='card'>
+      <div className='card-head'>
+        <div className='card-title'>Tạo đội mới</div>
+      </div>
+      <p className='card-sub'>
+        Tạo đội của riêng bạn. Hệ thống sẽ sinh mã <strong>enrollCode</strong> để mời thành viên khác.
+      </p>
+      <form className='form' onSubmit={handleSubmit}>
+        <FormField label='Tên đội'>
+          <input
+            name='teamName'
+            value={teamName}
+            onChange={(e) => setTeamName(e.target.value)}
+            required
+            maxLength={100}
+            placeholder='VD: Code Hunters'
+          />
         </FormField>
-        <p className="card-sub" style={{ marginTop: 0 }}>
+        <p className='card-sub' style={{ marginTop: 0 }}>
           Tên đội phải là duy nhất trên toàn hệ thống (không phân biệt hoa thường).
         </p>
-        <LoadingButton loading={loading} type="submit">Tạo đội</LoadingButton>
+        <LoadingButton loading={loading} type='submit'>
+          Tạo đội
+        </LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
       </form>
     </div>
@@ -203,15 +238,27 @@ function JoinTeamForm({ onSuccess }) {
   }
 
   return (
-    <div className="card">
-      <div className="card-head"><div className="card-title">Tham gia đội</div></div>
-      <p className="card-sub">Nhập mã <strong>enrollCode</strong> mà leader cung cấp cho bạn.</p>
-      <form className="form" onSubmit={handleSubmit}>
-        <FormField label="Mã enroll">
-          <input name="enrollCode" value={enrollCode} onChange={e => setEnrollCode(e.target.value)}
-            required placeholder="VD: 12345678" maxLength={16} />
+    <div className='card'>
+      <div className='card-head'>
+        <div className='card-title'>Tham gia đội</div>
+      </div>
+      <p className='card-sub'>
+        Nhập mã <strong>enrollCode</strong> mà leader cung cấp cho bạn.
+      </p>
+      <form className='form' onSubmit={handleSubmit}>
+        <FormField label='Mã enroll'>
+          <input
+            name='enrollCode'
+            value={enrollCode}
+            onChange={(e) => setEnrollCode(e.target.value)}
+            required
+            placeholder='VD: 12345678'
+            maxLength={16}
+          />
         </FormField>
-        <LoadingButton loading={loading} type="submit">Tham gia</LoadingButton>
+        <LoadingButton loading={loading} type='submit'>
+          Tham gia
+        </LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
       </form>
     </div>
@@ -225,21 +272,19 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
 
   if (status !== 'APPROVED') {
     return (
-      <div className="empty-state" style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }}>
+      <div className='empty-state' style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }}>
         Mentor hiển thị sau khi đăng ký được duyệt (APPROVED).
       </div>
     )
   }
 
   if (state.loading) {
-    return (
-      <LoadingState text="Đang tải mentor…" style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }} />
-    )
+    return <LoadingState text='Đang tải mentor…' style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }} />
   }
 
   if (state.error) {
     return (
-      <div className="empty-state" style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }}>
+      <div className='empty-state' style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }}>
         {state.error}
       </div>
     )
@@ -248,7 +293,7 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
   const mentors = state.data?.mentors || []
   if (mentors.length === 0) {
     return (
-      <div className="empty-state" style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }}>
+      <div className='empty-state' style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }}>
         Chưa có mentor cho bảng này.
       </div>
     )
@@ -256,29 +301,29 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
 
   return (
     <div style={{ marginTop: 12 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-dim)', marginBottom: 8 }}>
-        Mentor bảng
-      </div>
-      <div className="kv-list">
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-dim)', marginBottom: 8 }}>Mentor bảng</div>
+      <div className='kv-list'>
         {mentors.slice((mentorsPage - 1) * PAGE_SIZE, mentorsPage * PAGE_SIZE).map((m) => (
-          <div className="member-row" key={m.mentorId}>
-            <div className="avatar">{(m.mentorName?.[0] || 'M').toUpperCase()}</div>
-            <div className="member-info">
-              <div className="member-name" style={{ display: 'flex', alignItems: 'center' }}>
+          <div className='member-row' key={m.mentorId}>
+            <div className='avatar'>{(m.mentorName?.[0] || 'M').toUpperCase()}</div>
+            <div className='member-info'>
+              <div className='member-name' style={{ display: 'flex', alignItems: 'center' }}>
                 <span>{m.mentorName || '—'}</span>
                 {onOpenChat && (
                   <ChatOpenButton
                     title={`Nhắn tin với ${m.mentorName || 'mentor'}`}
-                    onClick={() => onOpenChat({
-                      eventId: registration.eventId,
-                      eventTitle: registration.eventTitle,
-                      mentorId: m.mentorId,
-                      mentorName: m.mentorName
-                    })}
+                    onClick={() =>
+                      onOpenChat({
+                        eventId: registration.eventId,
+                        eventTitle: registration.eventTitle,
+                        mentorId: m.mentorId,
+                        mentorName: m.mentorName
+                      })
+                    }
                   />
                 )}
               </div>
-              <div className="member-meta">{m.mentorEmail || ''}</div>
+              <div className='member-meta'>{m.mentorEmail || ''}</div>
             </div>
           </div>
         ))}
@@ -307,19 +352,13 @@ function TeamEventsPanel({ refreshKey, onOpenChat }) {
         if (cancelled) return
         setList(data)
 
-        const approved = data.filter(
-          (r) => (r.registrationStatus || '').toUpperCase() === 'APPROVED' && r.eventId
-        )
+        const approved = data.filter((r) => (r.registrationStatus || '').toUpperCase() === 'APPROVED' && r.eventId)
         if (approved.length === 0) return
 
-        const loadingMap = Object.fromEntries(
-          approved.map((r) => [r.eventId, { loading: true }])
-        )
+        const loadingMap = Object.fromEntries(approved.map((r) => [r.eventId, { loading: true }]))
         setMentorsByEvent(loadingMap)
 
-        const results = await Promise.allSettled(
-          approved.map((r) => getTeamTrackMentors(r.eventId))
-        )
+        const results = await Promise.allSettled(approved.map((r) => getTeamTrackMentors(r.eventId)))
 
         if (cancelled) return
 
@@ -345,20 +384,20 @@ function TeamEventsPanel({ refreshKey, onOpenChat }) {
         if (!cancelled) setLoading(false)
       }
     })()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [refreshKey, showToast])
 
   return (
-    <div className="card">
-      <div className="card-head">
-        <div className="card-title">Sự kiện & mentor</div>
+    <div className='card'>
+      <div className='card-head'>
+        <div className='card-title'>Sự kiện & mentor</div>
       </div>
-      <p className="card-sub">Các hackathon đội đã đăng ký — bảng và mentor được gán sau khi BTC duyệt và phân bảng.</p>
+      <p className='card-sub'>Các hackathon đội đã đăng ký — bảng và mentor được gán sau khi BTC duyệt và phân bảng.</p>
       {loading && <LoadingState />}
-      {!loading && error && <div className="empty-state">{error}</div>}
-      {!loading && !error && list.length === 0 && (
-        <div className="empty-state">Đội chưa đăng ký sự kiện nào.</div>
-      )}
+      {!loading && error && <div className='empty-state'>{error}</div>}
+      {!loading && !error && list.length === 0 && <div className='empty-state'>Đội chưa đăng ký sự kiện nào.</div>}
       {!loading && list.length > 0 && (
         <TeamEventsList list={list} mentorsByEvent={mentorsByEvent} onOpenChat={onOpenChat} />
       )}
@@ -380,18 +419,14 @@ function TeamEventsList({ list, mentorsByEvent, onOpenChat }) {
               key={reg.registrationId || reg.eventId}
               className={isOngoing ? 'team-event-item team-event-item--ongoing' : 'team-event-item'}
               style={{
-                paddingBottom: index < visibleItems.length - 1 ? (isOngoing ? 24 : 20) : (isOngoing ? 4 : 0),
+                paddingBottom: index < visibleItems.length - 1 ? (isOngoing ? 24 : 20) : isOngoing ? 4 : 0,
                 borderBottom:
-                  index < visibleItems.length - 1
-                    ? '1px solid var(--border, rgba(255,255,255,0.08))'
-                    : 'none'
+                  index < visibleItems.length - 1 ? '1px solid var(--border, rgba(255,255,255,0.08))' : 'none'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 16 }}>
-                    {reg.eventTitle || '—'}
-                  </div>
+                  <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 16 }}>{reg.eventTitle || '—'}</div>
                   <div
                     style={{
                       fontSize: 12,
@@ -404,14 +439,16 @@ function TeamEventsList({ list, mentorsByEvent, onOpenChat }) {
                     }}
                   >
                     <span>
-                      Bảng: <strong style={isOngoing ? { color: 'var(--text)' } : undefined}>{reg.groupName || '—'}</strong>
+                      Bảng:{' '}
+                      <strong style={isOngoing ? { color: 'var(--text)' } : undefined}>{reg.groupName || '—'}</strong>
                     </span>
                     <span
                       className={`status-pill ${eventStatusPillClass(reg.eventStatus)}`}
                       style={{ cursor: 'default' }}
                       title={`Trạng thái sự kiện: ${reg.eventStatus || '—'}`}
                     >
-                      {isOngoing ? '● ' : ''}{eventStatusLabel(reg.eventStatus)}
+                      {isOngoing ? '● ' : ''}
+                      {eventStatusLabel(reg.eventStatus)}
                     </span>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>
@@ -421,21 +458,19 @@ function TeamEventsList({ list, mentorsByEvent, onOpenChat }) {
                     Đăng ký: {formatDateTime(reg.registeredAt)}
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end', flexShrink: 0 }}>
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end', flexShrink: 0 }}
+                >
                   <span
                     className={`status-pill ${registrationStatusPillClass(reg.registrationStatus)}`}
                     style={{ cursor: 'default' }}
-                    title="Trạng thái duyệt đăng ký"
+                    title='Trạng thái duyệt đăng ký'
                   >
                     {reg.registrationStatus || '—'}
                   </span>
                 </div>
               </div>
-              <EventMentorsBlock
-                registration={reg}
-                mentorState={mentorsByEvent[reg.eventId]}
-                onOpenChat={onOpenChat}
-              />
+              <EventMentorsBlock registration={reg} mentorState={mentorsByEvent[reg.eventId]} onOpenChat={onOpenChat} />
             </div>
           )
         })}
@@ -470,14 +505,26 @@ function JoinEventForm({ onSuccess }) {
   }
 
   return (
-    <div className="card">
-      <div className="card-head"><div className="card-title">Đăng ký sự kiện</div></div>
-      <p className="card-sub">Đăng ký đội tham gia sự kiện hackathon. Liên hệ BTC nếu chưa biết mã sự kiện. BTC sẽ phân bảng sau khi duyệt.</p>
-      <form className="form" onSubmit={handleSubmit}>
-        <FormField label="Sự kiện">
-          <input name="eventId" value={eventId} onChange={e => setEventId(e.target.value)} required placeholder="Mã sự kiện do BTC cung cấp" />
+    <div className='card'>
+      <div className='card-head'>
+        <div className='card-title'>Đăng ký sự kiện</div>
+      </div>
+      <p className='card-sub'>
+        Đăng ký đội tham gia sự kiện hackathon. Liên hệ BTC nếu chưa biết mã sự kiện. BTC sẽ phân bảng sau khi duyệt.
+      </p>
+      <form className='form' onSubmit={handleSubmit}>
+        <FormField label='Sự kiện'>
+          <input
+            name='eventId'
+            value={eventId}
+            onChange={(e) => setEventId(e.target.value)}
+            required
+            placeholder='Mã sự kiện do BTC cung cấp'
+          />
         </FormField>
-        <LoadingButton loading={loading} type="submit">Đăng ký event</LoadingButton>
+        <LoadingButton loading={loading} type='submit'>
+          Đăng ký event
+        </LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
       </form>
     </div>
@@ -509,15 +556,25 @@ function DeleteMemberForm({ onSuccess }) {
   }
 
   return (
-    <div className="card">
-      <div className="card-head"><div className="card-title">Xóa thành viên</div></div>
-      <p className="card-sub">Loại một thành viên ra khỏi đội. Chỉ leader mới có quyền này.</p>
-      <form className="form" onSubmit={handleSubmit}>
-        <FormField label="Email thành viên">
-          <input name="memberId" type="email" value={memberId} onChange={e => setMemberId(e.target.value)}
-            required placeholder="Nhập email thành viên" />
+    <div className='card'>
+      <div className='card-head'>
+        <div className='card-title'>Xóa thành viên</div>
+      </div>
+      <p className='card-sub'>Loại một thành viên ra khỏi đội. Chỉ leader mới có quyền này.</p>
+      <form className='form' onSubmit={handleSubmit}>
+        <FormField label='Email thành viên'>
+          <input
+            name='memberId'
+            type='email'
+            value={memberId}
+            onChange={(e) => setMemberId(e.target.value)}
+            required
+            placeholder='Nhập email thành viên'
+          />
         </FormField>
-        <LoadingButton loading={loading} type="submit">Xóa thành viên</LoadingButton>
+        <LoadingButton loading={loading} type='submit'>
+          Xóa thành viên
+        </LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
       </form>
     </div>
@@ -530,7 +587,7 @@ function ActivityLog({ activities }) {
 
   if (!activities.length) {
     return (
-      <div className="empty-state">
+      <div className='empty-state'>
         Chưa có hoạt động nào trong phiên này. Hãy thử tạo đội hoặc tham gia một đội ở trên.
       </div>
     )
@@ -538,9 +595,9 @@ function ActivityLog({ activities }) {
 
   return (
     <>
-      <div className="kv-list">
+      <div className='kv-list'>
         {activities.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((a, i) => (
-          <div className="kv" key={`${a.at?.getTime?.() ?? i}-${a.text}`}>
+          <div className='kv' key={`${a.at?.getTime?.() ?? i}-${a.text}`}>
             <span>{a.at.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
             <span>{a.text}</span>
           </div>
@@ -560,7 +617,7 @@ export default function StudentDashboard() {
   const [registrationsRefreshKey, setRegistrationsRefreshKey] = useState(0)
   const [chatTarget, setChatTarget] = useState(null)
 
-  const logActivity = (text) => setActivities(prev => [{ text, at: new Date() }, ...prev])
+  const logActivity = (text) => setActivities((prev) => [{ text, at: new Date() }, ...prev])
 
   const loadMyTeam = useCallback(async () => {
     setTeamState('loading')
@@ -578,39 +635,49 @@ export default function StudentDashboard() {
     }
   }, [showToast])
 
-  useEffect(() => { loadMyTeam() }, [loadMyTeam])
+  useEffect(() => {
+    loadMyTeam()
+  }, [loadMyTeam])
 
-  const handleTeamCreated = () => { logActivity('Tạo đội mới'); loadMyTeam() }
-  const handleTeamJoined = () => { logActivity('Tham gia đội thành công'); loadMyTeam() }
-  const handleMemberDeleted = () => { logActivity('Xóa thành viên'); loadMyTeam() }
-  const handleRefresh = () => { showToast('Đang làm mới...', 'success'); loadMyTeam() }
+  const handleTeamCreated = () => {
+    logActivity('Tạo đội mới')
+    loadMyTeam()
+  }
+  const handleTeamJoined = () => {
+    logActivity('Tham gia đội thành công')
+    loadMyTeam()
+  }
+  const handleMemberDeleted = () => {
+    logActivity('Xóa thành viên')
+    loadMyTeam()
+  }
+  const handleRefresh = () => {
+    showToast('Đang làm mới...', 'success')
+    loadMyTeam()
+  }
   const refreshRegistrations = () => setRegistrationsRefreshKey((k) => k + 1)
 
   return (
     <DashboardLayout
-      roleLabel="Sinh viên"
-      moduleTitle="Tài khoản sinh viên"
-      moduleSubtitle="Quản lý đội thi và đăng ký sự kiện hackathon ngay tại đây."
+      roleLabel='Sinh viên'
+      moduleTitle='Tài khoản sinh viên'
+      moduleSubtitle='Quản lý đội thi và đăng ký sự kiện hackathon ngay tại đây.'
       showStudentFields
     >
-      <div className="section-title">
+      <div className='section-title'>
         <h2>Đội của tôi</h2>
-        <span className="hint">Mỗi sinh viên chỉ có thể tham gia 1 đội</span>
+        <span className='hint'>Mỗi sinh viên chỉ có thể tham gia 1 đội</span>
       </div>
 
-      {teamState === 'loading' && (
-        <LoadingState text="Đang tải thông tin đội..." />
-      )}
+      {teamState === 'loading' && <LoadingState text='Đang tải thông tin đội...' />}
 
-      {teamState === 'has-team' && teamData && (
-        <TeamInfoCard data={teamData} onRefresh={handleRefresh} />
-      )}
+      {teamState === 'has-team' && teamData && <TeamInfoCard data={teamData} onRefresh={handleRefresh} />}
 
       {teamState === 'has-team' && (
         <>
-          <div className="section-title" style={{ marginTop: 24 }}>
+          <div className='section-title' style={{ marginTop: 24 }}>
             <h2>Đăng ký sự kiện</h2>
-            <span className="hint">Sự kiện, bảng và mentor của đội</span>
+            <span className='hint'>Sự kiện, bảng và mentor của đội</span>
           </div>
           <TeamEventsPanel
             refreshKey={registrationsRefreshKey}
@@ -620,7 +687,7 @@ export default function StudentDashboard() {
       )}
 
       {teamState === 'no-team' && (
-        <div className="cards">
+        <div className='cards'>
           <CreateTeamForm onSuccess={handleTeamCreated} />
           <JoinTeamForm onSuccess={handleTeamJoined} />
         </div>
@@ -628,12 +695,17 @@ export default function StudentDashboard() {
 
       {teamState === 'has-team' && teamData?.isLeader && (
         <>
-          <div className="section-title">
+          <div className='section-title'>
             <h2>Quản lý leader</h2>
-            <span className="hint">Chỉ leader mới thực hiện được các thao tác bên dưới</span>
+            <span className='hint'>Chỉ leader mới thực hiện được các thao tác bên dưới</span>
           </div>
-          <div className="cards">
-            <JoinEventForm onSuccess={() => { refreshRegistrations(); logActivity('Đăng ký sự kiện') }} />
+          <div className='cards'>
+            <JoinEventForm
+              onSuccess={() => {
+                refreshRegistrations()
+                logActivity('Đăng ký sự kiện')
+              }}
+            />
             <DeleteMemberForm onSuccess={handleMemberDeleted} />
           </div>
         </>
@@ -651,7 +723,9 @@ export default function StudentDashboard() {
         />
       )}
 
-      <div className="section-title"><h2>Hoạt động gần đây</h2></div>
+      <div className='section-title'>
+        <h2>Hoạt động gần đây</h2>
+      </div>
       <ActivityLog activities={activities} />
     </DashboardLayout>
   )

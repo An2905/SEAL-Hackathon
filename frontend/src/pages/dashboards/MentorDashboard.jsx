@@ -262,7 +262,12 @@ export default function MentorDashboard() {
                 </div>
               ))}
             </div>
-            <Pagination total={events.length} pageSize={MENTOR_PAGE_SIZE} currentPage={eventsPage} onChange={setEventsPage} />
+            <Pagination
+              total={events.length}
+              pageSize={MENTOR_PAGE_SIZE}
+              currentPage={eventsPage}
+              onChange={setEventsPage}
+            />
           </>
         )}
       </div>
@@ -295,7 +300,12 @@ export default function MentorDashboard() {
                 </div>
               ))}
             </div>
-            <Pagination total={rounds.length} pageSize={MENTOR_PAGE_SIZE} currentPage={roundsPage} onChange={setRoundsPage} />
+            <Pagination
+              total={rounds.length}
+              pageSize={MENTOR_PAGE_SIZE}
+              currentPage={roundsPage}
+              onChange={setRoundsPage}
+            />
           </>
         )}
       </div>
@@ -389,7 +399,13 @@ export default function MentorDashboard() {
                         </span>
                         <span
                           className='status-picker'
-                          style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}
+                          style={{
+                            flexShrink: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'flex-end',
+                            gap: 6
+                          }}
                         >
                           <span
                             className={`status-pill ${registrationStatusPillClass(team.registrationStatus)}`}
@@ -406,7 +422,12 @@ export default function MentorDashboard() {
                     </div>
                   ))}
                 </div>
-                <Pagination total={teams.length} pageSize={MENTOR_PAGE_SIZE} currentPage={teamsPage} onChange={setTeamsPage} />
+                <Pagination
+                  total={teams.length}
+                  pageSize={MENTOR_PAGE_SIZE}
+                  currentPage={teamsPage}
+                  onChange={setTeamsPage}
+                />
               </>
             )}
           </>
