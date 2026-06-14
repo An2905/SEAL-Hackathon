@@ -51,6 +51,14 @@ function eventStatusPillClass(status) {
   return 'status-default'
 }
 
+function eventAccentColor(status) {
+  const key = (status || '').toUpperCase()
+  if (key === 'BUILDING') return '#EF9F27'
+  if (key === 'ONGOING') return '#1D9E75'
+  if (key === 'COMPLETED') return '#888780'
+  return '#888780'
+}
+
 function formatEventDateTime(value) {
   if (!value) return '—'
   const d = new Date(value)
@@ -3008,7 +3016,7 @@ export default function EventDetailsPage() {
       {error && !loading && <FormMessage message={error} type='error' />}
 
       {!loading && event && (
-        <div className='card'>
+        <div className='card event-detail-card' style={{ '--event-accent': eventAccentColor(event.status) }}>
           <div className='card-head'>
             <div>
               <div className='card-title'>{event.title || '—'}</div>

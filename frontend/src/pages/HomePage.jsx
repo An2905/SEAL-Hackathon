@@ -159,19 +159,17 @@ export default function HomePage() {
         <section className='section' id='gallery'>
           <div className='section-head'>
             <h2>Khoảnh khắc SEAL Hackathon</h2>
-
-            <p>Hình ảnh từ mùa Fall 2025 — sân chơi nơi ý tưởng trở thành sản phẩm.</p>
           </div>
 
           <div className='gallery gallery-four'>
             <div className='gallery-item gallery-item--feature'>
               <img src={anh2Img} alt='SEAL Hackathon - toàn cảnh sự kiện và ban giám khảo' />
             </div>
-            <div className='gallery-item'>
-              <img src={anh1Img} alt='SEAL Hackathon - không khí hackathon và thí sinh' />
-            </div>
-            <div className='gallery-item'>
+            <div className='gallery-item gallery-item--2'>
               <img src={eventImg} alt='SEAL Hackathon - khán giả và sân khấu' />
+            </div>
+            <div className='gallery-item gallery-item--3'>
+              <img src={anh1Img} alt='SEAL Hackathon - không khí hackathon và thí sinh' />
             </div>
           </div>
         </section>

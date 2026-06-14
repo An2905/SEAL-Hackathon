@@ -36,10 +36,10 @@ export default function HomeNavbar({ onOpenLogin, onOpenRegister }) {
 
         {!isLoggedIn ? (
           <div className='nav-actions'>
-            <button className='btn btn-ghost btn-sm' onClick={onOpenLogin}>
+            <button className='header-cta-login' onClick={onOpenLogin}>
               Đăng nhập
             </button>
-            <button className='btn btn-primary btn-sm' onClick={onOpenRegister}>
+            <button className='header-cta-register' onClick={onOpenRegister}>
               Đăng ký
             </button>
           </div>

@@ -123,14 +123,12 @@ function DeleteUniversityModal({ university, allUniversities, onClose, onDeleted
   const [loadingDelete, setLoadingDelete] = useState(false)
   const [error, setError] = useState('')
   const [replacement, setReplacement] = useState('')
-  const [clearLinked, setClearLinked] = useState(false)
 
   useEffect(() => {
     if (!university) return
     setPreview(null)
     setError('')
     setReplacement('')
-    setClearLinked(false)
     setLoadingPreview(true)
     getDeleteUniversityPreview(university.universityId)
       .then(setPreview)
@@ -147,7 +145,7 @@ function DeleteUniversityModal({ university, allUniversities, onClose, onDeleted
   const canSubmit =
     !loadingPreview &&
     preview &&
-    (!needsHandling || replacement || clearLinked)
+    (!needsHandling || replacement)
 
   const handleDelete = async () => {
     if (!canSubmit) return
@@ -156,8 +154,7 @@ function DeleteUniversityModal({ university, allUniversities, onClose, onDeleted
     try {
       await deleteUniversity({
         universityId: university.universityId,
-        replacementUniversityName: replacement || undefined,
-        clearLinkedUsers: clearLinked && !replacement
+        replacementUniversityName: replacement || undefined
       })
       showToast('Đã xóa trường đại học', 'success')
       onDeleted?.()
@@ -196,14 +193,7 @@ function DeleteUniversityModal({ university, allUniversities, onClose, onDeleted
                 Còn <strong>{linkedCount}</strong> sinh viên đang gắn trường này.
               </div>
               <FormField label='Chuyển sinh viên sang trường'>
-                <select
-                  value={replacement}
-                  onChange={(e) => {
-                    setReplacement(e.target.value)
-                    if (e.target.value) setClearLinked(false)
-                  }}
-                  disabled={clearLinked}
-                >
+                <select value={replacement} onChange={(e) => setReplacement(e.target.value)}>
                   <option value=''>— Chọn trường thay thế —</option>
                   {replacementOptions.map((u) => (
                     <option key={u.universityId} value={u.universityName}>
@@ -212,26 +202,6 @@ function DeleteUniversityModal({ university, allUniversities, onClose, onDeleted
                   ))}
                 </select>
               </FormField>
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  marginBottom: 12
-                }}
-              >
-                <input
-                  type='checkbox'
-                  checked={clearLinked}
-                  onChange={(e) => {
-                    setClearLinked(e.target.checked)
-                    if (e.target.checked) setReplacement('')
-                  }}
-                />
-                Không chuyển — để trống university (NULL)
-              </label>
             </>
           )}
         </div>

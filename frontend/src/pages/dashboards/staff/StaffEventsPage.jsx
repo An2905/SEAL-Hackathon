@@ -121,14 +121,20 @@ export default function StaffEventsPage() {
       {!loading && filtered.length === 0 && <div style={emptyStyle}>Không có sự kiện nào.</div>}
 
       {!loading &&
-        paginated.map((ev) => (
+        paginated.map((ev, idx) => (
           <AccordionCard
             key={ev.eventId}
-            title={ev.title || '(Không có tên)'}
+            title={
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className='accounts-table-index' style={{ minWidth: 24 }}>
+                  {(page - 1) * PAGE_SIZE + idx + 1}
+                </span>
+                <span>{ev.title || '(Không có tên)'}</span>
+              </span>
+            }
             badge={<StatusPill status={ev.status} />}
           >
             <div style={detailGridStyle}>
-              <KvRow label='Mã sự kiện' value={ev.eventId} />
               <KvRow label='Mô tả' value={ev.description || '—'} />
               <KvRow label='Ngày bắt đầu' value={formatDate(ev.startDate)} />
               <KvRow label='Ngày kết thúc' value={formatDate(ev.endDate)} />

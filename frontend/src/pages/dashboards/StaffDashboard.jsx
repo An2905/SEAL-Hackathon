@@ -40,6 +40,13 @@ function resolveAccountUserId(account) {
   return normalizeAccountUserId(account?.userId ?? account?.user_id)
 }
 
+function accountSourceLabel(role) {
+  const key = (role || '').toUpperCase()
+  if (key.endsWith('_INTERNAL') || key === 'STUDENT_FPT' || key === 'COORDINATOR') return 'INTERNAL'
+  if (key.endsWith('_EXTERNAL')) return 'EXTERNAL'
+  return '—'
+}
+
 // ─── Account Status Picker ────────────────────────────────────────────────────
 function AccountStatusPicker({ account, onUpdated }) {
   const { showToast } = useToast()
@@ -456,23 +463,25 @@ export function AccountsListSection({ refreshKey = 0 }) {
           <div className='card-sub' style={{ marginTop: 12, marginBottom: 6 }}>
             Tổng cộng <strong>{accounts.length}</strong> tài khoản
           </div>
-          <div className='kv-list'>
-            {accounts.slice((page - 1) * ACCOUNTS_PAGE_SIZE, page * ACCOUNTS_PAGE_SIZE).map((a) => (
-              <div className='kv' key={resolveAccountUserId(a) || a.email}>
-                <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text)' }}>{a.fullName || '—'}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{a.email}</div>
+          <div className='accounts-table'>
+            <div className='accounts-table-row accounts-table-row--head'>
+              <span className='accounts-table-index'>#</span>
+              <span>Họ và tên</span>
+              <span>Email</span>
+              <span>Vai trò</span>
+              <span>Nguồn</span>
+              <span>Trạng thái</span>
+            </div>
+            {accounts.slice((page - 1) * ACCOUNTS_PAGE_SIZE, page * ACCOUNTS_PAGE_SIZE).map((a, idx) => (
+              <div className='accounts-table-row' key={resolveAccountUserId(a) || a.email}>
+                <span className='accounts-table-index'>{(page - 1) * ACCOUNTS_PAGE_SIZE + idx + 1}</span>
+                <span className='accounts-table-cell' style={{ fontWeight: 600, color: 'var(--text)' }}>
+                  {a.fullName || '—'}
                 </span>
-                <span
-                  style={{
-                    display: 'flex',
-                    gap: 6,
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    justifyContent: 'flex-end'
-                  }}
-                >
-                  <span className='card-badge'>{roleUiLabel(a.role) || '—'}</span>
+                <span className='accounts-table-cell accounts-table-cell--muted'>{a.email}</span>
+                <span className='accounts-table-cell'>{roleUiLabel(a.role) || '—'}</span>
+                <span className='accounts-table-cell accounts-table-cell--muted'>{accountSourceLabel(a.role)}</span>
+                <span className='accounts-table-cell accounts-table-cell--status'>
                   <AccountStatusPicker account={a} onUpdated={handleStatusUpdated} />
                 </span>
               </div>

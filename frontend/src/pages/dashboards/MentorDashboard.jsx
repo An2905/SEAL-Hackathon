@@ -43,6 +43,26 @@ function eventStatusPillClass(status) {
   return 'status-default'
 }
 
+function MessageIcon() {
+  return (
+    <svg
+      width='14'
+      height='14'
+      viewBox='0 0 24 24'
+      fill='none'
+      stroke='currentColor'
+      strokeWidth='2'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+      aria-hidden='true'
+    >
+      <path d='M8 9h8' />
+      <path d='M8 13h6' />
+      <path d='M18 4a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-5l-5 3v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12z' />
+    </svg>
+  )
+}
+
 function StatusBadge({ status }) {
   return (
     <span className='status-picker' style={{ flexShrink: 0 }}>
@@ -211,6 +231,7 @@ export default function MentorDashboard() {
       moduleTitle='Khu vực Mentor'
       moduleSubtitle='Khách được phân công mentor — đồng hành cùng các đội thí sinh. Cùng tài khoản có thể vào khu Judge nếu được gán chấm thi.'
       showStaffFields
+      className='dashboard-shell--mentor-zone'
     >
       <div className='action-row' style={{ marginBottom: '1rem' }}>
         <Link className='btn btn-outline' to='/judge'>
@@ -337,37 +358,51 @@ export default function MentorDashboard() {
             {!loadingTeams && teams.length > 0 && (
               <>
                 <div className='kv-list'>
-                  {teams.slice((teamsPage - 1) * MENTOR_PAGE_SIZE, teamsPage * MENTOR_PAGE_SIZE).map((team) => (
-                    <div className='kv' style={{ alignItems: 'flex-start' }} key={team.teamId || team.registrationId}>
-                      <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                        <div style={{ fontWeight: 600, color: 'var(--text)' }}>{team.teamName || '—'}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
-                          Trưởng nhóm: {team.leaderName || '—'}
-                          {team.leaderEmail ? ` · ${team.leaderEmail}` : ''}
-                        </div>
-                        {team.members?.length > 0 && (
-                          <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>
-                            Thành viên:{' '}
-                            {team.members
-                              .map((m) => m.fullName || m.email || '—')
-                              .filter(Boolean)
-                              .join(', ')}
+                  {teams.slice((teamsPage - 1) * MENTOR_PAGE_SIZE, teamsPage * MENTOR_PAGE_SIZE).map((team, idx) => (
+                    <div className='mentor-team-card' key={team.teamId || team.registrationId}>
+                      <div className='kv' style={{ alignItems: 'flex-start' }}>
+                        <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span className='accounts-table-index' style={{ minWidth: 24 }}>
+                              {(teamsPage - 1) * MENTOR_PAGE_SIZE + idx + 1}
+                            </span>
+                            <span style={{ fontWeight: 600, color: 'var(--text)' }}>{team.teamName || '—'}</span>
                           </div>
-                        )}
-                        {team.enrollCode && (
-                          <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2 }}>
-                            Mã đội: {team.enrollCode}
+                          <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2, marginLeft: 34 }}>
+                            Trưởng nhóm: {team.leaderName || '—'}
+                            {team.leaderEmail ? ` · ${team.leaderEmail}` : ''}
                           </div>
-                        )}
-                      </span>
-                      <span className='status-picker' style={{ flexShrink: 0 }}>
-                        <span
-                          className={`status-pill ${registrationStatusPillClass(team.registrationStatus)}`}
-                          style={{ cursor: 'default' }}
-                        >
-                          {team.registrationStatus || '—'}
+                          {team.members?.length > 0 && (
+                            <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4, marginLeft: 34 }}>
+                              Thành viên:{' '}
+                              {team.members
+                                .map((m) => m.fullName || m.email || '—')
+                                .filter(Boolean)
+                                .join(', ')}
+                            </div>
+                          )}
+                          {team.enrollCode && (
+                            <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2, marginLeft: 34 }}>
+                              Mã đội: {team.enrollCode}
+                            </div>
+                          )}
                         </span>
-                      </span>
+                        <span
+                          className='status-picker'
+                          style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}
+                        >
+                          <span
+                            className={`status-pill ${registrationStatusPillClass(team.registrationStatus)}`}
+                            style={{ cursor: 'default' }}
+                          >
+                            {team.registrationStatus || '—'}
+                          </span>
+                          <button type='button' className='status-pill status-chat' onClick={() => setChatOpen(true)}>
+                            <MessageIcon />
+                            Chat
+                          </button>
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>

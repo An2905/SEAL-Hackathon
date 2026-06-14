@@ -25,14 +25,6 @@ export default function StaffProfilePage() {
       <div style={sectionStyle}>
         <div style={sectionHeaderStyle}>
           <span style={sectionTitleStyle}>Thông tin cá nhân</span>
-          <button
-            type='button'
-            className='btn btn-outline'
-            style={{ fontSize: 12, padding: '5px 12px' }}
-            onClick={() => setProfileOpen(true)}
-          >
-            Chỉnh sửa hồ sơ
-          </button>
         </div>
 
         <div style={avatarRowStyle}>
@@ -49,6 +41,14 @@ export default function StaffProfilePage() {
         <div style={sectionStyle}>
           <div style={sectionHeaderStyle}>
             <span style={sectionTitleStyle}>Thông tin liên hệ</span>
+            <button
+              type='button'
+              className='btn btn-outline'
+              style={{ fontSize: 12, padding: '5px 12px' }}
+              onClick={() => setProfileOpen(true)}
+            >
+              Chỉnh sửa hồ sơ
+            </button>
           </div>
           <div style={{ padding: '4px 0' }}>
             <KvRow label='Email' value={auth.email || '—'} />

@@ -24,6 +24,7 @@ export default function DashboardLayout({
   moduleSubtitle,
   showStudentFields = false,
   showStaffFields = false,
+  className = '',
   tabs,
   children
 }) {
@@ -44,7 +45,7 @@ export default function DashboardLayout({
   const hasProfileTab = tabList.some((tab) => tab.key === 'profile')
 
   return (
-    <div className='dashboard-shell'>
+    <div className={`dashboard-shell${className ? ` ${className}` : ''}`}>
       <TopBar
         roleLabel={roleLabel}
         onNavigateProfile={hasProfileTab ? () => setActiveTab('profile') : undefined}
