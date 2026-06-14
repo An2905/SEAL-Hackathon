@@ -1,24 +1,29 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
 import HomePage from './pages/HomePage'
 import RequireRole from './guards/RequireRole'
-import StudentDashboard from './pages/dashboards/StudentDashboard'
-import StaffLayout from './pages/dashboards/staff/StaffLayout'
-import StaffOverviewPage from './pages/dashboards/staff/StaffOverviewPage'
-import StaffAccountsPage from './pages/dashboards/staff/StaffAccountsPage'
-import StaffUniversitiesPage from './pages/dashboards/staff/StaffUniversitiesPage'
-import StaffEventsPage from './pages/dashboards/staff/StaffEventsPage'
-import StaffAssignPage from './pages/dashboards/staff/StaffAssignPage'
-import MentorDashboard from './pages/dashboards/MentorDashboard'
-import JudgeDashboard from './pages/dashboards/JudgeDashboard'
-import EventDetailsPage from './pages/dashboards/EventDetailsPage'
-import StaffCheckInPage from './pages/dashboards/staff/StaffCheckInPage'
+import RequireAuth from './guards/RequireAuth'
+import LoadingState from './components/common/LoadingState'
+
+const StudentDashboard = lazy(() => import('./pages/dashboards/StudentDashboard'))
+const StaffLayout = lazy(() => import('./pages/dashboards/staff/StaffLayout'))
+const MentorDashboard = lazy(() => import('./pages/dashboards/MentorDashboard'))
+const JudgeDashboard = lazy(() => import('./pages/dashboards/JudgeDashboard'))
+const EventDetailsPage = lazy(() => import('./pages/dashboards/EventDetailsPage'))
+const StaffCheckInPage = lazy(() => import('./pages/dashboards/staff/StaffCheckInPage'))
+const ProfilePage = lazy(() => import('./pages/dashboards/staff/StaffProfilePage'))
+
+function RouteLoading() {
+  return <LoadingState className='page-loading' />
+}
 
 export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
+        <Suspense fallback={<RouteLoading />}>
         <Routes>
           <Route path='/' element={<HomePage />} />
 
@@ -31,7 +36,7 @@ export default function App() {
             }
           />
 
-          {/* Staff area — nested pages under a shared layout + sub-navbar */}
+          {/* Staff area — tabs are handled internally by StaffLayout */}
           <Route
             path='/staff'
             element={
@@ -39,13 +44,7 @@ export default function App() {
                 <StaffLayout />
               </RequireRole>
             }
-          >
-            <Route index element={<StaffOverviewPage />} />
-            <Route path='accounts' element={<StaffAccountsPage />} />
-            <Route path='events' element={<StaffEventsPage />} />
-            <Route path='assign' element={<StaffAssignPage />} />
-            <Route path='universities' element={<StaffUniversitiesPage />} />
-          </Route>
+          />
 
           {/* Event detail is a standalone full page (own shell) */}
           <Route
@@ -84,9 +83,19 @@ export default function App() {
             }
           />
 
+          <Route
+            path='/profile'
+            element={
+              <RequireAuth>
+                <ProfilePage />
+              </RequireAuth>
+            }
+          />
+
           {/* Catch-all */}
           <Route path='*' element={<Navigate to='/' replace />} />
         </Routes>
+        </Suspense>
       </ToastProvider>
     </AuthProvider>
   )

@@ -1,37 +1,36 @@
+import LoadingState from '../common/LoadingState'
+
 function displayName(item) {
   return item?.fullName || item?.email || item?.userId || '—'
 }
 
-function ExpertColleagueCard({ person, roleLabel }) {
-  const name = displayName(person)
-  const email = person?.email?.trim() || ''
+function ExpertStaffChip({ person, roleLabel }) {
+  const label = displayName(person)
+  const title = person.email && person.fullName ? `${label} · ${person.email}` : label
 
   return (
-    <div
-      className={`expert-colleague-card expert-colleague-card--${roleLabel.toLowerCase()}${person.self ? ' is-self' : ''}`}
+    <span
+      className={`expert-staff-chip expert-staff-chip--${roleLabel.toLowerCase()}${person.self ? ' is-self' : ''}`}
+      title={title}
     >
-      <div className='expert-colleague-card-head'>
-        <span className='expert-colleague-card-name'>{name}</span>
-        {person.self ? <span className='expert-colleague-card-you'>Bạn</span> : null}
-      </div>
-      <div className='expert-colleague-card-email'>{email || '—'}</div>
-    </div>
+      {label}
+      {person.self ? <span className='expert-staff-chip-you'>Bạn</span> : null}
+    </span>
   )
 }
 
-function ExpertColleaguesRow({ title, count, people, roleLabel, emptyText }) {
+function ExpertStaffRow({ title, count, people, roleLabel, emptyText }) {
   return (
-    <div className={`expert-colleagues-row expert-colleagues-row--${roleLabel.toLowerCase()}`}>
-      <div className='expert-colleagues-row-label'>
-        <span className={`expert-colleagues-pill expert-colleagues-pill--${roleLabel.toLowerCase()}`}>{title}</span>
-        <span className='expert-colleagues-count'>{count}</span>
-      </div>
-      <div className='expert-colleagues-track'>
+    <div className='expert-staff-row'>
+      <span className='expert-staff-row-label'>
+        {title} <span className='expert-staff-row-count'>{count}</span>
+      </span>
+      <div className='expert-staff-chips'>
         {people.length === 0 ? (
-          <span className='expert-colleagues-empty'>{emptyText}</span>
+          <span className='expert-staff-empty'>{emptyText}</span>
         ) : (
           people.map((person) => (
-            <ExpertColleagueCard key={`${roleLabel}-${person.userId}`} person={person} roleLabel={roleLabel} />
+            <ExpertStaffChip key={`${roleLabel}-${person.userId}`} person={person} roleLabel={roleLabel} />
           ))
         )}
       </div>
@@ -41,11 +40,11 @@ function ExpertColleaguesRow({ title, count, people, roleLabel, emptyText }) {
 
 export default function ExpertGroupColleaguesBoard({ colleagues, loading, error }) {
   if (loading) {
-    return <div className='expert-colleagues-board expert-colleagues-board--loading'>Đang tải…</div>
+    return <LoadingState className='expert-staff-compact expert-staff-compact--loading' />
   }
 
   if (error) {
-    return <div className='expert-colleagues-board expert-colleagues-board--error'>{error}</div>
+    return <div className='expert-staff-compact expert-staff-compact--error'>{error}</div>
   }
 
   if (!colleagues) {
@@ -56,20 +55,20 @@ export default function ExpertGroupColleaguesBoard({ colleagues, loading, error 
   const judges = colleagues.judges ?? []
 
   return (
-    <div className='expert-colleagues-board'>
-      <ExpertColleaguesRow
+    <div className='expert-staff-compact'>
+      <ExpertStaffRow
         title='Mentor'
         count={mentors.length}
         people={mentors}
         roleLabel='Mentor'
-        emptyText='Chưa có mentor'
+        emptyText='Chưa có'
       />
-      <ExpertColleaguesRow
+      <ExpertStaffRow
         title='Judge'
         count={judges.length}
         people={judges}
         roleLabel='Judge'
-        emptyText='Chưa có judge'
+        emptyText='Chưa có'
       />
     </div>
   )

@@ -105,15 +105,4 @@ public class StudentProfileRepository {
       return false;
     }
   }
-
-  public boolean clearUniversityNameByUniversityName(String universityName) {
-    String sql = "UPDATE studentprofile SET university_name = NULL WHERE university_name = ?";
-    try (Connection conn = dataSource.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, universityName);
-      return ps.executeUpdate() >= 0;
-    } catch (Exception e) {
-      return false;
-    }
-  }
 }

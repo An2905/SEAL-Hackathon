@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import DashboardShell from './DashboardShell'
-import CollapsibleKvList from '../../components/common/CollapsibleList'
+import DashboardLayout from '../../components/layout/DashboardLayout'
 import ExpertGroupColleaguesBoard from '../../components/expert/ExpertGroupColleaguesBoard'
 import {
   formatDateTime,
@@ -12,6 +11,8 @@ import {
 import JudgeCriteriaPanel from '../../components/judge/JudgeCriteriaPanel'
 import JudgeScoreModal from '../../components/judge/JudgeScoreModal'
 import SubmissionLinks from '../../components/judge/SubmissionLinks'
+import Pagination from '../../components/common/Pagination'
+import LoadingState from '../../components/common/LoadingState'
 import {
   getAssignedEvents,
   getAssignedCurrentRounds,
@@ -23,18 +24,21 @@ import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 
+const JUDGE_PAGE_SIZE = 5
+
 export default function JudgeDashboard() {
-  const { auth, pillLabelForRole } = useAuth()
-  const guestLabel = pillLabelForRole(auth.role) || 'Khách'
+  const { auth } = useAuth()
   const { showToast } = useToast()
 
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [eventsPage, setEventsPage] = useState(1)
 
   const [rounds, setRounds] = useState([])
   const [loadingRounds, setLoadingRounds] = useState(true)
   const [errorRounds, setErrorRounds] = useState(null)
+  const [roundsPage, setRoundsPage] = useState(1)
 
   const [assignments, setAssignments] = useState([])
   const [loadingAssignments, setLoadingAssignments] = useState(true)
@@ -44,6 +48,7 @@ export default function JudgeDashboard() {
   const [teams, setTeams] = useState([])
   const [loadingTeams, setLoadingTeams] = useState(false)
   const [errorTeams, setErrorTeams] = useState(null)
+  const [teamsPage, setTeamsPage] = useState(1)
 
   const [colleagues, setColleagues] = useState(null)
   const [loadingColleagues, setLoadingColleagues] = useState(false)
@@ -63,6 +68,7 @@ export default function JudgeDashboard() {
     }
     setLoadingTeams(true)
     setErrorTeams(null)
+    setTeamsPage(1)
     try {
       setTeams(
         await getTeamsToScore({
@@ -158,11 +164,10 @@ export default function JudgeDashboard() {
   }
 
   return (
-    <DashboardShell
-      roleLabel={guestLabel}
-      title='Khu vực Judge'
-      subtitle='Khách được phân công giám khảo — chấm điểm các đội thi. Cùng tài khoản có thể vào khu Mentor nếu được gán hướng dẫn.'
-      role={guestLabel}
+    <DashboardLayout
+      roleLabel='Giám khảo'
+      moduleTitle='Khu vực Judge'
+      moduleSubtitle='Khách được phân công giám khảo — chấm điểm các đội thi. Cùng tài khoản có thể vào khu Mentor nếu được gán hướng dẫn.'
       showStaffFields
     >
       <div className='action-row' style={{ marginBottom: '1rem' }}>
@@ -176,24 +181,25 @@ export default function JudgeDashboard() {
         <span className='hint'>Các sự kiện bạn được Coordinator gán chấm thi</span>
       </div>
       <div className='card'>
-        {loading && <div className='empty-state'>Đang tải danh sách…</div>}
+        {loading && <LoadingState text='Đang tải danh sách…' />}
         {!loading && error && <div className='empty-state'>{error}</div>}
         {!loading && !error && events.length === 0 && (
           <div className='empty-state'>Bạn chưa được phân công sự kiện nào.</div>
         )}
         {!loading && events.length > 0 && (
-          <CollapsibleKvList
-            items={events}
-            getItemKey={(ev) => ev.eventId}
-            renderItem={(ev) => (
-              <div className='kv'>
-                <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text)' }}>{ev.title || '—'}</div>
-                </span>
-                <StatusBadge status={ev.status} />
-              </div>
-            )}
-          />
+          <>
+            <div className='kv-list'>
+              {events.slice((eventsPage - 1) * JUDGE_PAGE_SIZE, eventsPage * JUDGE_PAGE_SIZE).map((ev) => (
+                <div className='kv' key={ev.eventId}>
+                  <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text)' }}>{ev.title || '—'}</div>
+                  </span>
+                  <StatusBadge status={ev.status} />
+                </div>
+              ))}
+            </div>
+            <Pagination total={events.length} pageSize={JUDGE_PAGE_SIZE} currentPage={eventsPage} onChange={setEventsPage} />
+          </>
         )}
       </div>
 
@@ -202,28 +208,29 @@ export default function JudgeDashboard() {
         <span className='hint'>Các vòng thi hiện active trong phân công của bạn</span>
       </div>
       <div className='card'>
-        {loadingRounds && <div className='empty-state'>Đang tải vòng thi…</div>}
+        {loadingRounds && <LoadingState text='Đang tải vòng thi…' />}
         {!loadingRounds && errorRounds && <div className='empty-state'>{errorRounds}</div>}
         {!loadingRounds && !errorRounds && rounds.length === 0 && (
           <div className='empty-state'>Hiện không có vòng nào đang diễn ra.</div>
         )}
         {!loadingRounds && rounds.length > 0 && (
-          <CollapsibleKvList
-            items={rounds}
-            getItemKey={(rd) => rd.roundId}
-            renderItem={(rd) => (
-              <div className='kv'>
-                <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text)' }}>{rd.roundName || '—'}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{rd.eventTitle || '—'}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2 }}>
-                    {formatDateTime(rd.startDate)} → {formatDateTime(rd.endDate)}
-                  </div>
-                </span>
-                <StatusBadge status={rd.roundStatus} />
-              </div>
-            )}
-          />
+          <>
+            <div className='kv-list'>
+              {rounds.slice((roundsPage - 1) * JUDGE_PAGE_SIZE, roundsPage * JUDGE_PAGE_SIZE).map((rd) => (
+                <div className='kv' key={rd.roundId}>
+                  <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text)' }}>{rd.roundName || '—'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{rd.eventTitle || '—'}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2 }}>
+                      {formatDateTime(rd.startDate)} → {formatDateTime(rd.endDate)}
+                    </div>
+                  </span>
+                  <StatusBadge status={rd.roundStatus} />
+                </div>
+              ))}
+            </div>
+            <Pagination total={rounds.length} pageSize={JUDGE_PAGE_SIZE} currentPage={roundsPage} onChange={setRoundsPage} />
+          </>
         )}
       </div>
 
@@ -232,7 +239,7 @@ export default function JudgeDashboard() {
         <span className='hint'>Chọn bảng để xem đội và chấm điểm</span>
       </div>
       <div className='card'>
-        {loadingAssignments && <div className='empty-state'>Đang tải phân công…</div>}
+        {loadingAssignments && <LoadingState text='Đang tải phân công…' />}
         {!loadingAssignments && errorAssignments && <div className='empty-state'>{errorAssignments}</div>}
         {!loadingAssignments && !errorAssignments && assignments.length === 0 && (
           <div className='empty-state'>Bạn chưa được phân công bảng nào.</div>
@@ -261,53 +268,54 @@ export default function JudgeDashboard() {
               <ExpertGroupColleaguesBoard colleagues={colleagues} loading={loadingColleagues} error={errorColleagues} />
             </div>
 
-            {loadingTeams && <div className='empty-state'>Đang tải danh sách đội…</div>}
+            {loadingTeams && <LoadingState text='Đang tải danh sách đội…' />}
             {!loadingTeams && errorTeams && <div className='empty-state'>{errorTeams}</div>}
             {!loadingTeams && !errorTeams && teams.length === 0 && (
               <div className='empty-state'>Không có đội nào trong bảng này.</div>
             )}
             {!loadingTeams && teams.length > 0 && (
-              <CollapsibleKvList
-                items={teams}
-                getItemKey={(team) => team.teamId || team.submissionId}
-                renderItem={(team) => (
-                  <div className='kv' style={{ alignItems: 'flex-start' }}>
-                    <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text)' }}>{team.teamName || '—'}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
-                        {team.submissionId
-                          ? `Nộp: ${formatDateTime(team.submittedAt)} · ${team.submissionStatus || '—'}`
-                          : 'Chưa nộp bài'}
-                      </div>
-                      <SubmissionLinks team={team} />
-                      {team.scored && team.totalScore != null && (
-                        <div style={{ fontSize: 12, color: 'var(--accent)', marginTop: 4, fontWeight: 600 }}>
-                          Điểm đã chấm: {team.totalScore}
+              <>
+                <div className='kv-list'>
+                  {teams.slice((teamsPage - 1) * JUDGE_PAGE_SIZE, teamsPage * JUDGE_PAGE_SIZE).map((team) => (
+                    <div className='kv' style={{ alignItems: 'flex-start' }} key={team.teamId || team.submissionId}>
+                      <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text)' }}>{team.teamName || '—'}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
+                          {team.submissionId
+                            ? `Nộp: ${formatDateTime(team.submittedAt)} · ${team.submissionStatus || '—'}`
+                            : 'Chưa nộp bài'}
                         </div>
-                      )}
-                    </span>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
-                      <span className='status-picker' style={{ flexShrink: 0 }}>
-                        <span
-                          className={`status-pill ${team.scored ? 'status-active' : 'status-pending'}`}
-                          style={{ cursor: 'default' }}
-                        >
-                          {team.scored ? 'Đã chấm' : 'Chưa chấm'}
-                        </span>
+                        <SubmissionLinks team={team} />
+                        {team.scored && team.totalScore != null && (
+                          <div style={{ fontSize: 12, color: 'var(--accent)', marginTop: 4, fontWeight: 600 }}>
+                            Điểm đã chấm: {team.totalScore}
+                          </div>
+                        )}
                       </span>
-                      <button
-                        type='button'
-                        className='btn btn-primary btn-sm'
-                        style={{ fontSize: 12 }}
-                        disabled={!team.submissionId}
-                        onClick={() => setScoreTeam(team)}
-                      >
-                        {team.scored ? 'Sửa điểm' : 'Chấm điểm'}
-                      </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+                        <span className='status-picker' style={{ flexShrink: 0 }}>
+                          <span
+                            className={`status-pill ${team.scored ? 'status-active' : 'status-pending'}`}
+                            style={{ cursor: 'default' }}
+                          >
+                            {team.scored ? 'Đã chấm' : 'Chưa chấm'}
+                          </span>
+                        </span>
+                        <button
+                          type='button'
+                          className='btn btn-primary btn-sm'
+                          style={{ fontSize: 12 }}
+                          disabled={!team.submissionId}
+                          onClick={() => setScoreTeam(team)}
+                        >
+                          {team.scored ? 'Sửa điểm' : 'Chấm điểm'}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              />
+                  ))}
+                </div>
+                <Pagination total={teams.length} pageSize={JUDGE_PAGE_SIZE} currentPage={teamsPage} onChange={setTeamsPage} />
+              </>
             )}
           </>
         )}
@@ -339,8 +347,8 @@ export default function JudgeDashboard() {
             <span>{auth.email}</span>
           </div>
           <div className='kv'>
-            <span>Vai trò tài khoản</span>
-            <span>{guestLabel}</span>
+            <span>Vai trò</span>
+            <span>Giám khảo</span>
           </div>
           <div className='kv'>
             <span>Trạng thái phiên</span>
@@ -356,6 +364,6 @@ export default function JudgeDashboard() {
         onClose={() => setScoreTeam(null)}
         onSaved={handleScoreSaved}
       />
-    </DashboardShell>
+    </DashboardLayout>
   )
 }

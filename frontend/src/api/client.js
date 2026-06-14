@@ -2,7 +2,13 @@ import { parseJwt } from '../utils/jwt'
 
 // Dev: empty => Vite proxies /api to localhost:8080 (vite.config.js).
 // Vercel / prod: set VITE_API_BASE to your backend URL (no trailing slash).
-const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '')
+export const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '')
+
+export function resolveAssetUrl(path) {
+  if (!path) return path
+  if (/^https?:\/\//i.test(path)) return path
+  return `${API_BASE}${path}`
+}
 
 export async function apiFetch(path, { method = 'GET', body, auth = true } = {}) {
   const headers = { 'Content-Type': 'application/json' }

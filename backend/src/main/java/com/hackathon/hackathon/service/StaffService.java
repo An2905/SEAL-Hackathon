@@ -21,6 +21,10 @@ import com.hackathon.hackathon.model.dto.response.EventAssignedJudgeResponse;
 import com.hackathon.hackathon.model.dto.response.EventAssignedMentorResponse;
 import com.hackathon.hackathon.model.dto.response.EventCriteriaResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
+import com.hackathon.hackathon.model.dto.response.StaffEmailFilterResponse;
+import com.hackathon.hackathon.model.dto.response.StaffEmailMatchDetailResponse;
+import com.hackathon.hackathon.model.dto.response.StaffEmailMatchRow;
+import com.hackathon.hackathon.model.dto.response.StaffEmailRecipientResponse;
 import com.hackathon.hackathon.model.dto.response.StaffUniversityItemResponse;
 import com.hackathon.hackathon.model.dto.response.UniversityResponse;
 import com.hackathon.hackathon.model.entity.EventCriterion;
@@ -33,13 +37,21 @@ import com.hackathon.hackathon.repository.CriteriaRepository;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.ParticipantsProfileRepository;
 import com.hackathon.hackathon.repository.StaffAssignmentRepository;
+import com.hackathon.hackathon.repository.StaffEmailRepository;
 import com.hackathon.hackathon.repository.StudentProfileRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.repository.UniversityRepository;
 import com.hackathon.hackathon.repository.UserRepository;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -71,6 +83,8 @@ public class StaffService {
   @Autowired private UniversityRepository universityRepository;
 
   @Autowired private StudentProfileRepository studentProfileRepository;
+
+  @Autowired private StaffEmailRepository staffEmailRepository;
 
   // region REGIS ACCOUNT FOR ADS
   public String registerAccount(String authHeader, CreateStaffAccountRequest request) {
@@ -562,7 +576,6 @@ public class StaffService {
     String oldName = university.getUniversityName();
     int linkedCount = studentProfileRepository.countByUniversityName(oldName);
     String replacement = trim(request.getReplacementUniversityName());
-    boolean clearLinked = Boolean.TRUE.equals(request.getClearLinkedUsers());
 
     if (linkedCount > 0) {
       if (!replacement.isEmpty()) {
@@ -576,13 +589,6 @@ public class StaffService {
         if (!studentProfileRepository.updateUniversityNameByOldName(oldName, replacement)) {
           throw new BadRequestException("Delete university failed.");
         }
-      } else if (clearLinked) {
-        if (!studentProfileRepository.clearUniversityNameByUniversityName(oldName)) {
-          throw new BadRequestException("Delete university failed.");
-        }
-      } else {
-        throw new BadRequestException(
-            "This university still has linked students. Provide a replacement university name or confirm clearing.");
       }
     }
 
@@ -804,4 +810,241 @@ public class StaffService {
     }
     return "Criterion deleted successfully.";
   }
+
+  // region STAFF FILTER EMAIL
+
+  public StaffEmailFilterResponse filterEmails(
+      String authHeader,
+      String audiences,
+      String eventId,
+      String roundId,
+      String groupId,
+      String teamId,
+      String userRole,
+      String registrationStatus,
+      String emailContains,
+      String nameContains,
+      String teamNameContains,
+      String accountStatus,
+      String separator,
+      boolean includeCopyText) {
+
+    // 1. Role validation
+    authService.validateRole(authHeader, "COORDINATOR");
+
+    // 2. Parse and validate audiences
+    if (audiences == null || audiences.trim().isEmpty()) {
+      throw new BadRequestException("Audiences parameter is required.");
+    }
+    Set<String> allowedAudiences =
+        new HashSet<>(
+            Arrays.asList(
+                "MENTOR",
+                "JUDGE",
+                "STUDENT_IN_EVENT",
+                "TEAM_LEADERS",
+                "TEAM_MEMBERS",
+                "EXPERT",
+                "ALL_IN_EVENT"));
+    Set<String> selectedAudiences =
+        Arrays.stream(audiences.split(","))
+            .map(String::trim)
+            .map(String::toUpperCase)
+            .collect(Collectors.toSet());
+
+    for (String aud : selectedAudiences) {
+      if (!allowedAudiences.contains(aud)) {
+        throw new BadRequestException("Invalid audience value: " + aud);
+      }
+    }
+
+    // 3. Anti-abuse check (narrowing criteria)
+    boolean hasNarrowingFilter =
+        (eventId != null && !eventId.trim().isEmpty())
+            || (teamId != null && !teamId.trim().isEmpty())
+            || (emailContains != null && emailContains.trim().length() >= 2)
+            || (nameContains != null && nameContains.trim().length() >= 2)
+            || (teamNameContains != null && teamNameContains.trim().length() >= 2);
+
+    if (!hasNarrowingFilter) {
+      throw new BadRequestException(
+          "For security reasons, you must narrow down your query using: eventId, teamId, or search keywords of at least 2 characters.");
+    }
+
+    // 4. Validate existence of entities if IDs are passed
+    if (eventId != null
+        && !eventId.trim().isEmpty()
+        && !staffEmailRepository.eventExists(eventId.trim())) {
+      throw new BadRequestException("Event does not exist.");
+    }
+    if (teamId != null
+        && !teamId.trim().isEmpty()
+        && !staffEmailRepository.teamExists(teamId.trim())) {
+      throw new BadRequestException("Team does not exist.");
+    }
+    if (roundId != null
+        && !roundId.trim().isEmpty()
+        && !staffEmailRepository.roundExists(roundId.trim())) {
+      throw new BadRequestException("Round does not exist.");
+    }
+    if (groupId != null
+        && !groupId.trim().isEmpty()
+        && !staffEmailRepository.groupExists(groupId.trim())) {
+      throw new BadRequestException("Group does not exist.");
+    }
+
+    // 5. Scoped audiences require eventId
+    boolean requiresEventId =
+        selectedAudiences.stream()
+            .anyMatch(
+                aud ->
+                    "MENTOR".equals(aud)
+                        || "JUDGE".equals(aud)
+                        || "STUDENT_IN_EVENT".equals(aud)
+                        || "TEAM_LEADERS".equals(aud)
+                        || "TEAM_MEMBERS".equals(aud));
+    if (requiresEventId && (eventId == null || eventId.trim().isEmpty())) {
+      throw new BadRequestException("Event ID is required for the selected audience(s).");
+    }
+
+    // 6. Gather raw matching rows
+    List<StaffEmailMatchRow> rawRows = new ArrayList<>();
+    String cleanEventId = eventId != null ? eventId.trim() : null;
+    String cleanRoundId = roundId != null ? roundId.trim() : null;
+    String cleanGroupId = groupId != null ? groupId.trim() : null;
+    String cleanTeamId = teamId != null ? teamId.trim() : null;
+
+    if (selectedAudiences.contains("MENTOR") || selectedAudiences.contains("ALL_IN_EVENT")) {
+      rawRows.addAll(
+          staffEmailRepository.findMentorsByEvent(
+              cleanEventId,
+              cleanRoundId,
+              cleanGroupId,
+              emailContains,
+              nameContains,
+              accountStatus));
+    }
+    if (selectedAudiences.contains("JUDGE") || selectedAudiences.contains("ALL_IN_EVENT")) {
+      rawRows.addAll(
+          staffEmailRepository.findJudgesByEvent(
+              cleanEventId,
+              cleanRoundId,
+              cleanGroupId,
+              emailContains,
+              nameContains,
+              accountStatus));
+    }
+    if (selectedAudiences.contains("STUDENT_IN_EVENT")
+        || selectedAudiences.contains("ALL_IN_EVENT")) {
+      rawRows.addAll(
+          staffEmailRepository.findStudentsInEvent(
+              cleanEventId,
+              registrationStatus,
+              emailContains,
+              nameContains,
+              teamNameContains,
+              accountStatus));
+    }
+    if (selectedAudiences.contains("TEAM_LEADERS")) {
+      rawRows.addAll(
+          staffEmailRepository.findTeamLeadersInEvent(
+              cleanEventId,
+              registrationStatus,
+              emailContains,
+              nameContains,
+              teamNameContains,
+              accountStatus));
+    }
+    if (selectedAudiences.contains("TEAM_MEMBERS") && cleanTeamId != null) {
+      rawRows.addAll(
+          staffEmailRepository.findTeamMembersByTeamId(
+              cleanTeamId, emailContains, nameContains, accountStatus));
+    }
+    if (selectedAudiences.contains("EXPERT")) {
+      rawRows.addAll(
+          staffEmailRepository.findExpertsByRole(
+              cleanEventId, userRole, emailContains, nameContains, accountStatus));
+    }
+
+    // 7. Merge and Deduplicate by Lowercase Email Key
+    Map<String, StaffEmailRecipientResponse> recipientMap = new LinkedHashMap<>();
+    for (StaffEmailMatchRow row : rawRows) {
+      if (row.getEmail() == null || row.getEmail().trim().isEmpty()) {
+        continue;
+      }
+      String emailKey = row.getEmail().trim().toLowerCase();
+      StaffEmailRecipientResponse recipient = recipientMap.get(emailKey);
+      if (recipient == null) {
+        recipient = new StaffEmailRecipientResponse();
+        recipient.setUserId(row.getUserId());
+        recipient.setFullName(row.getFullName());
+        recipient.setEmail(row.getEmail().trim());
+        recipient.setUserRole(row.getUserRole());
+        recipient.setAccountStatus(row.getAccountStatus());
+        recipient.setMatchedAudiences(new ArrayList<>());
+        recipient.setMatchDetails(new ArrayList<>());
+        recipientMap.put(emailKey, recipient);
+      }
+
+      if (!recipient.getMatchedAudiences().contains(row.getAudience())) {
+        recipient.getMatchedAudiences().add(row.getAudience());
+      }
+
+      StaffEmailMatchDetailResponse detail = new StaffEmailMatchDetailResponse();
+      detail.setAudience(row.getAudience());
+      detail.setRoundId(row.getRoundId());
+      detail.setRoundName(row.getRoundName());
+      detail.setGroupId(row.getGroupId());
+      detail.setGroupName(row.getGroupName());
+      detail.setTeamId(row.getTeamId());
+      detail.setTeamName(row.getTeamName());
+      recipient.getMatchDetails().add(detail);
+    }
+
+    List<StaffEmailRecipientResponse> recipients = new ArrayList<>(recipientMap.values());
+
+    // 8. Generate copyText list
+    String copyText = null;
+    if (includeCopyText) {
+      String sep = "semicolon".equalsIgnoreCase(separator) ? ";" : ",";
+      copyText =
+          recipients.stream()
+              .map(StaffEmailRecipientResponse::getEmail)
+              .filter(email -> email != null && !email.isEmpty() && email.contains("@"))
+              .sorted(Comparator.comparing(String::toLowerCase))
+              .collect(Collectors.joining(sep));
+    }
+
+    // 9. Build response DTO
+    StaffEmailFilterResponse response = new StaffEmailFilterResponse();
+    response.setEventId(cleanEventId);
+
+    Map<String, Object> filtersApplied = new LinkedHashMap<>();
+    filtersApplied.put("audiences", audiences);
+    filtersApplied.put("eventId", eventId);
+    filtersApplied.put("roundId", roundId);
+    filtersApplied.put("groupId", groupId);
+    filtersApplied.put("teamId", teamId);
+    filtersApplied.put("userRole", userRole);
+    filtersApplied.put("registrationStatus", registrationStatus);
+    filtersApplied.put("emailContains", emailContains);
+    filtersApplied.put("nameContains", nameContains);
+    filtersApplied.put("teamNameContains", teamNameContains);
+    filtersApplied.put("accountStatus", accountStatus);
+    filtersApplied.put("separator", separator);
+    filtersApplied.put("includeCopyText", includeCopyText);
+    response.setFiltersApplied(filtersApplied);
+
+    int totalRaw = rawRows.size();
+    int totalUnique = recipients.size();
+    response.setTotalRawMatches(totalRaw);
+    response.setTotalUniqueEmails(totalUnique);
+    response.setDuplicatesRemoved(totalRaw - totalUnique);
+    response.setRecipients(recipients);
+    response.setCopyText(copyText == null ? "" : copyText);
+
+    return response;
+  }
+
+  // endregion
 }
