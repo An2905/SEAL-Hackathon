@@ -576,7 +576,6 @@ public class StaffService {
     String oldName = university.getUniversityName();
     int linkedCount = studentProfileRepository.countByUniversityName(oldName);
     String replacement = trim(request.getReplacementUniversityName());
-    boolean clearLinked = Boolean.TRUE.equals(request.getClearLinkedUsers());
 
     if (linkedCount > 0) {
       if (!replacement.isEmpty()) {
@@ -590,13 +589,6 @@ public class StaffService {
         if (!studentProfileRepository.updateUniversityNameByOldName(oldName, replacement)) {
           throw new BadRequestException("Delete university failed.");
         }
-      } else if (clearLinked) {
-        if (!studentProfileRepository.clearUniversityNameByUniversityName(oldName)) {
-          throw new BadRequestException("Delete university failed.");
-        }
-      } else {
-        throw new BadRequestException(
-            "This university still has linked students. Provide a replacement university name or confirm clearing.");
       }
     }
 
