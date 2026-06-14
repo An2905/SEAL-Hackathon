@@ -11,7 +11,7 @@ import Avatar from './Avatar'
  * Trang làm việc, Hồ sơ của tôi, Thông báo, Đăng xuất —
  * replacing any separate role-shortcut / logout buttons.
  */
-export default function AccountDropdown({ roleLabel, onNavigateProfile, showStudentFields = false, showStaffFields = false }) {
+export default function AccountDropdown({ roleLabel, onNavigateProfile }) {
   const { auth, clearAuth, pathForRole } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()
@@ -89,13 +89,7 @@ export default function AccountDropdown({ roleLabel, onNavigateProfile, showStud
             marginLeft: 2
           }}
         >
-          <path
-            d='M2 4l4 4 4-4'
-            stroke='currentColor'
-            strokeWidth='1.5'
-            strokeLinecap='round'
-            strokeLinejoin='round'
-          />
+          <path d='M2 4l4 4 4-4' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round' strokeLinejoin='round' />
         </svg>
       </button>
 

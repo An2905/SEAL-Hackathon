@@ -56,20 +56,8 @@ export default function ExpertGroupColleaguesBoard({ colleagues, loading, error 
 
   return (
     <div className='expert-staff-compact'>
-      <ExpertStaffRow
-        title='Mentor'
-        count={mentors.length}
-        people={mentors}
-        roleLabel='Mentor'
-        emptyText='Chưa có'
-      />
-      <ExpertStaffRow
-        title='Judge'
-        count={judges.length}
-        people={judges}
-        roleLabel='Judge'
-        emptyText='Chưa có'
-      />
+      <ExpertStaffRow title='Mentor' count={mentors.length} people={mentors} roleLabel='Mentor' emptyText='Chưa có' />
+      <ExpertStaffRow title='Judge' count={judges.length} people={judges} roleLabel='Judge' emptyText='Chưa có' />
     </div>
   )
 }

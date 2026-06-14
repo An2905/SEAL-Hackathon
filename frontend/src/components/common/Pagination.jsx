@@ -33,14 +33,11 @@ export default function Pagination({ total, pageSize = 5, currentPage, onChange 
 
         {pages.map((p, i) =>
           p === '...' ? (
-            <span key={`ellipsis-${i}`} style={ellipsisStyle}>…</span>
+            <span key={`ellipsis-${i}`} style={ellipsisStyle}>
+              …
+            </span>
           ) : (
-            <PageBtn
-              key={p}
-              onClick={() => onChange(p)}
-              active={p === currentPage}
-              label={String(p)}
-            />
+            <PageBtn key={p} onClick={() => onChange(p)} active={p === currentPage} label={String(p)} />
           )
         )}
 
@@ -60,9 +57,13 @@ function PageBtn({ onClick, disabled, active, label }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        minWidth: 32, height: 32, padding: '0 8px',
+        minWidth: 32,
+        height: 32,
+        padding: '0 8px',
         border: '1px solid var(--border,#e2e8f0)',
-        borderRadius: 6, fontSize: 13, cursor: disabled ? 'default' : 'pointer',
+        borderRadius: 6,
+        fontSize: 13,
+        cursor: disabled ? 'default' : 'pointer',
         background: active
           ? 'var(--accent,#2563eb)'
           : hovered && !disabled
@@ -71,7 +72,7 @@ function PageBtn({ onClick, disabled, active, label }) {
         color: active ? '#fff' : disabled ? 'var(--text-mute,#a0aec0)' : 'var(--text,#1a202c)',
         fontWeight: active ? 600 : 400,
         opacity: disabled ? 0.45 : 1,
-        transition: 'background .12s, color .12s',
+        transition: 'background .12s, color .12s'
       }}
     >
       {label}
@@ -94,8 +95,13 @@ function buildPages(current, total) {
 }
 
 const wrapStyle = {
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  flexWrap: 'wrap', gap: 12, marginTop: 16, padding: '12px 0',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 12,
+  marginTop: 16,
+  padding: '12px 0'
 }
 const infoStyle = { fontSize: 12, color: 'var(--text-dim,#718096)' }
 const btnGroupStyle = { display: 'flex', gap: 4, alignItems: 'center' }

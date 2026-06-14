@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import DashboardShell from './DashboardShell'
@@ -5,8 +6,7 @@ import FormMessage from '../../components/common/FormMessage'
 import Modal from '../../components/common/Modal'
 import ConfirmModal from '../../components/common/ConfirmModal'
 import LoadingState from '../../components/common/LoadingState'
-import PendingTeamsBadge from '../../components/common/PendingTeamsBadge'
-import { getEventDetail, countPendingTeams } from '../../api/event'
+import { getEventDetail } from '../../api/event'
 import { changeTeamRegistrationStatus, getAllAccounts } from '../../api/staff'
 import {
   deleteJudgeAssignment,
@@ -310,7 +310,6 @@ function EventBoardCreateGroupModal({ eventId, rounds, isOpen, onClose, onCreate
   )
 }
 
-
 function filterAssignmentsForGroup(assignments, group) {
   if (!group?.groupId) return []
   return (assignments ?? []).filter(
@@ -321,8 +320,7 @@ function filterAssignmentsForGroup(assignments, group) {
 function GroupStaffAssignmentsPanel({ eventId, mentors = [], judges = [] }) {
   const [mentorsPage, setMentorsPage] = useState(1)
   const [judgesPage, setJudgesPage] = useState(1)
-  const renderStaffName = (item, nameKey, emailKey, idKey) =>
-    item[nameKey] || item[emailKey] || item[idKey] || '—'
+  const renderStaffName = (item, nameKey, emailKey, idKey) => item[nameKey] || item[emailKey] || item[idKey] || '—'
 
   return (
     <div className='event-group-staff-panel' style={{ marginBottom: 16 }}>
@@ -334,10 +332,7 @@ function GroupStaffAssignmentsPanel({ eventId, mentors = [], judges = [] }) {
           <>
             <ul className='simple-list'>
               {mentors.slice((mentorsPage - 1) * PAGE_SIZE, mentorsPage * PAGE_SIZE).map((m) => (
-                <li
-                  className='simple-list-item event-group-staff-item'
-                  key={m.mentorId || `${m.roundId}-${m.groupId}`}
-                >
+                <li className='simple-list-item event-group-staff-item' key={m.mentorId || `${m.roundId}-${m.groupId}`}>
                   <span className='event-group-staff-name'>
                     {renderStaffName(m, 'mentorName', 'mentorEmail', 'mentorId')}
                   </span>
@@ -347,7 +342,12 @@ function GroupStaffAssignmentsPanel({ eventId, mentors = [], judges = [] }) {
                 </li>
               ))}
             </ul>
-            <Pagination total={mentors.length} pageSize={PAGE_SIZE} currentPage={mentorsPage} onChange={setMentorsPage} />
+            <Pagination
+              total={mentors.length}
+              pageSize={PAGE_SIZE}
+              currentPage={mentorsPage}
+              onChange={setMentorsPage}
+            />
           </>
         )}
       </div>
@@ -360,16 +360,11 @@ function GroupStaffAssignmentsPanel({ eventId, mentors = [], judges = [] }) {
           <>
             <ul className='simple-list'>
               {judges.slice((judgesPage - 1) * PAGE_SIZE, judgesPage * PAGE_SIZE).map((j) => (
-                <li
-                  className='simple-list-item event-group-staff-item'
-                  key={j.judgeId || `${j.roundId}-${j.groupId}`}
-                >
+                <li className='simple-list-item event-group-staff-item' key={j.judgeId || `${j.roundId}-${j.groupId}`}>
                   <span className='event-group-staff-name'>
                     {renderStaffName(j, 'judgeName', 'judgeEmail', 'judgeId')}
                   </span>
-                  {j.judgeEmail && j.judgeName ? (
-                    <span className='event-group-staff-email'>{j.judgeEmail}</span>
-                  ) : null}
+                  {j.judgeEmail && j.judgeName ? <span className='event-group-staff-email'>{j.judgeEmail}</span> : null}
                 </li>
               ))}
             </ul>
@@ -400,7 +395,8 @@ function EventBoardGroupDetailModal({
   onClose,
   onUpdated,
   onDeleted
-}) {  const { showToast } = useToast()
+}) {
+  const { showToast } = useToast()
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
@@ -469,13 +465,9 @@ function EventBoardGroupDetailModal({
     return () => {
       cancelled = true
     }
-  }, [isOpen, group, eventId])
+  }, [isOpen, group, eventId, syncTeamsState])
 
-
-  const groupRound = useMemo(
-    () => rounds.find((r) => r.roundId === group?.roundId) ?? null,
-    [group?.roundId, rounds]
-  )
+  const groupRound = useMemo(() => rounds.find((r) => r.roundId === group?.roundId) ?? null, [group?.roundId, rounds])
 
   const roundLabel = useMemo(() => {
     if (!group) return '—'
@@ -483,12 +475,9 @@ function EventBoardGroupDetailModal({
     return groupRound ? roundDisplayLabel(groupRound) : '—'
   }, [group, groupRound])
 
-
   const isFirstRound = Number(groupRound?.roundOrder ?? 1) <= 1
   const addTeamLabel = isFirstRound ? 'Thêm đội đã duyệt' : 'Thêm đội winner vòng trước'
-  const noTeamsHint = isFirstRound
-    ? 'Không còn đội khả dụng'
-    : 'Không còn đội winner vòng trước khả dụng'
+  const noTeamsHint = isFirstRound ? 'Không còn đội khả dụng' : 'Không còn đội winner vòng trước khả dụng'
 
   const groupMentors = useMemo(() => filterAssignmentsForGroup(assignedMentors, group), [assignedMentors, group])
   const groupJudges = useMemo(() => filterAssignmentsForGroup(assignedJudges, group), [assignedJudges, group])
@@ -584,165 +573,178 @@ function EventBoardGroupDetailModal({
 
   return (
     <>
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title='Chi tiết bảng thi'
-      subtitle={group?.name || undefined}
-      className='modal-wide'
-    >
-      {!group ? null : (
-        <>
-          <div className='kv-list' style={{ marginBottom: 16 }}>
-            <div className='kv'>
-              <span>Vòng</span>
-              <span>{roundLabel}</span>
-            </div>
-            <div className='kv'>
-              <span>Số đội</span>
-              <span>
-                {teamCount}/{group.maxTeams ?? '—'}
-              </span>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title='Chi tiết bảng thi'
+        subtitle={group?.name || undefined}
+        className='modal-wide'
+      >
+        {!group ? null : (
+          <>
+            <div className='kv-list' style={{ marginBottom: 16 }}>
+              <div className='kv'>
+                <span>Vòng</span>
+                <span>{roundLabel}</span>
+              </div>
+              <div className='kv'>
+                <span>Số đội</span>
+                <span>
+                  {teamCount}/{group.maxTeams ?? '—'}
+                </span>
+              </div>
+
+              <div className='kv'>
+                <span>Giới hạn</span>
+                <span>{group.maxTeams != null ? `Tối đa ${group.maxTeams} đội` : 'Không giới hạn'}</span>
+              </div>
+              <div className='kv'>
+                <span>Mentor</span>
+                <span>{groupMentors.length}</span>
+              </div>
+              <div className='kv'>
+                <span>Judge</span>
+                <span>{groupJudges.length}</span>
+              </div>
             </div>
 
-            <div className='kv'>
-              <span>Giới hạn</span>
-              <span>{group.maxTeams != null ? `Tối đa ${group.maxTeams} đội` : 'Không giới hạn'}</span>
-            </div>
-            <div className='kv'>
-              <span>Mentor</span>
-              <span>{groupMentors.length}</span>
-            </div>
-            <div className='kv'>
-              <span>Judge</span>
-              <span>{groupJudges.length}</span>
-            </div>
-          </div>
+            <GroupStaffAssignmentsPanel eventId={eventId} mentors={groupMentors} judges={groupJudges} />
 
-          <GroupStaffAssignmentsPanel eventId={eventId} mentors={groupMentors} judges={groupJudges} />
-
-          <div className='event-group-teams-panel' style={{ marginBottom: 16 }}>            <h4 className='section-subtitle'>Đội trong bảng</h4>
-            {teamsLoading ? (
-              <LoadingState text='Đang tải danh sách đội…' className='muted' />
-            ) : assignedTeams.length === 0 ? (
-              <p className='muted'>Chưa có đội nào trong bảng.</p>
-            ) : (
-              <>
-                <ul className='simple-list'>
-                  {assignedTeams.slice((assignedTeamsPage - 1) * PAGE_SIZE, assignedTeamsPage * PAGE_SIZE).map((team) => (
-                    <li
-                      className='simple-list-item'
-                      key={team.teamId}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: 8
-                      }}
+            <div className='event-group-teams-panel' style={{ marginBottom: 16 }}>
+              {' '}
+              <h4 className='section-subtitle'>Đội trong bảng</h4>
+              {teamsLoading ? (
+                <LoadingState text='Đang tải danh sách đội…' className='muted' />
+              ) : assignedTeams.length === 0 ? (
+                <p className='muted'>Chưa có đội nào trong bảng.</p>
+              ) : (
+                <>
+                  <ul className='simple-list'>
+                    {assignedTeams
+                      .slice((assignedTeamsPage - 1) * PAGE_SIZE, assignedTeamsPage * PAGE_SIZE)
+                      .map((team) => (
+                        <li
+                          className='simple-list-item'
+                          key={team.teamId}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: 8
+                          }}
+                        >
+                          <span>{team.teamName || team.teamId}</span>
+                          <button
+                            type='button'
+                            className='btn btn-ghost btn-sm'
+                            onClick={() => handleRemoveTeam(team.teamId)}
+                            disabled={busy}
+                          >
+                            {teamActionId === team.teamId ? '…' : 'Gỡ'}
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                  <Pagination
+                    total={assignedTeams.length}
+                    pageSize={PAGE_SIZE}
+                    currentPage={assignedTeamsPage}
+                    onChange={setAssignedTeamsPage}
+                  />
+                </>
+              )}
+              <div style={{ marginTop: 12 }}>
+                <FormField label={addTeamLabel}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                      alignItems: 'center'
+                    }}
+                  >
+                    <select
+                      value={selectedTeamId}
+                      onChange={(e) => setSelectedTeamId(e.target.value)}
+                      disabled={busy || teamsLoading || availableTeams.length === 0}
+                      style={{ flex: '1 1 200px', minWidth: 0 }}
                     >
-                      <span>{team.teamName || team.teamId}</span>
-                      <button
-                        type='button'
-                        className='btn btn-ghost btn-sm'
-                        onClick={() => handleRemoveTeam(team.teamId)}
-                        disabled={busy}
-                      >
-                        {teamActionId === team.teamId ? '…' : 'Gỡ'}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <Pagination total={assignedTeams.length} pageSize={PAGE_SIZE} currentPage={assignedTeamsPage} onChange={setAssignedTeamsPage} />
-              </>
-            )}
-
-
-            <div style={{ marginTop: 12 }}>
-              <FormField label={addTeamLabel}>
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 8,
-                    alignItems: 'center'
-                  }}
-                >
-                  <select
-                    value={selectedTeamId}
-                    onChange={(e) => setSelectedTeamId(e.target.value)}
-                    disabled={busy || teamsLoading || availableTeams.length === 0}
-                    style={{ flex: '1 1 200px', minWidth: 0 }}
-                  >
-                    <option value=''>{availableTeams.length === 0 ? noTeamsHint : 'Chọn đội…'}</option>                    {availableTeams.map((team) => (
-                      <option key={team.teamId} value={team.teamId}>
-                        {team.teamName || team.teamId}
-                      </option>
-                    ))}
-                  </select>
-                  <LoadingButton
-                    type='button'
-                    loading={addingTeam}
-                    onClick={handleAddTeam}
-                    disabled={busy || teamsLoading || !selectedTeamId}
-                  >
-                    Thêm đội
-                  </LoadingButton>
-                </div>
-              </FormField>
+                      <option value=''>{availableTeams.length === 0 ? noTeamsHint : 'Chọn đội…'}</option>{' '}
+                      {availableTeams.map((team) => (
+                        <option key={team.teamId} value={team.teamId}>
+                          {team.teamName || team.teamId}
+                        </option>
+                      ))}
+                    </select>
+                    <LoadingButton
+                      type='button'
+                      loading={addingTeam}
+                      onClick={handleAddTeam}
+                      disabled={busy || teamsLoading || !selectedTeamId}
+                    >
+                      Thêm đội
+                    </LoadingButton>
+                  </div>
+                </FormField>
+              </div>
             </div>
-          </div>
 
-          <form className='form' onSubmit={handleSave}>
-            <FormField label='Tên bảng *'>
-              <input name='name' value={form.name} onChange={handleChange} maxLength={100} disabled={busy} required />
-            </FormField>
-            <FormField label='Số đội tối đa'>
-              <input
-                type='number'
-                name='maxTeams'
-                value={form.maxTeams}
-                onChange={handleChange}
-                min={1}
-                disabled={busy}
-                placeholder='Để trống = không giới hạn'
-              />
-            </FormField>
-            <FormMessage message={error} type='error' />
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 8,
-                marginTop: 12,
-                justifyContent: 'space-between'
-              }}
-            >
-              <div style={{ display: 'flex', gap: 8 }}>
-                <LoadingButton loading={saving} type='submit' disabled={busy}>
-                  Lưu thay đổi
-                </LoadingButton>
-                <button type='button' className='btn btn-ghost' onClick={onClose} disabled={busy}>
-                  Đóng
+            <form className='form' onSubmit={handleSave}>
+              <FormField label='Tên bảng *'>
+                <input name='name' value={form.name} onChange={handleChange} maxLength={100} disabled={busy} required />
+              </FormField>
+              <FormField label='Số đội tối đa'>
+                <input
+                  type='number'
+                  name='maxTeams'
+                  value={form.maxTeams}
+                  onChange={handleChange}
+                  min={1}
+                  disabled={busy}
+                  placeholder='Để trống = không giới hạn'
+                />
+              </FormField>
+              <FormMessage message={error} type='error' />
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                  marginTop: 12,
+                  justifyContent: 'space-between'
+                }}
+              >
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <LoadingButton loading={saving} type='submit' disabled={busy}>
+                    Lưu thay đổi
+                  </LoadingButton>
+                  <button type='button' className='btn btn-ghost' onClick={onClose} disabled={busy}>
+                    Đóng
+                  </button>
+                </div>
+                <button
+                  type='button'
+                  className='btn btn-danger btn-sm'
+                  onClick={() => setConfirmDeleteOpen(true)}
+                  disabled={busy}
+                >
+                  Xóa bảng
                 </button>
               </div>
-              <button type='button' className='btn btn-danger btn-sm' onClick={() => setConfirmDeleteOpen(true)} disabled={busy}>
-                Xóa bảng
-              </button>
-            </div>
-          </form>
-        </>
-      )}
-    </Modal>
-    <ConfirmModal
-      isOpen={confirmDeleteOpen}
-      onClose={() => setConfirmDeleteOpen(false)}
-      onConfirm={handleDelete}
-      title='Xóa bảng thi'
-      message={`Xóa "${group?.name || 'bảng thi'}"? Phân công mentor/judge liên quan cũng sẽ bị gỡ.`}
-      confirmLabel='Xóa'
-      loading={deleting}
-      danger
-    />
+            </form>
+          </>
+        )}
+      </Modal>
+      <ConfirmModal
+        isOpen={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={handleDelete}
+        title='Xóa bảng thi'
+        message={`Xóa "${group?.name || 'bảng thi'}"? Phân công mentor/judge liên quan cũng sẽ bị gỡ.`}
+        confirmLabel='Xóa'
+        loading={deleting}
+        danger
+      />
     </>
   )
 }
@@ -844,136 +846,141 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
 
   return (
     <>
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title='Chi tiết vòng thi'
-      subtitle={round ? roundDisplayLabel(round) : undefined}
-      className='modal-wide'
-    >
-      {loadingDetail ? (
-        <LoadingState text='Đang tải thông tin vòng…' />
-      ) : (
-        <>
-          <div className='kv-list' style={{ marginBottom: 16 }}>
-            <div className='kv'>
-              <span>Trạng thái</span>
-              <span>{phaseLabel}</span>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title='Chi tiết vòng thi'
+        subtitle={round ? roundDisplayLabel(round) : undefined}
+        className='modal-wide'
+      >
+        {loadingDetail ? (
+          <LoadingState text='Đang tải thông tin vòng…' />
+        ) : (
+          <>
+            <div className='kv-list' style={{ marginBottom: 16 }}>
+              <div className='kv'>
+                <span>Trạng thái</span>
+                <span>{phaseLabel}</span>
+              </div>
+              <div className='kv'>
+                <span>Winner</span>
+                <span>
+                  {round?.winnerCount ?? 0}/{round?.winnersPerRound ?? 1}
+                </span>
+              </div>
+              <div className='kv'>
+                <span>Bắt đầu</span>
+                <span>{formatEventDateTime(round?.startDate)}</span>
+              </div>
+              <div className='kv'>
+                <span>Kết thúc</span>
+                <span>{formatEventDateTime(round?.endDate)}</span>
+              </div>
+              <div className='kv'>
+                <span>Deadline nộp bài</span>
+                <span>{formatEventDateTime(round?.submissionDeadline)}</span>
+              </div>
             </div>
-            <div className='kv'>
-              <span>Winner</span>
-              <span>
-                {round?.winnerCount ?? 0}/{round?.winnersPerRound ?? 1}
-              </span>
-            </div>
-            <div className='kv'>
-              <span>Bắt đầu</span>
-              <span>{formatEventDateTime(round?.startDate)}</span>
-            </div>
-            <div className='kv'>
-              <span>Kết thúc</span>
-              <span>{formatEventDateTime(round?.endDate)}</span>
-            </div>
-            <div className='kv'>
-              <span>Deadline nộp bài</span>
-              <span>{formatEventDateTime(round?.submissionDeadline)}</span>
-            </div>
-          </div>
 
-          <form className='form' onSubmit={handleSave}>
-            <FormField label='Tên vòng *'>
-              <input name='name' value={form.name} onChange={handleChange} maxLength={100} disabled={busy} required />
-            </FormField>
-            <FormField label='Thứ tự vòng *'>
-              <input
-                type='number'
-                name='roundOrder'
-                min={1}
-                step={1}
-                value={form.roundOrder}
-                onChange={handleChange}
-                disabled={busy}
-                required
-              />
-            </FormField>
-            <FormField label='Winner mỗi vòng *'>
-              <input
-                type='number'
-                name='winnersPerRound'
-                min={1}
-                step={1}
-                value={form.winnersPerRound}
-                onChange={handleChange}
-                disabled={busy}
-                required
-              />
-            </FormField>
-            <FormField label='Bắt đầu *'>
-              <input
-                type='datetime-local'
-                name='startDate'
-                value={form.startDate}
-                onChange={handleChange}
-                disabled={busy}
-                required
-              />
-            </FormField>
-            <FormField label='Kết thúc *'>
-              <input
-                type='datetime-local'
-                name='endDate'
-                value={form.endDate}
-                onChange={handleChange}
-                disabled={busy}
-                required
-              />
-            </FormField>
-            <FormField label='Deadline nộp bài *'>
-              <input
-                type='datetime-local'
-                name='submissionDeadline'
-                value={form.submissionDeadline}
-                onChange={handleChange}
-                disabled={busy}
-                required
-              />
-            </FormField>
-            <FormMessage message={error} type='error' />
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 8,
-                marginTop: 12,
-                justifyContent: 'space-between'
-              }}
-            >
-              <div style={{ display: 'flex', gap: 8 }}>
-                <LoadingButton loading={saving} type='submit' disabled={busy}>
-                  Lưu thay đổi
-                </LoadingButton>
-                <button type='button' className='btn btn-ghost' onClick={onClose} disabled={busy}>
-                  Đóng
+            <form className='form' onSubmit={handleSave}>
+              <FormField label='Tên vòng *'>
+                <input name='name' value={form.name} onChange={handleChange} maxLength={100} disabled={busy} required />
+              </FormField>
+              <FormField label='Thứ tự vòng *'>
+                <input
+                  type='number'
+                  name='roundOrder'
+                  min={1}
+                  step={1}
+                  value={form.roundOrder}
+                  onChange={handleChange}
+                  disabled={busy}
+                  required
+                />
+              </FormField>
+              <FormField label='Winner mỗi vòng *'>
+                <input
+                  type='number'
+                  name='winnersPerRound'
+                  min={1}
+                  step={1}
+                  value={form.winnersPerRound}
+                  onChange={handleChange}
+                  disabled={busy}
+                  required
+                />
+              </FormField>
+              <FormField label='Bắt đầu *'>
+                <input
+                  type='datetime-local'
+                  name='startDate'
+                  value={form.startDate}
+                  onChange={handleChange}
+                  disabled={busy}
+                  required
+                />
+              </FormField>
+              <FormField label='Kết thúc *'>
+                <input
+                  type='datetime-local'
+                  name='endDate'
+                  value={form.endDate}
+                  onChange={handleChange}
+                  disabled={busy}
+                  required
+                />
+              </FormField>
+              <FormField label='Deadline nộp bài *'>
+                <input
+                  type='datetime-local'
+                  name='submissionDeadline'
+                  value={form.submissionDeadline}
+                  onChange={handleChange}
+                  disabled={busy}
+                  required
+                />
+              </FormField>
+              <FormMessage message={error} type='error' />
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                  marginTop: 12,
+                  justifyContent: 'space-between'
+                }}
+              >
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <LoadingButton loading={saving} type='submit' disabled={busy}>
+                    Lưu thay đổi
+                  </LoadingButton>
+                  <button type='button' className='btn btn-ghost' onClick={onClose} disabled={busy}>
+                    Đóng
+                  </button>
+                </div>
+                <button
+                  type='button'
+                  className='btn btn-danger btn-sm'
+                  onClick={() => setConfirmDeleteOpen(true)}
+                  disabled={busy}
+                >
+                  Xóa vòng
                 </button>
               </div>
-              <button type='button' className='btn btn-danger btn-sm' onClick={() => setConfirmDeleteOpen(true)} disabled={busy}>
-                Xóa vòng
-              </button>
-            </div>
-          </form>
-        </>
-      )}
-    </Modal>
-    <ConfirmModal
-      isOpen={confirmDeleteOpen}
-      onClose={() => setConfirmDeleteOpen(false)}
-      onConfirm={handleDelete}
-      title='Xóa vòng thi'
-      message={`Xóa "${round?.name || roundDisplayLabel(round)}"? Các bảng và phân công liên quan cũng sẽ bị gỡ.`}
-      confirmLabel='Xóa'
-      loading={deleting}
-      danger
-    />
+            </form>
+          </>
+        )}
+      </Modal>
+      <ConfirmModal
+        isOpen={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={handleDelete}
+        title='Xóa vòng thi'
+        message={`Xóa "${round?.name || roundDisplayLabel(round)}"? Các bảng và phân công liên quan cũng sẽ bị gỡ.`}
+        confirmLabel='Xóa'
+        loading={deleting}
+        danger
+      />
     </>
   )
 }
@@ -1012,7 +1019,6 @@ function EventBoardSection({
     () => [...(event?.rounds ?? [])].sort((a, b) => Number(a.roundOrder) - Number(b.roundOrder)),
     [event?.rounds]
   )
-
 
   const groupsByRound = useMemo(() => {
     const map = new Map()
@@ -1064,7 +1070,6 @@ function EventBoardSection({
               <div className='event-board-row-groups'>
                 {groups.length ? (
                   <div className='event-board-groups-track'>
-
                     {groups.map((group) => {
                       const staffCounts = staffCountByGroup.get(`${group.roundId}:${group.groupId}`) ?? {
                         mentors: 0,
@@ -1087,7 +1092,8 @@ function EventBoardSection({
                           </div>
                         </button>
                       )
-                    })}                  </div>
+                    })}{' '}
+                  </div>
                 ) : (
                   <div className='event-board-groups-empty'>Chưa có bảng thi</div>
                 )}
@@ -1112,7 +1118,6 @@ function EventBoardSection({
           </div>
         </div>
       )}
-
       <div className='event-board-row event-board-row-add'>
         <div className='event-board-row-round'>
           <button type='button' className='event-board-add-btn' onClick={() => setRoundModalOpen(true)}>
@@ -1126,7 +1131,6 @@ function EventBoardSection({
         </div>
         <div className='event-board-row-winner' />
       </div>
-
       <EventBoardCreateRoundModal
         eventId={event.eventId}
         isOpen={roundModalOpen}
@@ -1151,7 +1155,6 @@ function EventBoardSection({
         onUpdated={onRoundUpdated}
         onDeleted={onRoundDeleted}
       />
-
       <EventBoardGroupDetailModal
         eventId={event.eventId}
         group={groupDetailGroup}
@@ -1165,7 +1168,8 @@ function EventBoardSection({
         }}
         onUpdated={onGroupUpdated}
         onDeleted={onGroupDeleted}
-      />    </section>
+      />{' '}
+    </section>
   )
 }
 
@@ -1190,60 +1194,6 @@ function toDatetimeLocalValue(value) {
   }
   const pad = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-function SetupWarningBadge({ title }) {
-  if (!title) return null
-  return (
-    <span className='event-setup-warning-badge' title={title} aria-label={title}>
-      !
-    </span>
-  )
-}
-
-function buildSetupWarnings(event) {
-  if (String(event?.status ?? '').toUpperCase() !== 'BUILDING') {
-    return {}
-  }
-  const actualRounds = Number(event.totalRounds) || 0
-  const plannedRounds = Number(event.numRounds) || 1
-  const groups = Number(event.totalGroups) || 0
-  const mentors = event.assignedMentors?.length ?? 0
-  const judges = event.assignedJudges?.length ?? 0
-  const warnings = {}
-
-  if (actualRounds < plannedRounds) {
-    warnings.rounds = `Cần tạo đủ ${plannedRounds} vòng thi (hiện có ${actualRounds})`
-  }
-  if (groups === 0) {
-    warnings.groups = 'Cần tạo ít nhất một bảng thi'
-  }
-  if (mentors === 0) {
-    warnings.mentors = 'Cần phân công mentor'
-  }
-  if (judges === 0) {
-    warnings.judges = 'Cần phân công judge'
-  }
-
-  return warnings
-}
-
-function StatRow({ label, count, badgeCount, setupWarning, onOpen }) {
-  return (
-    <div className='event-stat-row'>
-      <PendingTeamsBadge count={badgeCount} />
-      <SetupWarningBadge title={setupWarning} />
-      <button type='button' className='event-stat-row-trigger' onClick={onOpen} aria-haspopup='dialog'>
-        <span className='event-stat-row-label'>{label}</span>
-        <span className='event-stat-row-value'>
-          <span className='event-stat-row-count'>{count ?? '0'}</span>
-          <span className='event-stat-row-action' aria-hidden='true'>
-            ›
-          </span>
-        </span>
-      </button>
-    </div>
-  )
 }
 
 function registrationStatusPillClass(status) {
@@ -2640,7 +2590,6 @@ export default function EventDetailsPage() {
   const [event, setEvent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [statPopup, setStatPopup] = useState(null)
 
   const loadEvent = useCallback(async () => {
     setLoading(true)
@@ -2909,102 +2858,13 @@ export default function EventDetailsPage() {
     })
   }
 
-  const pendingTeamsCount = countPendingTeams(event?.teams)
-  const setupWarnings = event ? buildSetupWarnings(event) : {}
-
-  const statPopupMeta = event
-    ? {
-        teams: {
-          title: 'Đội tham gia',
-          count: event.totalTeams
-        },
-        groups: {
-          title: 'Bảng thi',
-          count: event.totalGroups
-        },
-        rounds: {
-          title: 'Vòng thi',
-          count: event.totalRounds
-        },
-        mentors: {
-          title: 'Mentor',
-          count: String(event.assignedMentors?.length ?? 0)
-        },
-        judges: {
-          title: 'Judge',
-          count: String(event.assignedJudges?.length ?? 0)
-        },
-        awards: {
-          title: 'Giải thưởng',
-          count: event.totalAwards
-        }
-      }
-    : {}
-
-  function renderStatPopupBody() {
-    if (!event || !statPopup) return null
-    switch (statPopup) {
-      case 'teams':
-        return <TeamsDropdownContent teams={event.teams} onUpdated={handleTeamRegistrationUpdated} />
-      case 'groups':
-        return (
-          <GroupsDropdownContent
-            eventId={event.eventId}
-            groups={event.groups}
-            onGroupDeleted={handleGroupDeleted}
-            onGroupUpdated={handleGroupUpdated}
-          />
-        )
-      case 'rounds':
-        return (
-          <RoundsDropdownContent
-            eventId={event.eventId}
-            rounds={event.rounds}
-            onRoundDeleted={handleRoundDeleted}
-            onRoundUpdated={handleRoundUpdated}
-          />
-        )
-      case 'mentors':
-        return (
-          <MentorsDropdownContent
-            eventId={event.eventId}
-            assignedMentors={event.assignedMentors}
-            rounds={event.rounds}
-            groups={event.groups}
-            onUpdated={handleMentorUpdated}
-            onDeleted={handleMentorDeleted}
-          />
-        )
-      case 'judges':
-        return (
-          <JudgesDropdownContent
-            eventId={event.eventId}
-            assignedJudges={event.assignedJudges}
-            rounds={event.rounds}
-            groups={event.groups}
-            onUpdated={handleJudgeUpdated}
-            onDeleted={handleJudgeDeleted}
-          />
-        )
-      case 'awards':
-        return (
-          <AwardsDropdownContent
-            eventId={event.eventId}
-            awards={event.awards}
-            onAwardCreated={handleAwardCreated}
-            onAwardUpdated={handleAwardUpdated}
-            onAwardDeleted={handleAwardDeleted}
-          />
-        )
-      default:
-        return null
-    }
-  }
-
-  const activeStat = statPopup ? statPopupMeta[statPopup] : null
-
   return (
-    <DashboardShell roleLabel='Nhân viên' title='Chi tiết sự kiện' subtitle='Thông tin đầy đủ của hackathon.' role='Staff'>
+    <DashboardShell
+      roleLabel='Nhân viên'
+      title='Chi tiết sự kiện'
+      subtitle='Thông tin đầy đủ của hackathon.'
+      role='Staff'
+    >
       <div className='action-row' style={{ marginBottom: 16 }}>
         <Link to='/staff?tab=events' className='btn btn-ghost'>
           ← Quay lại danh sách
@@ -3049,7 +2909,6 @@ export default function EventDetailsPage() {
           />
 
           <div style={{ marginTop: 24 }}>
-
             <CriteriaManager rounds={event.rounds ?? []} />
           </div>
         </div>
