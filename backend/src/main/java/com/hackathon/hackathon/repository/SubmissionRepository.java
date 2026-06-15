@@ -1,17 +1,21 @@
 package com.hackathon.hackathon.repository;
 
-import com.hackathon.hackathon.model.dto.response.JudgeSubmissionResponse;
-import com.hackathon.hackathon.model.dto.response.TeamSubmissionItemResponse;
-import com.hackathon.hackathon.model.mapper.TeamMapper;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+
 import javax.sql.DataSource;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
+
+import com.hackathon.hackathon.model.dto.response.JudgeSubmissionResponse;
+import com.hackathon.hackathon.model.dto.response.MentorSubmissionResponse;
+import com.hackathon.hackathon.model.dto.response.TeamSubmissionItemResponse;
+import com.hackathon.hackathon.model.mapper.TeamMapper;
 
 @Repository
 public class SubmissionRepository {
@@ -63,6 +67,65 @@ public class SubmissionRepository {
           row.setRepositoryMetadata(rs.getString("repository_metadata"));
           row.setStatus(rs.getString("status"));
           row.setSubmittedAt(rs.getString("submitted_at"));
+          submissions.add(row);
+        }
+      }
+    } catch (Exception e) {
+      return submissions;
+    }
+    return submissions;
+  }
+
+  public List<MentorSubmissionResponse> findForMentorReview(
+      String mentorId, String eventId, String roundId, String groupId, String registrationStatus) {
+    List<MentorSubmissionResponse> submissions = new ArrayList<>();
+    String sql =
+        """
+            SELECT t.team_id, t.team_name, r.round_id, r.name AS round_name,
+                   rg.group_id, rg.name AS group_name,
+                   s.submission_id, s.github_url, s.demo_url, s.report_url, s.slide_url,
+                   s.repository_metadata, s.status, s.submitted_at, tr.status AS registration_status
+            FROM mentor_assignments ma
+            JOIN round_groups rg ON ma.group_id = rg.group_id
+            JOIN rounds r ON ma.round_id = r.round_id
+            JOIN group_teams gt ON gt.group_id = rg.group_id AND gt.round_id = r.round_id
+            JOIN teams t ON gt.team_id = t.team_id
+            JOIN team_registrations tr ON tr.team_id = t.team_id AND tr.event_id = r.event_id
+            LEFT JOIN submissions s ON s.team_id = t.team_id AND s.round_id = gt.round_id
+            WHERE ma.mentor_id = ? AND ma.round_id = ? AND ma.group_id = ? AND r.event_id = ?
+            """;
+    if (!"ALL".equalsIgnoreCase(registrationStatus)) {
+      sql += " AND tr.status = ?";
+    }
+    sql += " ORDER BY t.team_name ASC";
+
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+      ps.setString(1, mentorId);
+      ps.setString(2, roundId);
+      ps.setString(3, groupId);
+      ps.setString(4, eventId);
+      if (!"ALL".equalsIgnoreCase(registrationStatus)) {
+        ps.setString(5, registrationStatus);
+      }
+      try (ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+          MentorSubmissionResponse row = new MentorSubmissionResponse();
+          row.setTeamId(rs.getString("team_id"));
+          row.setTeamName(rs.getString("team_name"));
+          row.setRoundId(rs.getString("round_id"));
+          row.setRoundName(rs.getString("round_name"));
+          row.setGroupId(rs.getString("group_id"));
+          row.setGroupName(rs.getString("group_name"));
+          row.setSubmissionId(rs.getString("submission_id"));
+          row.setGithubUrl(rs.getString("github_url"));
+          row.setDemoUrl(rs.getString("demo_url"));
+          row.setReportUrl(rs.getString("report_url"));
+          row.setSlideUrl(rs.getString("slide_url"));
+          row.setRepositoryMetadata(rs.getString("repository_metadata"));
+          row.setStatus(rs.getString("status"));
+          row.setSubmittedAt(rs.getString("submitted_at"));
+          row.setRegistrationStatus(rs.getString("registration_status"));
           submissions.add(row);
         }
       }

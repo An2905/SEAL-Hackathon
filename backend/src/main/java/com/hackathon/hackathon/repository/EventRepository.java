@@ -1,5 +1,17 @@
 package com.hackathon.hackathon.repository;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import javax.sql.DataSource;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+
 import com.hackathon.hackathon.model.dto.response.EventAssignedJudgeResponse;
 import com.hackathon.hackathon.model.dto.response.EventAssignedMentorResponse;
 import com.hackathon.hackathon.model.dto.response.EventGroupResponse;
@@ -12,15 +24,6 @@ import com.hackathon.hackathon.model.entity.Event;
 import com.hackathon.hackathon.model.entity.Round;
 import com.hackathon.hackathon.model.entity.TeamRegistration;
 import com.hackathon.hackathon.model.mapper.EventMapper;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import javax.sql.DataSource;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Repository;
 
 @Repository
 public class EventRepository {
@@ -37,6 +40,22 @@ public class EventRepository {
       try (ResultSet rs = ps.executeQuery()) {
         if (rs.next()) {
           return "UPCOMING".equalsIgnoreCase(rs.getString("status"));
+        }
+      }
+    } catch (Exception e) {
+      return false;
+    }
+    return false;
+  }
+
+  public boolean isCompleted(String eventId) {
+    String sql = "SELECT status FROM events WHERE event_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return "COMPLETED".equalsIgnoreCase(rs.getString("status"));
         }
       }
     } catch (Exception e) {

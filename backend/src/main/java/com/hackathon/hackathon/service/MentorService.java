@@ -1,5 +1,11 @@
 package com.hackathon.hackathon.service;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ForbiddenException;
 import com.hackathon.hackathon.exception.UnauthorizedException;
@@ -9,16 +15,15 @@ import com.hackathon.hackathon.model.dto.response.GroupColleaguesResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedCurrentRoundResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedTeamResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignmentResponse;
+import com.hackathon.hackathon.model.dto.response.MentorSubmissionResponse;
 import com.hackathon.hackathon.model.entity.Event;
 import com.hackathon.hackathon.model.mapper.EventMapper;
 import com.hackathon.hackathon.repository.AssignmentRepository;
 import com.hackathon.hackathon.repository.EventRepository;
+import com.hackathon.hackathon.repository.SubmissionRepository;
 import com.hackathon.hackathon.repository.TeamRepository;
+
 import io.jsonwebtoken.Claims;
-import java.util.ArrayList;
-import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 @Service
 public class MentorService {
@@ -28,6 +33,8 @@ public class MentorService {
   @Autowired private TeamRepository teamRepository;
 
   @Autowired private AssignmentRepository assignmentRepository;
+
+  @Autowired private SubmissionRepository submissionRepository;
 
   @Autowired private EventMapper eventMapper;
 
@@ -120,6 +127,67 @@ public class MentorService {
     return teamRepository.findAssignedTeamsByMentorAndGroup(
         mentorId.trim(), normalizedEventId, normalizedRoundId, normalizedGroupId, statusFilter);
   }
+
+  // region MENTOR VIEW SUBMISSIONS
+  public List<MentorSubmissionResponse> getAssignedSubmissions(
+      String authHeader,
+      String eventId,
+      String roundId,
+      String groupId,
+      String registrationStatus) {
+    Claims claims = authService.validateRole(authHeader, "EXPERT_INTERNAL", "EXPERT_EXTERNAL");
+
+    String mentorId = claims.get("userId", String.class);
+    if (mentorId == null || mentorId.trim().isEmpty()) {
+      throw new UnauthorizedException("Invalid or missing token.");
+    }
+    if (eventId == null || eventId.trim().isEmpty()) {
+      throw new BadRequestException("eventId is required.");
+    }
+    if (roundId == null || roundId.trim().isEmpty()) {
+      throw new BadRequestException("roundId is required.");
+    }
+    if (groupId == null || groupId.trim().isEmpty()) {
+      throw new BadRequestException("groupId is required.");
+    }
+
+    String normalizedEventId = eventId.trim();
+    String normalizedRoundId = roundId.trim();
+    String normalizedGroupId = groupId.trim();
+
+    if (!eventRepository.existsById(normalizedEventId)) {
+      throw new BadRequestException("Event does not exist.");
+    }
+
+    if (!eventRepository.groupBelongsToEvent(normalizedGroupId, normalizedEventId)) {
+      throw new BadRequestException("groupId does not belong to eventId.");
+    }
+
+    if (eventRepository.isCompleted(normalizedEventId)) {
+      throw new ForbiddenException("Event has ended. Submissions are no longer available.");
+    }
+
+    if (!assignmentRepository.mentorAssignmentExists(
+        normalizedRoundId, normalizedGroupId, mentorId.trim())) {
+      throw new ForbiddenException("Mentor chưa được phân công bảng này");
+    }
+
+    String statusFilter =
+        registrationStatus == null || registrationStatus.trim().isEmpty()
+            ? "APPROVED"
+            : registrationStatus.trim().toUpperCase();
+
+    if (!statusFilter.equals("ALL")
+        && !statusFilter.equals("PENDING")
+        && !statusFilter.equals("APPROVED")
+        && !statusFilter.equals("REJECTED")) {
+      throw new BadRequestException("Invalid registrationStatus.");
+    }
+
+    return submissionRepository.findForMentorReview(
+        mentorId.trim(), normalizedEventId, normalizedRoundId, normalizedGroupId, statusFilter);
+  }
+  // endregion MENTOR VIEW SUBMISSIONS
 
   public GroupColleaguesResponse getGroupColleagues(
       String authHeader, String eventId, String roundId, String groupId) {
