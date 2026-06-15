@@ -449,7 +449,12 @@ public class EventRepository {
     List<MentorAssignmentResponse> rows = new ArrayList<>();
     String sql =
         "SELECT e.event_id, e.title AS event_title, "
-            + "r.round_id, r.name AS round_name, "
+            + "r.round_id, r.name AS round_name, r.start_date, r.end_date, r.submission_deadline, "
+            + "CASE "
+            + "WHEN NOW() > r.end_date THEN 'ENDED' "
+            + "WHEN NOW() BETWEEN r.start_date AND r.end_date THEN 'ONGOING' "
+            + "ELSE 'UPCOMING' END AS round_phase, "
+            + "e.status AS event_status, e.end_date AS event_end_date, "
             + "rg.group_id, rg.name AS group_name "
             + "FROM mentor_assignments ma "
             + "INNER JOIN round_groups rg ON ma.group_id = rg.group_id "
@@ -469,6 +474,12 @@ public class EventRepository {
           row.setRoundName(rs.getString("round_name"));
           row.setGroupId(rs.getString("group_id"));
           row.setGroupName(rs.getString("group_name"));
+          row.setRoundStartDate(rs.getString("start_date"));
+          row.setRoundEndDate(rs.getString("end_date"));
+          row.setSubmissionDeadline(rs.getString("submission_deadline"));
+          row.setRoundPhase(rs.getString("round_phase"));
+          row.setEventStatus(rs.getString("event_status"));
+          row.setEventEndDate(rs.getString("event_end_date"));
           rows.add(row);
         }
       }
@@ -482,7 +493,7 @@ public class EventRepository {
       String mentorId) {
     List<MentorAssignedCurrentRoundResponse> rounds = new ArrayList<>();
     String sql =
-        "SELECT DISTINCT e.event_id, e.title, r.round_id, r.name, r.start_date, r.end_date, "
+        "SELECT DISTINCT e.event_id, e.title, r.round_id, r.name, r.start_date, r.end_date, r.submission_deadline, "
             + "'ONGOING' AS round_status "
             + "FROM events e "
             + "JOIN rounds r ON e.event_id = r.event_id "

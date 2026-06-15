@@ -1,5 +1,11 @@
 package com.hackathon.hackathon.model.mapper;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+
+import org.springframework.stereotype.Component;
+
 import com.hackathon.hackathon.model.dto.response.EventAssignedJudgeResponse;
 import com.hackathon.hackathon.model.dto.response.EventAssignedMentorResponse;
 import com.hackathon.hackathon.model.dto.response.EventAwardResponse;
@@ -13,10 +19,6 @@ import com.hackathon.hackathon.model.entity.Award;
 import com.hackathon.hackathon.model.entity.Event;
 import com.hackathon.hackathon.model.entity.Round;
 import com.hackathon.hackathon.model.entity.TeamRegistration;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.List;
-import org.springframework.stereotype.Component;
 
 @Component
 public class EventMapper {
@@ -115,6 +117,7 @@ public class EventMapper {
     response.setRoundName(rs.getString("name"));
     response.setStartDate(rs.getString("start_date"));
     response.setEndDate(rs.getString("end_date"));
+    response.setSubmissionDeadline(rs.getString("submission_deadline"));
     response.setRoundStatus(rs.getString("round_status"));
     return response;
   }

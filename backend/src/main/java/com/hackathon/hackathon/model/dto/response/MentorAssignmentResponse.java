@@ -10,4 +10,10 @@ public class MentorAssignmentResponse {
   private String roundName;
   private String groupId;
   private String groupName;
+  private String roundStartDate;
+  private String roundEndDate;
+  private String submissionDeadline;
+  private String roundPhase;
+  private String eventStatus;
+  private String eventEndDate;
 }

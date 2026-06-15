@@ -1,9 +1,5 @@
 package com.hackathon.hackathon.repository;
 
-import com.hackathon.hackathon.model.dto.response.MentorAssignedTeamMemberResponse;
-import com.hackathon.hackathon.model.dto.response.MentorAssignedTeamResponse;
-import com.hackathon.hackathon.model.entity.TeamDetail;
-import com.hackathon.hackathon.model.mapper.TeamMapper;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -14,9 +10,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+
 import javax.sql.DataSource;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
+
+import com.hackathon.hackathon.model.dto.response.MentorAssignedTeamMemberResponse;
+import com.hackathon.hackathon.model.dto.response.MentorAssignedTeamResponse;
+import com.hackathon.hackathon.model.entity.TeamDetail;
+import com.hackathon.hackathon.model.mapper.TeamMapper;
 
 @Repository
 public class TeamRepository {
@@ -199,6 +202,8 @@ public class TeamRepository {
         .append("t.team_id, t.team_name, t.status AS team_status, t.enrollCode, ")
         .append("t.leader_id, lu.full_name AS leader_name, lu.email AS leader_email, ")
         .append(
+            "sub.submission_id, sub.status AS submission_status, sub.submitted_at AS submitted_at, ")
+        .append(
             "um.user_id AS member_user_id, um.full_name AS member_full_name, um.email AS member_email, um.role AS member_role ")
         .append("FROM mentor_assignments ma ")
         .append("JOIN round_groups rg ON ma.group_id = rg.group_id ")
@@ -209,6 +214,8 @@ public class TeamRepository {
             "JOIN team_registrations tr ON tr.team_id = gt.team_id AND tr.event_id = e.event_id ")
         .append("JOIN teams t ON tr.team_id = t.team_id ")
         .append("JOIN users lu ON t.leader_id = lu.user_id ")
+        .append(
+            "LEFT JOIN submissions sub ON sub.team_id = t.team_id AND sub.round_id = r.round_id ")
         .append("LEFT JOIN team_members tm ON tm.team_id = t.team_id ")
         .append("LEFT JOIN users um ON tm.user_id = um.user_id ")
         .append(
@@ -251,6 +258,21 @@ public class TeamRepository {
             team.setLeaderId(rs.getString("leader_id"));
             team.setLeaderName(rs.getString("leader_name"));
             team.setLeaderEmail(rs.getString("leader_email"));
+            team.setSubmissionId(rs.getString("submission_id"));
+            team.setSubmissionStatus(rs.getString("submission_status"));
+            team.setSubmittedAt(rs.getString("submitted_at"));
+            String submissionStatusValue = rs.getString("submission_status");
+            if (submissionStatusValue == null) {
+              team.setSubmissionState("NOT_SUBMITTED");
+            } else if (submissionStatusValue.equalsIgnoreCase("SUBMITTED")) {
+              team.setSubmissionState("SUBMITTED");
+            } else if (submissionStatusValue.equalsIgnoreCase("LATE")) {
+              team.setSubmissionState("LATE");
+            } else if (submissionStatusValue.equalsIgnoreCase("DISQUALIFIED")) {
+              team.setSubmissionState("DISQUALIFIED");
+            } else {
+              team.setSubmissionState(submissionStatusValue);
+            }
             team.setMembers(new ArrayList<>());
             teamMap.put(teamId, team);
           }

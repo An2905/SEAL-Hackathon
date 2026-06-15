@@ -2,6 +2,7 @@ package com.hackathon.hackathon.model.dto.response;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import lombok.Data;
 
 @Data
@@ -22,6 +23,10 @@ public class MentorAssignedTeamResponse {
   private String leaderId;
   private String leaderName;
   private String leaderEmail;
+  private String submissionId;
+  private String submissionStatus;
+  private String submittedAt;
+  private String submissionState;
   private String memberCount;
   private List<MentorAssignedTeamMemberResponse> members = new ArrayList<>();
 }

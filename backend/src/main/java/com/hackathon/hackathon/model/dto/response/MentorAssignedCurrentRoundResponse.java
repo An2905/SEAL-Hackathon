@@ -10,5 +10,6 @@ public class MentorAssignedCurrentRoundResponse {
   private String roundName;
   private String startDate;
   private String endDate;
+  private String submissionDeadline;
   private String roundStatus;
 }
