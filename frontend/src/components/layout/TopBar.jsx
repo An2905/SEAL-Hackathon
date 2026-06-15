@@ -2,12 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import fptLogo from '../../assets/images/fpt-logo.png'
 import AccountDropdown from '../common/AccountDropdown'
 
-export default function TopBar({
-  roleLabel,
-  onNavigateProfile,
-  showStudentFields = false,
-  showStaffFields = false
-}) {
+export default function TopBar({ roleLabel, onNavigateProfile, showStudentFields = false, showStaffFields = false }) {
   const navigate = useNavigate()
 
   return (

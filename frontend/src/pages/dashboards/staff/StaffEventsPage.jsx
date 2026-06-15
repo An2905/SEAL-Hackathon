@@ -64,11 +64,11 @@ export default function StaffEventsPage() {
     } finally {
       setLoading(false)
     }
-  }, [showToast, refreshKey])
+  }, [showToast])
 
   useEffect(() => {
     fetchEvents()
-  }, [fetchEvents])
+  }, [fetchEvents, refreshKey])
 
   const handleStatusChange = async (eventId, nextStatus) => {
     try {

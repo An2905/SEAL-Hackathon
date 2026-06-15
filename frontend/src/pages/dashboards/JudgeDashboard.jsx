@@ -198,7 +198,12 @@ export default function JudgeDashboard() {
                 </div>
               ))}
             </div>
-            <Pagination total={events.length} pageSize={JUDGE_PAGE_SIZE} currentPage={eventsPage} onChange={setEventsPage} />
+            <Pagination
+              total={events.length}
+              pageSize={JUDGE_PAGE_SIZE}
+              currentPage={eventsPage}
+              onChange={setEventsPage}
+            />
           </>
         )}
       </div>
@@ -229,7 +234,12 @@ export default function JudgeDashboard() {
                 </div>
               ))}
             </div>
-            <Pagination total={rounds.length} pageSize={JUDGE_PAGE_SIZE} currentPage={roundsPage} onChange={setRoundsPage} />
+            <Pagination
+              total={rounds.length}
+              pageSize={JUDGE_PAGE_SIZE}
+              currentPage={roundsPage}
+              onChange={setRoundsPage}
+            />
           </>
         )}
       </div>
@@ -314,7 +324,12 @@ export default function JudgeDashboard() {
                     </div>
                   ))}
                 </div>
-                <Pagination total={teams.length} pageSize={JUDGE_PAGE_SIZE} currentPage={teamsPage} onChange={setTeamsPage} />
+                <Pagination
+                  total={teams.length}
+                  pageSize={JUDGE_PAGE_SIZE}
+                  currentPage={teamsPage}
+                  onChange={setTeamsPage}
+                />
               </>
             )}
           </>
