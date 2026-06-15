@@ -2,10 +2,14 @@ package com.hackathon.hackathon.service;
 
 import com.hackathon.hackathon.model.dto.response.CaptchaResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 public class CaptchaService {
@@ -22,15 +26,18 @@ public class CaptchaService {
       return false;
     }
 
-    String url =
-        UriComponentsBuilder.fromUriString(VERIFY_URL)
-            .queryParam("secret", secretKey)
-            .queryParam("response", token)
-            .build()
-            .toUriString();
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+    MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
+    map.add("secret", secretKey);
+    map.add("response", token);
+
+    HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
 
     try {
-      CaptchaResponse response = restTemplate.postForObject(url, null, CaptchaResponse.class);
+      CaptchaResponse response =
+          restTemplate.postForObject(VERIFY_URL, request, CaptchaResponse.class);
       return response != null && response.isSuccess();
     } catch (RestClientException ex) {
       return false;
