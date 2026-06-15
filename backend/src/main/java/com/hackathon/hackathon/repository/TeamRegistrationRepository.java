@@ -1,8 +1,5 @@
 package com.hackathon.hackathon.repository;
 
-import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
-import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
-import com.hackathon.hackathon.model.mapper.TeamMapper;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,9 +8,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
 import javax.sql.DataSource;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
+
+import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
+import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
+import com.hackathon.hackathon.model.mapper.TeamMapper;
 
 @Repository
 public class TeamRegistrationRepository {
@@ -95,6 +98,23 @@ public class TeamRegistrationRepository {
       try (ResultSet rs = ps.executeQuery()) {
         if (rs.next()) {
           return Optional.ofNullable(rs.getString("status"));
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
+    }
+    return Optional.empty();
+  }
+
+  public Optional<String> findRegistrationIdByTeamAndEvent(String teamId, String eventId) {
+    String sql = "SELECT registration_id FROM team_registrations WHERE team_id = ? AND event_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, teamId);
+      ps.setString(2, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return Optional.ofNullable(rs.getString("registration_id"));
         }
       }
     } catch (Exception e) {

@@ -6,6 +6,7 @@ import com.hackathon.hackathon.exception.ForbiddenException;
 import com.hackathon.hackathon.model.dto.request.CreateTeamRequest;
 import com.hackathon.hackathon.model.dto.request.DeleteTeamMemberRequest;
 import com.hackathon.hackathon.model.dto.request.JoinEventRequest;
+import com.hackathon.hackathon.model.dto.request.LeaveEventRequest;
 import com.hackathon.hackathon.model.dto.request.JoinTeamRequest;
 import com.hackathon.hackathon.model.dto.request.SubmitProjectRequest;
 import com.hackathon.hackathon.model.dto.response.CreateTeamResponse;
@@ -20,16 +21,18 @@ import com.hackathon.hackathon.model.dto.response.TeamTrackMentorItemResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
 import com.hackathon.hackathon.model.entity.Round;
 import com.hackathon.hackathon.model.entity.TeamDetail;
-import com.hackathon.hackathon.model.entity.User;
 import com.hackathon.hackathon.model.mapper.EventMapper;
 import com.hackathon.hackathon.model.mapper.TeamMapper;
+import com.hackathon.hackathon.repository.EliminationRepository;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.SubmissionRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.repository.TeamRepository;
 import com.hackathon.hackathon.repository.UserRepository;
+import com.hackathon.hackathon.service.EmailService;
 import io.jsonwebtoken.Claims;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -45,6 +48,10 @@ public class TeamService {
   @Autowired private TeamRegistrationRepository teamRegistrationRepository;
 
   @Autowired private SubmissionRepository submissionRepository;
+
+  @Autowired private EliminationRepository eliminationRepository;
+
+  @Autowired private EmailService emailService;
 
   @Autowired private AuthService authService;
 
@@ -205,6 +212,84 @@ public class TeamService {
     }
 
     return new MessageResponse("Join event successfully");
+  }
+
+  // #endregion
+
+  // #region TEAM LEAVE EVENT
+  public MessageResponse leaveEvent(String authHeader, LeaveEventRequest request) {
+    if (request.getEventId() == null || request.getEventId().trim().isEmpty()) {
+      throw new BadRequestException("Event ID is required.");
+    }
+    if (request.getConfirmText() == null || request.getConfirmText().trim().isEmpty()) {
+      throw new BadRequestException("Confirm text is required.");
+    }
+
+    String eventId = request.getEventId().trim();
+    String confirmText = request.getConfirmText().trim();
+
+    Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
+    String userId = claims.get("userId", String.class);
+
+    if (!eventRepository.existsById(eventId)) {
+      throw new BadRequestException("Event not found.");
+    }
+
+    String teamId =
+        teamRepository
+            .findTeamIdByLeaderId(userId)
+            .orElseThrow(
+                () -> new BadRequestException("Only team leaders can leave events."));
+
+    TeamDetail detail =
+        teamRepository
+            .findTeamDetailByUserId(userId)
+            .orElseThrow(() -> new BadRequestException("No team found for this user."));
+
+    String expectedConfirm = detail.getTeamName() + " confirm to leave the event";
+    if (!expectedConfirm.equals(confirmText)) {
+      throw new BadRequestException(
+          "Confirm text is invalid. Please type '" + expectedConfirm + "' exactly.");
+    }
+
+    String registrationId =
+        teamRegistrationRepository
+            .findRegistrationIdByTeamAndEvent(teamId, eventId)
+            .orElseThrow(() -> new BadRequestException("Your team has not joined this event."));
+
+    String currentStatus =
+        teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse("");
+    if ("SUSPENDED".equalsIgnoreCase(currentStatus)) {
+      throw new BadRequestException("Your team has already left this event.");
+    }
+    if ("REJECTED".equalsIgnoreCase(currentStatus)) {
+      throw new BadRequestException("Your team registration was rejected and cannot be left.");
+    }
+
+    if (!teamRegistrationRepository.updateStatus(registrationId, "SUSPENDED")) {
+      throw new BadRequestException("Leave event failed.");
+    }
+
+    submissionRepository
+        .findLatestSubmissionIdByTeamAndEvent(teamId, eventId)
+        .ifPresent(
+            submissionId ->
+                eliminationRepository.insert(
+                    submissionId, "Team left the event", userId));
+
+    String leaderEmail = detail.getLeaderEmail();
+    if (leaderEmail != null && !leaderEmail.isBlank()) {
+      String subject = "Team Left Event Confirmation";
+      String body =
+          "<p>Your team <strong>"
+              + detail.getTeamName()
+              + "</strong> has left event ID <strong>"
+              + eventId
+              + "</strong>.</p>";
+      emailService.sendHtmlEmail(leaderEmail, subject, body);
+    }
+
+    return new MessageResponse("Leave event successfully");
   }
 
   // #endregion

@@ -273,4 +273,25 @@ public class SubmissionRepository {
       return false;
     }
   }
+
+  public Optional<String> findLatestSubmissionIdByTeamAndEvent(String teamId, String eventId) {
+    String sql =
+        "SELECT s.submission_id FROM submissions s "
+            + "JOIN rounds r ON s.round_id = r.round_id "
+            + "WHERE s.team_id = ? AND r.event_id = ? "
+            + "ORDER BY s.submitted_at DESC LIMIT 1";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, teamId);
+      ps.setString(2, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return Optional.ofNullable(rs.getString("submission_id"));
+        }
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+    return Optional.empty();
+  }
 }
