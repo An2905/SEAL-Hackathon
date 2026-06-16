@@ -15,7 +15,7 @@ public class SecurityConfig {
 
     // CSRF protection is disabled because this is a stateless REST API using header-based JWT
     // authentication.
-    // lgtm[java/spring-disabled-csrf-protection]
+    // CodeQL [java/spring-disabled-csrf-protection]
     http.csrf(csrf -> csrf.disable())
         .cors(Customizer.withDefaults())
         .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
