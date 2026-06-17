@@ -25,7 +25,7 @@ import com.hackathon.hackathon.model.dto.response.StaffEmailFilterResponse;
 import com.hackathon.hackathon.model.dto.response.StaffEmailMatchDetailResponse;
 import com.hackathon.hackathon.model.dto.response.StaffEmailMatchRow;
 import com.hackathon.hackathon.model.dto.response.StaffEmailRecipientResponse;
-import com.hackathon.hackathon.model.dto.response.StaffUniversityItemResponse;
+import com.hackathon.hackathon.model.dto.response.UniversityOverviewResponse;
 import com.hackathon.hackathon.model.dto.response.UniversityResponse;
 import com.hackathon.hackathon.model.entity.EventCriterion;
 import com.hackathon.hackathon.model.entity.University;
@@ -87,7 +87,7 @@ public class StaffService {
   @Autowired private StaffEmailRepository staffEmailRepository;
 
   // region REGIS ACCOUNT FOR ADS
-  public String registerAccount(String authHeader, CreateStaffAccountRequest request) {
+  public MessageResponse registerAccount(String authHeader, CreateStaffAccountRequest request) {
     authService.validateRole(authHeader, "COORDINATOR");
 
     String email = request.getEmail().trim();
@@ -95,30 +95,30 @@ public class StaffService {
     String rawPassword = UUID.randomUUID().toString().substring(0, 8);
 
     if (email.isEmpty()) {
-      throw new BadRequestException("Email cannot be empty.");
+      throw new BadRequestException("Email không được để trống.");
     }
 
     if (checkEmail(email)) {
-      throw new ConflictException("Email already exists.");
+      throw new ConflictException("Email đã tồn tại.");
     }
 
     if (fullName.isEmpty()) {
-      throw new BadRequestException("Full name cannot be empty.");
+      throw new BadRequestException("Họ và tên không được để trống.");
     }
     String dbRole = resolveStaffAccountRole(request.getRole());
 
     String userId =
         userRepository.insertStaffUser(fullName, email, encoder.encode(rawPassword), dbRole);
     if (userId == null) {
-      throw new BadRequestException("Failed to create account.");
+      throw new BadRequestException("Tạo tài khoản thất bại.");
     }
 
     String participantType = "EXPERT_EXTERNAL".equals(dbRole) ? "EXTERNAL" : "INTERNAL";
     if (!participantsProfileRepository.insert(userId, participantType)) {
-      throw new BadRequestException("Failed to create participant profile.");
+      throw new BadRequestException("Tạo hồ sơ người tham gia thất bại.");
     }
 
-    return "Account created successfully";
+    return new MessageResponse("Đăng ký tài khoản thành công.");
   }
 
   // endregion
@@ -136,25 +136,17 @@ public class StaffService {
           && !roleFilter.equals("STUDENT_FPT")
           && !roleFilter.equals("STUDENT_EXTERNAL")
           && !roleFilter.equals("ALL")) {
-        throw new BadRequestException("Invalid role filter.");
+        throw new BadRequestException("Bộ lọc vai trò không hợp lệ.");
       }
     } else {
       roleFilter = "ALL";
     }
 
-    String keyword = (input == null) ? "" : input.trim().toLowerCase();
+    String keyword = (input == null) ? "" : input.trim();
 
     List<AccountResponse> accounts = new ArrayList<>();
-    for (User user : userRepository.findByRoleOrAllUsers(roleFilter)) {
-      AccountResponse acc = userMapper.toAccountResponse(user);
-      if (!keyword.isEmpty()) {
-        String name = acc.getFullName() == null ? "" : acc.getFullName().toLowerCase();
-        String email = acc.getEmail() == null ? "" : acc.getEmail().toLowerCase();
-        if (!name.contains(keyword) && !email.contains(keyword)) {
-          continue;
-        }
-      }
-      accounts.add(acc);
+    for (User user : userRepository.findByRoleOrAllUsersWithKeyword(roleFilter, keyword)) {
+      accounts.add(userMapper.toAccountResponse(user));
     }
     return accounts;
   }
@@ -170,45 +162,46 @@ public class StaffService {
 
   // region CHANGE ACCOUNT STATUS
 
-  public String changeAccountStatus(String authHeader, ChangeAccountStatusRequest request) {
+  public MessageResponse changeAccountStatus(
+      String authHeader, ChangeAccountStatusRequest request) {
     authService.validateRole(authHeader, "COORDINATOR");
 
     String userId = request.getUserId();
     String status = request.getStatus();
 
     if (userId == null || userId.trim().isEmpty()) {
-      throw new BadRequestException("User ID cannot be empty.");
+      throw new BadRequestException("ID người dùng không được để trống.");
     }
     userId = userId.trim();
 
     String checkRoleUser = userRepository.findRoleByUserId(userId).orElse(null);
 
     if (checkRoleUser == null || checkRoleUser.isEmpty()) {
-      throw new BadRequestException("Cannot find user role.");
+      throw new BadRequestException("Không tìm thấy vai trò người dùng.");
     } else if ("COORDINATOR".equalsIgnoreCase(checkRoleUser)) {
-      throw new BadRequestException("You cannot change Coordinator status.");
+      throw new BadRequestException("Bạn không thể thay đổi trạng thái của Coordinator.");
     }
     if (status == null || status.trim().isEmpty()) {
-      throw new BadRequestException("Status cannot be empty.");
+      throw new BadRequestException("Trạng thái không được để trống.");
     }
 
     status = status.trim().toUpperCase();
     if (!status.equals("PENDING") && !status.equals("APPROVED") && !status.equals("REJECTED")) {
-      throw new BadRequestException("Invalid status value.");
+      throw new BadRequestException("Giá trị trạng thái không hợp lệ.");
     }
 
     if (!userRepository.updateStatus(userId, status)) {
-      throw new BadRequestException("Account not found.");
+      throw new BadRequestException("Không tìm thấy tài khoản.");
     }
 
-    return "Account status updated successfully";
+    return new MessageResponse("Cập nhật trạng thái tài khoản thành công.");
   }
 
   // endregion
 
   // region CHANGE TEAM REGISTRATION STATUS
 
-  public String changeTeamRegistrationStatus(
+  public MessageResponse changeTeamRegistrationStatus(
       String authHeader, ChangeTeamRegistrationStatusRequest request) {
     authService.validateRole(authHeader, "COORDINATOR");
 
@@ -216,57 +209,62 @@ public class StaffService {
     String status = request.getStatus();
 
     if (registrationId == null || registrationId.trim().isEmpty()) {
-      throw new BadRequestException("Registration ID is required.");
+      throw new BadRequestException("ID đăng ký là bắt buộc.");
     }
 
     if (status == null || status.trim().isEmpty()) {
-      throw new BadRequestException("Status is required.");
+      throw new BadRequestException("Trạng thái là bắt buộc.");
     }
     registrationId = registrationId.trim();
     status = status.trim().toUpperCase();
 
     if (!status.equals("PENDING") && !status.equals("APPROVED") && !status.equals("REJECTED")) {
-      throw new BadRequestException("Invalid status value.");
+      throw new BadRequestException("Giá trị trạng thái không hợp lệ.");
     }
 
     if (!teamRegistrationRepository.existsByRegistrationId(registrationId)) {
-      throw new BadRequestException("Registration not found.");
+      throw new BadRequestException("Không tìm thấy thông tin đăng ký.");
     }
 
     if (!teamRegistrationRepository.updateStatus(registrationId, status)) {
-      throw new BadRequestException("Update failed.");
+      throw new BadRequestException("Cập nhật thất bại.");
     }
 
-    return "Team registration status updated successfully";
+    return new MessageResponse("Cập nhật trạng thái đăng ký của đội thành công.");
   }
 
   // endregion
 
   // region ASSIGN JUDGE / MENTOR
 
-  public String assignJudge(String authHeader, AssignJudgeRequest request) {
+  public MessageResponse assignJudge(String authHeader, AssignJudgeRequest request) {
     authService.validateRole(authHeader, "COORDINATOR");
 
-    String judgeId = request.getJudgeId() == null ? "" : request.getJudgeId().trim();
+    String judgeId = request.getUserId() == null ? "" : request.getUserId().trim();
     String roundId = request.getRoundId() == null ? "" : request.getRoundId().trim();
     String groupId = request.getGroupId() == null ? "" : request.getGroupId().trim();
 
     if (judgeId.isEmpty() || roundId.isEmpty() || groupId.isEmpty()) {
-      throw new BadRequestException("Judge ID, Round ID and Group ID are required.");
+      throw new BadRequestException("ID Giám khảo, ID Vòng đấu và ID Bảng đấu là bắt buộc.");
+    }
+
+    if (assignmentRepository.isExpertAssignedAsMentorInRound(judgeId, roundId)) {
+      throw new ConflictException(
+          "Chuyên gia này đã được phân công làm Cố vấn trong vòng đấu này.");
     }
 
     if (assignmentRepository.judgeAssignmentExists(judgeId, roundId, groupId)) {
-      throw new ConflictException("Judge đã được phân công cho vòng/bảng này.");
+      throw new ConflictException("Giám khảo đã được phân công cho vòng/bảng này.");
     }
 
     if (!assignmentRepository.insertJudgeAssignment(judgeId, roundId, groupId)) {
-      throw new BadRequestException("Phân công judge thất bại.");
+      throw new BadRequestException("Phân công giám khảo thất bại.");
     }
 
-    return "Judge assigned successfully";
+    return new MessageResponse("Phân công giám khảo thành công.");
   }
 
-  public String assignMentor(String authHeader, AssignMentorGroupRequest request) {
+  public MessageResponse assignMentor(String authHeader, AssignMentorGroupRequest request) {
     authService.validateRole(authHeader, "COORDINATOR");
 
     String mentorId = request.getUserId() == null ? "" : request.getUserId().trim();
@@ -274,18 +272,23 @@ public class StaffService {
     String groupId = request.getGroupId() == null ? "" : request.getGroupId().trim();
 
     if (mentorId.isEmpty() || roundId.isEmpty() || groupId.isEmpty()) {
-      throw new BadRequestException("Mentor ID, Round ID and Group ID are required.");
+      throw new BadRequestException("ID Cố vấn, ID Vòng đấu và ID Bảng đấu là bắt buộc.");
+    }
+
+    if (assignmentRepository.isExpertAssignedAsJudgeInRound(mentorId, roundId)) {
+      throw new ConflictException(
+          "Chuyên gia này đã được phân công làm Giám khảo trong vòng đấu này.");
     }
 
     if (assignmentRepository.mentorAssignmentExists(roundId, groupId, mentorId)) {
-      throw new ConflictException("Mentor đã được phân công cho bảng này.");
+      throw new ConflictException("Cố vấn đã được phân công cho bảng này.");
     }
 
     if (!assignmentRepository.insertMentorAssignment(mentorId, roundId, groupId)) {
-      throw new BadRequestException("Phân công mentor thất bại.");
+      throw new BadRequestException("Phân công cố vấn thất bại.");
     }
 
-    return "Mentor assigned successfully";
+    return new MessageResponse("Phân công cố vấn thành công.");
   }
 
   public MessageResponse deleteMentorAssignment(
@@ -297,7 +300,7 @@ public class StaffService {
     if (!staffAssignmentRepository.deleteMentorAssignment(roundId, groupId, mentorId)) {
       throw new BadRequestException("Xóa phân công mentor thất bại.");
     }
-    return new MessageResponse("Mentor assignment deleted successfully");
+    return new MessageResponse("Xóa phân công cố vấn thành công.");
   }
 
   public EventAssignedMentorResponse updateMentorAssignment(
@@ -355,7 +358,7 @@ public class StaffService {
     if (!staffAssignmentRepository.deleteJudgeAssignment(judgeId, roundId, groupId)) {
       throw new BadRequestException("Xóa phân công judge thất bại.");
     }
-    return new MessageResponse("Judge assignment deleted successfully");
+    return new MessageResponse("Xóa phân công giám khảo thành công.");
   }
 
   public EventAssignedJudgeResponse updateJudgeAssignment(
@@ -478,13 +481,13 @@ public class StaffService {
 
   // region UNIVERSITY MANAGEMENT
 
-  public List<StaffUniversityItemResponse> getStaffUniversities(String authHeader) {
+  public List<UniversityOverviewResponse> getStaffUniversities(String authHeader) {
     authService.validateRole(authHeader, "COORDINATOR");
-    List<StaffUniversityItemResponse> items = new ArrayList<>();
+    List<UniversityOverviewResponse> items = new ArrayList<>();
     for (University university : universityRepository.findAll()) {
       int linked = studentProfileRepository.countByUniversityName(university.getUniversityName());
       items.add(
-          new StaffUniversityItemResponse(
+          new UniversityOverviewResponse(
               university.getUniversityId(),
               university.getUniversityName(),
               String.valueOf(linked)));
@@ -497,12 +500,12 @@ public class StaffService {
     String name = trim(request.getUniversityName());
     validateUniversityName(name);
     if (universityRepository.existsByName(name)) {
-      throw new ConflictException("University name already exists.");
+      throw new ConflictException("Tên trường đại học đã tồn tại.");
     }
     String universityId =
         universityRepository
             .insert(name)
-            .orElseThrow(() -> new BadRequestException("Create university failed."));
+            .orElseThrow(() -> new BadRequestException("Tạo trường đại học thất bại."));
     UniversityResponse response = new UniversityResponse();
     response.setUniversityId(universityId);
     response.setUniversityName(name);
@@ -514,27 +517,27 @@ public class StaffService {
     String universityId = trim(request.getUniversityId());
     String newName = trim(request.getUniversityName());
     if (universityId.isEmpty()) {
-      throw new BadRequestException("University ID is required.");
+      throw new BadRequestException("ID trường đại học là bắt buộc.");
     }
     validateUniversityName(newName);
     University university =
         universityRepository
             .findById(universityId)
-            .orElseThrow(() -> new BadRequestException("University is not valid."));
+            .orElseThrow(() -> new BadRequestException("Trường đại học không hợp lệ."));
     String oldName = university.getUniversityName();
     if (!newName.equals(oldName)) {
       if (universityRepository.existsByNameExcludingId(newName, universityId)) {
-        throw new ConflictException("University name already exists.");
+        throw new ConflictException("Tên trường đại học đã tồn tại.");
       }
       if (!studentProfileRepository.updateUniversityNameByOldName(oldName, newName)) {
-        throw new BadRequestException("Update university failed.");
+        throw new BadRequestException("Cập nhật trường đại học thất bại.");
       }
       if (!universityRepository.updateName(universityId, newName)) {
         studentProfileRepository.updateUniversityNameByOldName(newName, oldName);
-        throw new BadRequestException("Update university failed.");
+        throw new BadRequestException("Cập nhật trường đại học thất bại.");
       }
     }
-    return new MessageResponse("University updated successfully.");
+    return new MessageResponse("Cập nhật trường đại học thành công.");
   }
 
   public DeleteUniversityPreviewResponse getDeleteUniversityPreview(
@@ -542,18 +545,18 @@ public class StaffService {
     authService.validateRole(authHeader, "COORDINATOR");
     String id = trim(universityId);
     if (id.isEmpty()) {
-      throw new BadRequestException("University ID is required.");
+      throw new BadRequestException("ID trường đại học là bắt buộc.");
     }
     University university =
         universityRepository
             .findById(id)
-            .orElseThrow(() -> new BadRequestException("University is not valid."));
+            .orElseThrow(() -> new BadRequestException("Trường đại học không hợp lệ."));
     int count = studentProfileRepository.countByUniversityName(university.getUniversityName());
     String message =
         count == 0
-            ? "No student profiles are linked to this university. You can delete it directly."
+            ? "Không có hồ sơ sinh viên nào liên kết với trường đại học này. Bạn có thể xóa trực tiếp."
             : count
-                + " student profile(s) are linked to this university. Choose a replacement university or clear their university.";
+                + " hồ sơ sinh viên đang liên kết với trường đại học này. Hãy chọn trường thay thế hoặc xóa thông tin trường của họ.";
     return new DeleteUniversityPreviewResponse(
         university.getUniversityId(),
         university.getUniversityName(),
@@ -567,12 +570,12 @@ public class StaffService {
     authService.validateRole(authHeader, "COORDINATOR");
     String universityId = trim(request.getUniversityId());
     if (universityId.isEmpty()) {
-      throw new BadRequestException("University ID is required.");
+      throw new BadRequestException("ID trường đại học là bắt buộc.");
     }
     University university =
         universityRepository
             .findById(universityId)
-            .orElseThrow(() -> new BadRequestException("University is not valid."));
+            .orElseThrow(() -> new BadRequestException("Trường đại học không hợp lệ."));
     String oldName = university.getUniversityName();
     int linkedCount = studentProfileRepository.countByUniversityName(oldName);
     String replacement = trim(request.getReplacementUniversityName());
@@ -581,29 +584,29 @@ public class StaffService {
       if (!replacement.isEmpty()) {
         if (replacement.equals(oldName)) {
           throw new BadRequestException(
-              "Replacement university must be different from the university being deleted.");
+              "Trường đại học thay thế phải khác với trường đại học đang bị xóa.");
         }
         if (universityRepository.findByName(replacement).isEmpty()) {
-          throw new BadRequestException("Replacement university is not valid.");
+          throw new BadRequestException("Trường đại học thay thế không hợp lệ.");
         }
         if (!studentProfileRepository.updateUniversityNameByOldName(oldName, replacement)) {
-          throw new BadRequestException("Delete university failed.");
+          throw new BadRequestException("Xóa trường đại học thất bại.");
         }
       }
     }
 
     if (!universityRepository.deleteById(universityId)) {
-      throw new BadRequestException("Delete university failed.");
+      throw new BadRequestException("Xóa trường đại học thất bại.");
     }
-    return new MessageResponse("University deleted successfully.");
+    return new MessageResponse("Xóa trường đại học thành công.");
   }
 
   private void validateUniversityName(String name) {
     if (name.isEmpty()) {
-      throw new BadRequestException("University name is required.");
+      throw new BadRequestException("Tên trường đại học là bắt buộc.");
     }
     if (name.length() > 255) {
-      throw new BadRequestException("University name must be at most 255 characters.");
+      throw new BadRequestException("Tên trường đại học phải dài tối đa 255 ký tự.");
     }
   }
 
@@ -791,24 +794,23 @@ public class StaffService {
   }
 
   // ── COORDINATOR: Xóa tiêu chí ────────────────────────────────────────────
-  public String deleteCriteria(String authHeader, String criteriaId) {
+  public MessageResponse deleteCriteria(String authHeader, String criteriaId) {
     authService.validateRole(authHeader, "COORDINATOR");
 
     String cleanId = trim(criteriaId);
     if (cleanId.isEmpty()) {
-      throw new BadRequestException("Criteria ID is required.");
+      throw new BadRequestException("ID tiêu chí là bắt buộc.");
     }
     if (!criteriaRepository.criteriaExistsById(cleanId)) {
-      throw new BadRequestException("Criterion does not exist.");
+      throw new BadRequestException("Tiêu chí không tồn tại.");
     }
     if (criteriaRepository.criteriaUsedInScores(cleanId)) {
-      throw new BadRequestException(
-          "Cannot delete criterion that has already been used for scoring.");
+      throw new BadRequestException("Không thể xóa tiêu chí đã được sử dụng để chấm điểm.");
     }
     if (!criteriaRepository.deleteCriteria(cleanId)) {
-      throw new BadRequestException("Failed to delete criterion.");
+      throw new BadRequestException("Xóa tiêu chí thất bại.");
     }
-    return "Criterion deleted successfully.";
+    return new MessageResponse("Xóa tiêu chí chấm điểm thành công.");
   }
 
   // region STAFF FILTER EMAIL
