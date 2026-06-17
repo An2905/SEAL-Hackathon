@@ -18,6 +18,7 @@ export function ProfileModal({ isOpen, onClose, showStudentFields = false, showS
 		email: auth.email,
 		university: "",
 		studentId: "",
+		githubUsername: "",
 		phone: "",
 	});
 
@@ -72,22 +73,32 @@ export function ProfileModal({ isOpen, onClose, showStudentFields = false, showS
 					/>
 				</FormField>
 				{showStudentFields && (
-					<div className="field-row">
-						<FormField label="Trường">
+					<>
+						<div className="field-row">
+							<FormField label="Trường">
+								<input
+									name="university"
+									value={form.university}
+									onChange={handleChange}
+								/>
+							</FormField>
+							<FormField label="Mã sinh viên">
+								<input
+									name="studentId"
+									value={form.studentId}
+									onChange={handleChange}
+								/>
+							</FormField>
+						</div>
+						<FormField label="GitHub Username">
 							<input
-								name="university"
-								value={form.university}
+								name="githubUsername"
+								value={form.githubUsername}
 								onChange={handleChange}
+								placeholder="github.com/username"
 							/>
 						</FormField>
-						<FormField label="Mã sinh viên">
-							<input
-								name="studentId"
-								value={form.studentId}
-								onChange={handleChange}
-							/>
-						</FormField>
-					</div>
+					</>
 				)}
 				{showStaffFields && (
 					<FormField label="Số điện thoại">

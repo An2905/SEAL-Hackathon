@@ -334,6 +334,22 @@ body {
   border-color: var(--border-strong);
   background: var(--bg-subtle);
 }
+.github-connect-btn {
+  background: #24292f;
+  color: #ffffff;
+  border-color: #24292f;
+  box-shadow: 0 8px 18px rgba(36, 41, 47, 0.28);
+}
+.github-connect-btn:hover:not(:disabled) {
+  background: #0f1419;
+  border-color: #0f1419;
+  box-shadow: 0 10px 20px rgba(15, 20, 25, 0.32);
+}
+.github-connect-btn-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 .btn-success {
   background: var(--fpt-green);
   color: white;

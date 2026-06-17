@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import FormField from '../../components/common/FormField'
 import FormMessage from '../../components/common/FormMessage'
@@ -17,6 +18,7 @@ import { localizeError } from '../../utils/errors'
 import ChatPopup, { ChatOpenButton } from '../../components/chat/ChatPopup'
 import Pagination from '../../components/common/Pagination'
 import LoadingState from '../../components/common/LoadingState'
+import { getGithubLinkUrl } from '../../api/auth'
 
 const PAGE_SIZE = 5
 
@@ -554,11 +556,15 @@ function ActivityLog({ activities }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function StudentDashboard() {
   const { showToast } = useToast()
+  const navigate = useNavigate()
+  const location = useLocation()
   const [teamState, setTeamState] = useState('loading') // 'loading' | 'no-team' | 'has-team'
   const [teamData, setTeamData] = useState(null)
   const [activities, setActivities] = useState([])
   const [registrationsRefreshKey, setRegistrationsRefreshKey] = useState(0)
   const [chatTarget, setChatTarget] = useState(null)
+  const [oauthLoading, setOauthLoading] = useState(false)
+  const handledOauthSearchRef = useRef('')
 
   const logActivity = (text) => setActivities(prev => [{ text, at: new Date() }, ...prev])
 
@@ -580,6 +586,39 @@ export default function StudentDashboard() {
 
   useEffect(() => { loadMyTeam() }, [loadMyTeam])
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const status = params.get('github_oauth')
+    if (!status) return
+    if (handledOauthSearchRef.current === location.search) return
+    handledOauthSearchRef.current = location.search
+
+    if (status === 'success') {
+      const username = params.get('github_username')
+      showToast(
+        username ? `Đã liên kết GitHub: ${username}` : 'Đã liên kết GitHub thành công.',
+        'success'
+      )
+      logActivity('Liên kết GitHub thành công')
+    } else {
+      const message = params.get('message') || 'Liên kết GitHub thất bại.'
+      showToast(message, 'error')
+    }
+
+    navigate('/student', { replace: true })
+  }, [location.search, navigate, showToast])
+
+  const handleConnectGithub = async () => {
+    setOauthLoading(true)
+    try {
+      const authorizeUrl = await getGithubLinkUrl()
+      window.location.href = authorizeUrl
+    } catch (err) {
+      showToast(localizeError(err.message), 'error')
+      setOauthLoading(false)
+    }
+  }
+
   const handleTeamCreated = () => { logActivity('Tạo đội mới'); loadMyTeam() }
   const handleTeamJoined = () => { logActivity('Tham gia đội thành công'); loadMyTeam() }
   const handleMemberDeleted = () => { logActivity('Xóa thành viên'); loadMyTeam() }
@@ -593,6 +632,36 @@ export default function StudentDashboard() {
       moduleSubtitle="Quản lý đội thi và đăng ký sự kiện hackathon ngay tại đây."
       showStudentFields
     >
+      <div className="card">
+        <div className="card-head">
+          <div className="card-title">GitHub OAuth</div>
+        </div>
+        <div className="card-actions">
+          <LoadingButton
+            loading={oauthLoading}
+            type="button"
+            className="btn github-connect-btn"
+            onClick={handleConnectGithub}
+          >
+            <span className="github-connect-btn-content">
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  fill="currentColor"
+                  d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.44 9.8 8.2 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.38-1.34-1.75-1.34-1.75-1.09-.75.08-.74.08-.74 1.21.08 1.84 1.24 1.84 1.24 1.07 1.85 2.81 1.31 3.49 1 .11-.78.42-1.31.76-1.61-2.67-.31-5.47-1.34-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.31-.54-1.56.12-3.25 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.66 1.69.24 2.94.12 3.25.77.84 1.24 1.91 1.24 3.22 0 4.6-2.81 5.62-5.49 5.92.43.38.82 1.11.82 2.24 0 1.62-.02 2.92-.02 3.32 0 .32.21.69.83.57C20.57 21.79 24 17.31 24 12c0-6.63-5.37-12-12-12z"
+                />
+              </svg>
+              <span>Liên kết GitHub</span>
+            </span>
+          </LoadingButton>
+        </div>
+      </div>
+
       <div className="section-title">
         <h2>Đội của tôi</h2>
         <span className="hint">Mỗi sinh viên chỉ có thể tham gia 1 đội</span>
