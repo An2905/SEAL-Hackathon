@@ -27,15 +27,27 @@ export default function AccordionCard({ title, badge, children, defaultOpen = fa
         id={headerId}
         onClick={() => setOpen((v) => !v)}
         style={headerStyle(open)}
-        onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = 'var(--surface-alt,#f7f8fa)' }}
-        onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = 'var(--card-bg,#fff)' }}
+        onMouseEnter={(e) => {
+          if (!open) e.currentTarget.style.background = 'var(--surface-alt,#f7f8fa)'
+        }}
+        onMouseLeave={(e) => {
+          if (!open) e.currentTarget.style.background = 'var(--card-bg,#fff)'
+        }}
         aria-expanded={open}
         aria-controls={bodyId}
       >
         {/* Chevron */}
         <svg
-          width='14' height='14' viewBox='0 0 14 14' fill='none'
-          style={{ flexShrink: 0, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .18s', color: 'var(--text-dim,#718096)' }}
+          width='14'
+          height='14'
+          viewBox='0 0 14 14'
+          fill='none'
+          style={{
+            flexShrink: 0,
+            transform: open ? 'rotate(90deg)' : 'none',
+            transition: 'transform .18s',
+            color: 'var(--text-dim,#718096)'
+          }}
         >
           <path d='M4 2l6 5-6 5' stroke='currentColor' strokeWidth='1.6' strokeLinecap='round' strokeLinejoin='round' />
         </svg>
@@ -56,9 +68,7 @@ export default function AccordionCard({ title, badge, children, defaultOpen = fa
         className={`accordion-body${open ? ' is-open' : ''}`}
       >
         <div className='accordion-body-inner'>
-          <div style={bodyStyle}>
-            {children}
-          </div>
+          <div style={bodyStyle}>{children}</div>
         </div>
       </div>
     </div>
@@ -70,18 +80,22 @@ const cardStyle = {
   borderRadius: 8,
   overflow: 'hidden',
   background: 'var(--card-bg,#fff)',
-  marginBottom: 8,
+  marginBottom: 8
 }
 
 const headerStyle = (open) => ({
-  display: 'flex', alignItems: 'center', gap: 10,
-  width: '100%', padding: '12px 16px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  width: '100%',
+  padding: '12px 16px',
   background: open ? 'var(--surface-alt,#f7f8fa)' : 'var(--card-bg,#fff)',
   border: 'none',
   borderBottom: open ? '1px solid var(--border-soft,#f0f0f0)' : 'none',
-  cursor: 'pointer', transition: 'background .15s',
+  cursor: 'pointer',
+  transition: 'background .15s'
 })
 
 const bodyStyle = {
-  padding: '14px 16px',
+  padding: '14px 16px'
 }

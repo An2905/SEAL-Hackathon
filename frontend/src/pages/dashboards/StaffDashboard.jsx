@@ -307,22 +307,10 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
           />
         </FormField>
         <FormField label='Ngày bắt đầu'>
-          <input
-            type='datetime-local'
-            name='startDate'
-            value={form.startDate}
-            onChange={handle}
-            disabled={loading}
-          />
+          <input type='datetime-local' name='startDate' value={form.startDate} onChange={handle} disabled={loading} />
         </FormField>
         <FormField label='Ngày kết thúc'>
-          <input
-            type='datetime-local'
-            name='endDate'
-            value={form.endDate}
-            onChange={handle}
-            disabled={loading}
-          />
+          <input type='datetime-local' name='endDate' value={form.endDate} onChange={handle} disabled={loading} />
         </FormField>
         <FormField label='Số đội tối đa'>
           <input
@@ -336,14 +324,7 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
           />
         </FormField>
         <FormField label='Số vòng thi dự kiến'>
-          <input
-            type='number'
-            name='numRounds'
-            value={form.numRounds}
-            onChange={handle}
-            min={1}
-            disabled={loading}
-          />
+          <input type='number' name='numRounds' value={form.numRounds} onChange={handle} min={1} disabled={loading} />
         </FormField>
         <LoadingButton loading={loading} type='submit'>
           Tạo sự kiện
@@ -400,6 +381,7 @@ export function AccountsListSection({ refreshKey = 0 }) {
   useEffect(() => {
     fetchAccounts(role, search)
     setPage(1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchAccounts, refreshKey])
 
   const handleRoleChange = (e) => {
@@ -449,9 +431,7 @@ export function AccountsListSection({ refreshKey = 0 }) {
       </form>
 
       {error && <FormMessage message={error} type='error' />}
-      {loading && (
-        <LoadingState text='Đang tải danh sách…' style={{ marginTop: 12 }} />
-      )}
+      {loading && <LoadingState text='Đang tải danh sách…' style={{ marginTop: 12 }} />}
       {!loading && loaded && accounts.length === 0 && !error && (
         <div className='empty-state' style={{ marginTop: 12 }}>
           Không có tài khoản nào khớp với bộ lọc.
@@ -493,4 +473,3 @@ export function AccountsListSection({ refreshKey = 0 }) {
     </div>
   )
 }
-

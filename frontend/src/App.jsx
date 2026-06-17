@@ -24,77 +24,77 @@ export default function App() {
     <AuthProvider>
       <ToastProvider>
         <Suspense fallback={<RouteLoading />}>
-        <Routes>
-          <Route path='/' element={<HomePage />} />
+          <Routes>
+            <Route path='/' element={<HomePage />} />
 
-          <Route
-            path='/student'
-            element={
-              <RequireRole role='Student'>
-                <StudentDashboard />
-              </RequireRole>
-            }
-          />
+            <Route
+              path='/student'
+              element={
+                <RequireRole role='Student'>
+                  <StudentDashboard />
+                </RequireRole>
+              }
+            />
 
-          {/* Staff area — tabs are handled internally by StaffLayout */}
-          <Route
-            path='/staff'
-            element={
-              <RequireRole role='Staff'>
-                <StaffLayout />
-              </RequireRole>
-            }
-          />
+            {/* Staff area — tabs are handled internally by StaffLayout */}
+            <Route
+              path='/staff'
+              element={
+                <RequireRole role='Staff'>
+                  <StaffLayout />
+                </RequireRole>
+              }
+            />
 
-          {/* Event detail is a standalone full page (own shell) */}
-          <Route
-            path='/staff/events/:eventId'
-            element={
-              <RequireRole role='Staff'>
-                <EventDetailsPage />
-              </RequireRole>
-            }
-          />
+            {/* Event detail is a standalone full page (own shell) */}
+            <Route
+              path='/staff/events/:eventId'
+              element={
+                <RequireRole role='Staff'>
+                  <EventDetailsPage />
+                </RequireRole>
+              }
+            />
 
-          <Route
-            path='/staff/events/:eventId/check-in'
-            element={
-              <RequireRole role='Staff'>
-                <StaffCheckInPage />
-              </RequireRole>
-            }
-          />
+            <Route
+              path='/staff/events/:eventId/check-in'
+              element={
+                <RequireRole role='Staff'>
+                  <StaffCheckInPage />
+                </RequireRole>
+              }
+            />
 
-          <Route
-            path='/mentor'
-            element={
-              <RequireRole role='Mentor'>
-                <MentorDashboard />
-              </RequireRole>
-            }
-          />
+            <Route
+              path='/mentor'
+              element={
+                <RequireRole role='Mentor'>
+                  <MentorDashboard />
+                </RequireRole>
+              }
+            />
 
-          <Route
-            path='/judge'
-            element={
-              <RequireRole role='Judge'>
-                <JudgeDashboard />
-              </RequireRole>
-            }
-          />
+            <Route
+              path='/judge'
+              element={
+                <RequireRole role='Judge'>
+                  <JudgeDashboard />
+                </RequireRole>
+              }
+            />
 
-          <Route
-            path='/profile'
-            element={
-              <RequireAuth>
-                <ProfilePage />
-              </RequireAuth>
-            }
-          />
+            <Route
+              path='/profile'
+              element={
+                <RequireAuth>
+                  <ProfilePage />
+                </RequireAuth>
+              }
+            />
 
-          {/* Catch-all */}
-          <Route path='*' element={<Navigate to='/' replace />} />
-        </Routes>
+            {/* Catch-all */}
+            <Route path='*' element={<Navigate to='/' replace />} />
+          </Routes>
         </Suspense>
       </ToastProvider>
     </AuthProvider>
