@@ -4,7 +4,7 @@ import lombok.Data;
 
 @Data
 public class AssignJudgeRequest {
-  private String judgeId;
+  private String userId;
 
   private String roundId;
 

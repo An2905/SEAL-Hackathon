@@ -155,6 +155,57 @@ public class UserRepository {
     return users;
   }
 
+  /// Find users by role or all available users filtered by search keyword in SQL
+  ///
+  /// Params: String roleFilter, String keyword
+  /// Excep: RuntimeException
+  /// Return: List of users matching role and keyword
+  public List<User> findByRoleOrAllUsersWithKeyword(String roleFilter, String keyword) {
+    List<User> users = new ArrayList<>();
+    boolean filterAll = "ALL".equals(roleFilter);
+    boolean filterExpert = "EXPERT".equals(roleFilter);
+    String cleanKeyword = keyword == null ? "" : keyword.trim().toLowerCase();
+
+    String sql = "SELECT user_id, email, full_name, role, status FROM users";
+    List<String> conditions = new ArrayList<>();
+    List<Object> params = new ArrayList<>();
+
+    if (filterExpert) {
+      conditions.add("role IN ('EXPERT_INTERNAL', 'EXPERT_EXTERNAL')");
+    } else if (!filterAll) {
+      conditions.add("role = ?");
+      params.add(roleFilter);
+    }
+
+    if (!cleanKeyword.isEmpty()) {
+      conditions.add("(LOWER(full_name) LIKE ? OR LOWER(email) LIKE ?)");
+      params.add("%" + cleanKeyword + "%");
+      params.add("%" + cleanKeyword + "%");
+    }
+
+    if (!conditions.isEmpty()) {
+      sql += " WHERE " + String.join(" AND ", conditions);
+    }
+
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+
+      for (int i = 0; i < params.size(); i++) {
+        ps.setObject(i + 1, params.get(i));
+      }
+
+      try (ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+          users.add(userMapper.fromAccountRow(rs));
+        }
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException(e.getMessage());
+    }
+
+    return users;
+  }
+
   /// Find user's role by user ID
   ///
   /// Param: String userId
