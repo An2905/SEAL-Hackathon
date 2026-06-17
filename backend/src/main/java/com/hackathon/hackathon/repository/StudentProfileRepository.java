@@ -47,31 +47,36 @@ public class StudentProfileRepository {
     }
   }
 
-  public boolean insert(String userId, String studentCode, String universityName) {
+  public boolean insert(
+      String userId, String studentCode, String universityName, String githubUsername) {
     String profileId = UUID.randomUUID().toString();
     String sql =
-        "INSERT INTO studentprofile (profile_id, user_id, student_code, university_name)"
-            + " VALUES (?, ?, ?, ?)";
+        "INSERT INTO studentprofile (profile_id, user_id, student_code, university_name, github_username, github_id)"
+            + " VALUES (?, ?, ?, ?, ?, ?)";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, profileId);
       ps.setString(2, userId);
       ps.setString(3, studentCode);
       ps.setString(4, universityName);
+      ps.setString(5, githubUsername);
+      ps.setObject(6, null);
       return ps.executeUpdate() > 0;
     } catch (Exception e) {
       return false;
     }
   }
 
-  public boolean update(String userId, String studentCode, String universityName) {
+  public boolean update(
+      String userId, String studentCode, String universityName, String githubUsername) {
     String sql =
-        "UPDATE studentprofile SET student_code = ?, university_name = ? WHERE user_id = ?";
+        "UPDATE studentprofile SET student_code = ?, university_name = ?, github_username = ? WHERE user_id = ?";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, studentCode);
       ps.setString(2, universityName);
-      ps.setString(3, userId);
+      ps.setString(3, githubUsername);
+      ps.setString(4, userId);
       return ps.executeUpdate() > 0;
     } catch (Exception e) {
       return false;
@@ -101,6 +106,19 @@ public class StudentProfileRepository {
       ps.setString(1, newName);
       ps.setString(2, oldName);
       return ps.executeUpdate() >= 0;
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  public boolean updateGithubProfile(String userId, String githubUsername, Long githubId) {
+    String sql = "UPDATE studentprofile SET github_username = ?, github_id = ? WHERE user_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, githubUsername);
+      ps.setObject(2, githubId);
+      ps.setString(3, userId);
+      return ps.executeUpdate() > 0;
     } catch (Exception e) {
       return false;
     }
