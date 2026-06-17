@@ -4,6 +4,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
@@ -613,6 +615,85 @@ public class EventSetupRepository {
       ps.executeUpdate();
     } catch (Exception ignored) {
       // best-effort cleanup before delete
+    }
+  }
+
+  public List<EventRoundSetupRow> findRoundsByEventId(String eventId) {
+    String sql =
+        "SELECT round_id, event_id, name, round_order, start_date, end_date, submission_deadline, winners_per_round FROM rounds WHERE event_id = ? ORDER BY round_order ASC";
+    List<EventRoundSetupRow> list = new ArrayList<>();
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+          EventRoundSetupRow row = new EventRoundSetupRow();
+          row.roundId = rs.getString("round_id");
+          row.eventId = rs.getString("event_id");
+          row.name = rs.getString("name");
+          row.roundOrder = rs.getInt("round_order");
+          row.startDate = rs.getTimestamp("start_date");
+          row.endDate = rs.getTimestamp("end_date");
+          row.submissionDeadline = rs.getTimestamp("submission_deadline");
+          row.winnersPerRound = rs.getInt("winners_per_round");
+          list.add(row);
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
+    }
+    return list;
+  }
+
+  public int countApprovedTeamsInEvent(String eventId) {
+    String sql =
+        "SELECT COUNT(*) AS cnt FROM team_registrations WHERE event_id = ? AND status = 'APPROVED'";
+    return countById(sql, eventId);
+  }
+
+  public int countTeamsAssignedInRound(String roundId) {
+    String sql = "SELECT COUNT(DISTINCT team_id) AS cnt FROM group_teams WHERE round_id = ?";
+    return countById(sql, roundId);
+  }
+
+  public int sumMaxTeamsOfGroupsInRound(String roundId, String excludeGroupId) {
+    String sql = "SELECT SUM(IFNULL(max_teams, 0)) AS total FROM round_groups WHERE round_id = ?";
+    if (excludeGroupId != null && !excludeGroupId.isBlank()) {
+      sql += " AND group_id <> ?";
+    }
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, roundId);
+      if (excludeGroupId != null && !excludeGroupId.isBlank()) {
+        ps.setString(2, excludeGroupId);
+      }
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return rs.getInt("total");
+        }
+      }
+    } catch (Exception e) {
+      return 0;
+    }
+    return 0;
+  }
+
+  public boolean hasUnlimitedGroupsInRound(String roundId, String excludeGroupId) {
+    String sql = "SELECT 1 FROM round_groups WHERE round_id = ? AND max_teams IS NULL";
+    if (excludeGroupId != null && !excludeGroupId.isBlank()) {
+      sql += " AND group_id <> ?";
+    }
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, roundId);
+      if (excludeGroupId != null && !excludeGroupId.isBlank()) {
+        ps.setString(2, excludeGroupId);
+      }
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+      }
+    } catch (Exception e) {
+      return false;
     }
   }
 }

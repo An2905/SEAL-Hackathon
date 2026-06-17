@@ -230,7 +230,7 @@ public class EventService {
 
   // region CHANGE EVENT STATUS
 
-  public String changeEventStatus(String authHeader, ChangeEventStatusRequest request) {
+  public MessageResponse changeEventStatus(String authHeader, ChangeEventStatusRequest request) {
     authService.validateRole(authHeader, "COORDINATOR");
 
     String eventId = request.getEventId() != null ? request.getEventId().trim() : "";
@@ -238,21 +238,21 @@ public class EventService {
         request.getNewStatus() != null ? request.getNewStatus().trim().toUpperCase() : "";
 
     if (eventId.isEmpty()) {
-      throw new BadRequestException("Event ID is required.");
+      throw new BadRequestException("ID sự kiện là bắt buộc.");
     }
     if (newStatus.isEmpty()
         || (!newStatus.equals("BUILDING")
             && !newStatus.equals("UPCOMING")
             && !newStatus.equals("ONGOING")
             && !newStatus.equals("COMPLETED"))) {
-      throw new BadRequestException("Invalid event status.");
+      throw new BadRequestException("Trạng thái sự kiện không hợp lệ.");
     }
 
     if (!eventRepository.updateStatus(eventId, newStatus)) {
-      throw new BadRequestException("Event not found.");
+      throw new BadRequestException("Không tìm thấy sự kiện.");
     }
 
-    return "Event status updated successfully";
+    return new MessageResponse("Cập nhật trạng thái sự kiện thành công.");
   }
 
   // endregion
@@ -363,32 +363,34 @@ public class EventService {
     String name = trim(request.getName());
 
     if (eventId.isEmpty() || roundId.isEmpty()) {
-      throw new BadRequestException("Event ID and Round ID are required.");
+      throw new BadRequestException("ID sự kiện và ID vòng đấu là bắt buộc.");
     }
     if (name.isEmpty()) {
-      throw new BadRequestException("Group name is required.");
+      throw new BadRequestException("Tên bảng đấu là bắt buộc.");
     }
     if (name.length() > 100) {
-      throw new BadRequestException("Group name must be at most 100 characters.");
+      throw new BadRequestException("Tên bảng đấu không được quá 100 ký tự.");
     }
     if (!eventRepository.existsById(eventId)) {
-      throw new BadRequestException("Event not found.");
+      throw new BadRequestException("Không tìm thấy sự kiện.");
     }
     if (!eventRepository.roundBelongsToEvent(roundId, eventId)) {
-      throw new BadRequestException("Round does not belong to this event.");
+      throw new BadRequestException("Vòng đấu không thuộc sự kiện này.");
     }
     if (eventSetupRepository.groupNameExistsForRound(roundId, name, null)) {
-      throw new ConflictException("Group already exists in this round.");
+      throw new ConflictException("Bảng đấu đã tồn tại trong vòng đấu này.");
     }
 
     Integer maxTeams = request.getMaxTeams();
     if (maxTeams != null && maxTeams < 1) {
-      throw new BadRequestException("Max teams must be at least 1.");
+      throw new BadRequestException("Số đội tối đa phải ít nhất là 1.");
     }
+
+    validateGroupCapacityWithinEvent(eventId, roundId, null, maxTeams);
 
     String groupId = eventSetupRepository.insertGroup(roundId, name, maxTeams);
     if (groupId == null || groupId.isBlank()) {
-      throw new BadRequestException("Failed to create group.");
+      throw new BadRequestException("Tạo bảng đấu thất bại.");
     }
 
     String roundName =
@@ -417,34 +419,36 @@ public class EventService {
     String name = trim(request.getName());
 
     if (eventId.isEmpty() || roundId.isEmpty() || groupId.isEmpty()) {
-      throw new BadRequestException("Event ID, Round ID and Group ID are required.");
+      throw new BadRequestException("ID sự kiện, ID vòng đấu và ID bảng đấu là bắt buộc.");
     }
     if (name.isEmpty()) {
-      throw new BadRequestException("Group name is required.");
+      throw new BadRequestException("Tên bảng đấu là bắt buộc.");
     }
     if (name.length() > 100) {
-      throw new BadRequestException("Group name must be at most 100 characters.");
+      throw new BadRequestException("Tên bảng đấu không được quá 100 ký tự.");
     }
     if (!eventRepository.existsById(eventId)) {
-      throw new BadRequestException("Event not found.");
+      throw new BadRequestException("Không tìm thấy sự kiện.");
     }
     if (!eventRepository.groupBelongsToEvent(groupId, eventId)) {
-      throw new BadRequestException("Group does not belong to this event.");
+      throw new BadRequestException("Bảng đấu không thuộc sự kiện này.");
     }
     if (!eventRepository.roundBelongsToEvent(roundId, eventId)) {
-      throw new BadRequestException("Round does not belong to this event.");
+      throw new BadRequestException("Vòng đấu không thuộc sự kiện này.");
     }
     if (eventSetupRepository.groupNameExistsForRound(roundId, name, groupId)) {
-      throw new ConflictException("Group already exists in this round.");
+      throw new ConflictException("Bảng đấu đã tồn tại trong vòng đấu này.");
     }
 
     Integer maxTeams = request.getMaxTeams();
     if (maxTeams != null && maxTeams < 1) {
-      throw new BadRequestException("Max teams must be at least 1.");
+      throw new BadRequestException("Số đội tối đa phải ít nhất là 1.");
     }
 
+    validateGroupCapacityWithinEvent(eventId, roundId, groupId, maxTeams);
+
     if (!eventSetupRepository.updateGroup(roundId, groupId, name, maxTeams)) {
-      throw new BadRequestException("Failed to update group.");
+      throw new BadRequestException("Cập nhật bảng đấu thất bại.");
     }
 
     String roundName =
@@ -509,29 +513,36 @@ public class EventService {
     validateGroupTeamContext(eventId, roundId, groupId);
 
     if (teamId.isEmpty()) {
-      throw new BadRequestException("Team ID is required.");
+      throw new BadRequestException("ID đội là bắt buộc.");
     }
     if (!eventSetupRepository.isTeamApprovedForEvent(eventId, teamId)) {
-      throw new BadRequestException("Team is not approved for this event.");
+      throw new BadRequestException("Đội chưa được duyệt tham gia sự kiện này.");
     }
     if (!eventRepository.isTeamEligibleForRoundAssignment(eventId, roundId, teamId)) {
       throw new BadRequestException(
-          "Only winners from the previous round can be assigned to this round.");
+          "Chỉ những đội chiến thắng từ vòng đấu trước mới có thể được gán vào vòng đấu này.");
     }
     if (eventSetupRepository.isTeamInRound(roundId, teamId)) {
-      throw new ConflictException("Team is already assigned to a group in this round.");
+      throw new ConflictException("Đội đã được gán vào một bảng đấu trong vòng đấu này.");
     }
 
     Optional<Integer> maxTeams = eventSetupRepository.findGroupMaxTeams(groupId);
     if (maxTeams.isPresent()) {
       int current = eventSetupRepository.countApprovedTeamsInGroup(groupId, eventId);
       if (current >= maxTeams.get()) {
-        throw new ConflictException("Group has reached its maximum team capacity.");
+        throw new ConflictException("Bảng đấu đã đạt giới hạn số đội tối đa.");
       }
     }
 
+    int approvedTeamsCount = eventSetupRepository.countApprovedTeamsInEvent(eventId);
+    int assignedTeamsCount = eventSetupRepository.countTeamsAssignedInRound(roundId);
+    if (assignedTeamsCount + 1 > approvedTeamsCount) {
+      throw new ConflictException(
+          "Tổng số đội được gán vào vòng đấu này vượt quá số lượng đội đã được duyệt tham gia sự kiện.");
+    }
+
     if (!eventSetupRepository.insertGroupTeam(groupId, roundId, teamId)) {
-      throw new BadRequestException("Failed to assign team to group.");
+      throw new BadRequestException("Gán đội vào bảng đấu thất bại.");
     }
 
     return buildGroupTeamsResponse(groupId, eventId, roundId);
@@ -610,37 +621,39 @@ public class EventService {
     String name = trim(request.getName());
 
     if (eventId.isEmpty()) {
-      throw new BadRequestException("Event ID is required.");
+      throw new BadRequestException("ID sự kiện là bắt buộc.");
     }
     if (name.isEmpty()) {
-      throw new BadRequestException("Round name is required.");
+      throw new BadRequestException("Tên vòng đấu là bắt buộc.");
     }
     if (name.length() > 100) {
-      throw new BadRequestException("Round name must be at most 100 characters.");
+      throw new BadRequestException("Tên vòng đấu không được quá 100 ký tự.");
     }
     if (!eventRepository.existsById(eventId)) {
-      throw new BadRequestException("Event not found.");
+      throw new BadRequestException("Không tìm thấy sự kiện.");
     }
 
-    Timestamp startDate = parseDateTime(request.getStartDate(), "start date");
-    Timestamp endDate = parseDateTime(request.getEndDate(), "end date");
-    Timestamp submissionDeadline =
-        parseDateTime(request.getSubmissionDeadline(), "submission deadline");
+    Timestamp startDate = parseDateTime(request.getStartDate(), "ngày bắt đầu");
+    Timestamp endDate = parseDateTime(request.getEndDate(), "ngày kết thúc");
+    Timestamp submissionDeadline = parseDateTime(request.getSubmissionDeadline(), "hạn nộp bài");
 
     if (startDate.after(endDate)) {
-      throw new BadRequestException("Start date must be before or equal to end date.");
+      throw new BadRequestException("Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.");
     }
     if (submissionDeadline.after(endDate)) {
-      throw new BadRequestException("Submission deadline must be before or equal to end date.");
+      throw new BadRequestException("Hạn nộp bài phải trước hoặc bằng ngày kết thúc.");
     }
 
+    validateRoundWithinEvent(eventId, startDate, endDate, submissionDeadline);
     int roundOrder = eventSetupRepository.findNextRoundOrder(eventId);
+    validateRoundSequence(eventId, null, roundOrder, startDate, endDate);
+
     int winnersPerRound = resolveWinnersPerRound(request.getWinnersPerRound());
     String roundId =
         eventSetupRepository.insertRound(
             eventId, name, roundOrder, startDate, endDate, submissionDeadline, winnersPerRound);
     if (roundId == null || roundId.isBlank()) {
-      throw new BadRequestException("Failed to create round.");
+      throw new BadRequestException("Tạo vòng đấu thất bại.");
     }
 
     CreateEventRoundResponse response = new CreateEventRoundResponse();
@@ -663,49 +676,49 @@ public class EventService {
     String name = trim(request.getName());
 
     if (eventId.isEmpty() || roundId.isEmpty()) {
-      throw new BadRequestException("Event ID and Round ID are required.");
+      throw new BadRequestException("ID sự kiện và ID vòng đấu là bắt buộc.");
     }
     if (name.isEmpty()) {
-      throw new BadRequestException("Round name is required.");
+      throw new BadRequestException("Tên vòng đấu là bắt buộc.");
     }
     if (name.length() > 100) {
-      throw new BadRequestException("Round name must be at most 100 characters.");
+      throw new BadRequestException("Tên vòng đấu không được quá 100 ký tự.");
     }
     if (request.getRoundOrder() == null || request.getRoundOrder() < 1) {
-      throw new BadRequestException("Round order must be at least 1.");
+      throw new BadRequestException("Thứ tự vòng đấu phải ít nhất là 1.");
     }
     if (!eventRepository.existsById(eventId)) {
-      throw new BadRequestException("Event not found.");
+      throw new BadRequestException("Không tìm thấy sự kiện.");
     }
     if (!eventRepository.roundBelongsToEvent(roundId, eventId)) {
-      throw new BadRequestException("Round does not belong to this event.");
+      throw new BadRequestException("Vòng đấu không thuộc sự kiện này.");
     }
 
     eventSetupRepository
         .findRoundByEventAndId(eventId, roundId)
-        .orElseThrow(() -> new BadRequestException("Round not found."));
+        .orElseThrow(() -> new BadRequestException("Không tìm thấy vòng đấu."));
 
     int roundOrder = request.getRoundOrder();
     if (eventSetupRepository.roundNameExistsForEvent(eventId, name, roundId)) {
-      throw new ConflictException("Round name already exists in this event.");
+      throw new ConflictException("Tên vòng đấu đã tồn tại trong sự kiện này.");
     }
     if (eventSetupRepository.roundOrderExistsForEvent(eventId, roundOrder, roundId)) {
-      throw new ConflictException("Round order is already in use by another round.");
+      throw new ConflictException("Thứ tự vòng đấu đã được sử dụng bởi một vòng đấu khác.");
     }
 
-    Timestamp startDate = parseDateTime(request.getStartDate(), "start date");
-    Timestamp endDate = parseDateTime(request.getEndDate(), "end date");
-    Timestamp submissionDeadline =
-        parseDateTime(request.getSubmissionDeadline(), "submission deadline");
+    Timestamp startDate = parseDateTime(request.getStartDate(), "ngày bắt đầu");
+    Timestamp endDate = parseDateTime(request.getEndDate(), "ngày kết thúc");
+    Timestamp submissionDeadline = parseDateTime(request.getSubmissionDeadline(), "hạn nộp bài");
 
     if (startDate.after(endDate)) {
-      throw new BadRequestException("Start date must be before or equal to end date.");
+      throw new BadRequestException("Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.");
     }
     if (submissionDeadline.after(endDate)) {
-      throw new BadRequestException("Submission deadline must be before or equal to end date.");
+      throw new BadRequestException("Hạn nộp bài phải trước hoặc bằng ngày kết thúc.");
     }
 
     validateRoundWithinEvent(eventId, startDate, endDate, submissionDeadline);
+    validateRoundSequence(eventId, roundId, roundOrder, startDate, endDate);
 
     if (eventSetupRepository.countSubmissionsByRound(roundId) > 0) {
       eventSetupRepository
@@ -714,11 +727,11 @@ public class EventService {
               maxSubmitted -> {
                 if (submissionDeadline.before(maxSubmitted)) {
                   throw new ConflictException(
-                      "Submission deadline cannot be before existing submission times.");
+                      "Hạn nộp bài không thể trước thời gian nộp bài hiện tại.");
                 }
                 if (endDate.before(maxSubmitted)) {
                   throw new ConflictException(
-                      "Round end date cannot be before existing submission times.");
+                      "Ngày kết thúc vòng đấu không thể trước thời gian nộp bài hiện tại.");
                 }
               });
     }
@@ -734,7 +747,7 @@ public class EventService {
         endDate,
         submissionDeadline,
         winnersPerRound)) {
-      throw new BadRequestException("Failed to update round.");
+      throw new BadRequestException("Cập nhật vòng đấu thất bại.");
     }
 
     CreateEventRoundResponse response = new CreateEventRoundResponse();
@@ -1021,15 +1034,74 @@ public class EventService {
               Timestamp eventStart = bounds[0];
               Timestamp eventEnd = bounds[1];
               if (eventStart != null && startDate.before(eventStart)) {
-                throw new ConflictException("Round cannot start before event start date.");
+                throw new ConflictException(
+                    "Vòng đấu không thể bắt đầu trước ngày bắt đầu sự kiện.");
               }
               if (eventEnd != null && endDate.after(eventEnd)) {
-                throw new ConflictException("Round cannot end after event end date.");
+                throw new ConflictException(
+                    "Vòng đấu không thể kết thúc sau ngày kết thúc sự kiện.");
               }
               if (eventEnd != null && submissionDeadline.after(eventEnd)) {
-                throw new ConflictException("Submission deadline cannot be after event end date.");
+                throw new ConflictException("Hạn nộp bài không thể sau ngày kết thúc sự kiện.");
               }
             });
+  }
+
+  private void validateGroupCapacityWithinEvent(
+      String eventId, String roundId, String excludeGroupId, Integer newGroupMaxTeams) {
+    EventSetupRepository.EventSetupRow event =
+        eventSetupRepository
+            .findEventById(eventId)
+            .orElseThrow(() -> new BadRequestException("Không tìm thấy sự kiện."));
+    if (event.maxTeams != null) {
+      if (newGroupMaxTeams == null) {
+        throw new BadRequestException(
+            "Giới hạn số đội của bảng đấu không được để trống khi sự kiện có giới hạn số đội.");
+      }
+      int currentSum = eventSetupRepository.sumMaxTeamsOfGroupsInRound(roundId, excludeGroupId);
+      if (eventSetupRepository.hasUnlimitedGroupsInRound(roundId, excludeGroupId)) {
+        throw new ConflictException(
+            "Vòng đấu có bảng đấu khác không giới hạn số đội, không thể xác định giới hạn tổng.");
+      }
+      if (currentSum + newGroupMaxTeams > event.maxTeams) {
+        throw new ConflictException(
+            "Tổng số đội tối đa của các bảng đấu trong vòng đấu ("
+                + (currentSum + newGroupMaxTeams)
+                + ") không được vượt quá số đội tối đa của sự kiện ("
+                + event.maxTeams
+                + ").");
+      }
+    }
+  }
+
+  private void validateRoundSequence(
+      String eventId,
+      String currentRoundId,
+      int currentRoundOrder,
+      Timestamp currentStartDate,
+      Timestamp currentEndDate) {
+    List<EventSetupRepository.EventRoundSetupRow> rounds =
+        eventSetupRepository.findRoundsByEventId(eventId);
+    for (EventSetupRepository.EventRoundSetupRow r : rounds) {
+      if (currentRoundId != null && currentRoundId.equals(r.roundId)) {
+        continue;
+      }
+      if (r.roundOrder < currentRoundOrder) {
+        if (r.endDate != null && currentStartDate.before(r.endDate)) {
+          throw new BadRequestException(
+              "Thời gian bắt đầu vòng đấu này không được trước thời gian kết thúc của vòng đấu trước ("
+                  + r.name
+                  + ").");
+        }
+      } else if (r.roundOrder > currentRoundOrder) {
+        if (r.startDate != null && r.startDate.before(currentEndDate)) {
+          throw new BadRequestException(
+              "Thời gian kết thúc vòng đấu này không được sau thời gian bắt đầu của vòng đấu sau ("
+                  + r.name
+                  + ").");
+        }
+      }
+    }
   }
 
   private static String timestampToIso(Timestamp ts) {
@@ -1055,7 +1127,7 @@ public class EventService {
 
   private static Timestamp parseDateTime(String raw, String fieldLabel) {
     if (raw == null || raw.isBlank()) {
-      throw new BadRequestException(capitalize(fieldLabel) + " is required.");
+      throw new BadRequestException(capitalize(fieldLabel) + " là bắt buộc.");
     }
     String s = raw.trim();
     try {
@@ -1068,7 +1140,7 @@ public class EventService {
       LocalDateTime ldt = LocalDateTime.parse(s, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
       return Timestamp.valueOf(ldt);
     } catch (DateTimeParseException e) {
-      throw new BadRequestException("Invalid " + fieldLabel + " format.");
+      throw new BadRequestException("Định dạng " + fieldLabel + " không hợp lệ.");
     }
   }
 

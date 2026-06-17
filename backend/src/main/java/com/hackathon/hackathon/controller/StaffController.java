@@ -1,13 +1,9 @@
 package com.hackathon.hackathon.controller;
 
-import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
-import com.hackathon.hackathon.model.dto.request.AssignMentorGroupRequest;
 import com.hackathon.hackathon.model.dto.request.ChangeAccountStatusRequest;
-import com.hackathon.hackathon.model.dto.request.ChangeEventStatusRequest;
 import com.hackathon.hackathon.model.dto.request.ChangeTeamRegistrationStatusRequest;
 import com.hackathon.hackathon.model.dto.request.CheckInMemberRequest;
 import com.hackathon.hackathon.model.dto.request.CheckInTeamRequest;
-import com.hackathon.hackathon.model.dto.request.CreateEventRequest;
 import com.hackathon.hackathon.model.dto.request.CreateStaffAccountRequest;
 import com.hackathon.hackathon.model.dto.request.CreateUniversityRequest;
 import com.hackathon.hackathon.model.dto.request.CriteriaRequest;
@@ -17,7 +13,6 @@ import com.hackathon.hackathon.model.dto.request.UpdateUniversityRequest;
 import com.hackathon.hackathon.model.dto.response.AccountResponse;
 import com.hackathon.hackathon.model.dto.response.CheckInPageResponse;
 import com.hackathon.hackathon.model.dto.response.CheckInTeamResponse;
-import com.hackathon.hackathon.model.dto.response.CreateEventResponse;
 import com.hackathon.hackathon.model.dto.response.CriteriaResponse;
 import com.hackathon.hackathon.model.dto.response.DeleteUniversityPreviewResponse;
 import com.hackathon.hackathon.model.dto.response.EventCriteriaResponse;
@@ -25,7 +20,7 @@ import com.hackathon.hackathon.model.dto.response.EventDetailResponse;
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.dto.response.StaffEmailFilterResponse;
-import com.hackathon.hackathon.model.dto.response.StaffUniversityItemResponse;
+import com.hackathon.hackathon.model.dto.response.UniversityOverviewResponse;
 import com.hackathon.hackathon.model.dto.response.UniversityResponse;
 import com.hackathon.hackathon.service.EventService;
 import com.hackathon.hackathon.service.StaffService;
@@ -34,15 +29,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(
@@ -55,33 +42,17 @@ public class StaffController {
   @Autowired private EventService eventService;
 
   @PostMapping("/register")
-  public ResponseEntity<String> registerAccount(
+  public ResponseEntity<MessageResponse> registerAccount(
       @RequestHeader("Authorization") String authHeader,
       @RequestBody CreateStaffAccountRequest request) {
-    String result = staffService.registerAccount(authHeader, request);
-    return ResponseEntity.ok(result);
-  }
-
-  @PostMapping("/events")
-  public ResponseEntity<CreateEventResponse> createEvent(
-      @RequestHeader("Authorization") String authHeader, @RequestBody CreateEventRequest request) {
-    return ResponseEntity.ok(eventService.createEvent(authHeader, request));
-  }
-
-  @PutMapping("/events/status")
-  public ResponseEntity<String> changeEventStatus(
-      @RequestHeader("Authorization") String authHeader,
-      @RequestBody ChangeEventStatusRequest request) {
-    String result = eventService.changeEventStatus(authHeader, request);
-    return ResponseEntity.ok(result);
+    return ResponseEntity.ok(staffService.registerAccount(authHeader, request));
   }
 
   @PutMapping("/change-status")
-  public ResponseEntity<String> changeAccountStatus(
+  public ResponseEntity<MessageResponse> changeAccountStatus(
       @RequestHeader("Authorization") String authHeader,
       @RequestBody ChangeAccountStatusRequest request) {
-    String result = staffService.changeAccountStatus(authHeader, request);
-    return ResponseEntity.ok(result);
+    return ResponseEntity.ok(staffService.changeAccountStatus(authHeader, request));
   }
 
   @GetMapping("/accounts")
@@ -105,29 +76,14 @@ public class StaffController {
   public ResponseEntity<EventDetailResponse> getEventDetail(
       @RequestHeader("Authorization") String authHeader, @RequestParam String eventId) {
     EventDetailResponse event = eventService.getEventDetail(authHeader, eventId);
-
     return ResponseEntity.ok(event);
   }
 
   @PutMapping("/team-registration/status")
-  public ResponseEntity<String> changeTeamRegistrationStatus(
+  public ResponseEntity<MessageResponse> changeTeamRegistrationStatus(
       @RequestHeader("Authorization") String authHeader,
       @RequestBody ChangeTeamRegistrationStatusRequest request) {
-    String result = staffService.changeTeamRegistrationStatus(authHeader, request);
-    return ResponseEntity.ok(result);
-  }
-
-  @PostMapping("/assign/judge")
-  public ResponseEntity<String> assignJudge(
-      @RequestHeader("Authorization") String authHeader, @RequestBody AssignJudgeRequest request) {
-    return ResponseEntity.ok(staffService.assignJudge(authHeader, request));
-  }
-
-  @PostMapping("/assign/mentor")
-  public ResponseEntity<String> assignMentor(
-      @RequestHeader("Authorization") String authHeader,
-      @RequestBody AssignMentorGroupRequest request) {
-    return ResponseEntity.ok(staffService.assignMentor(authHeader, request));
+    return ResponseEntity.ok(staffService.changeTeamRegistrationStatus(authHeader, request));
   }
 
   @GetMapping("/events/export")
@@ -137,7 +93,7 @@ public class StaffController {
   }
 
   @GetMapping("/universities")
-  public ResponseEntity<List<StaffUniversityItemResponse>> getStaffUniversities(
+  public ResponseEntity<List<UniversityOverviewResponse>> getStaffUniversities(
       @RequestHeader("Authorization") String authHeader) {
     return ResponseEntity.ok(staffService.getStaffUniversities(authHeader));
   }
@@ -197,7 +153,7 @@ public class StaffController {
   }
 
   @DeleteMapping("/criteria")
-  public ResponseEntity<String> deleteCriteria(
+  public ResponseEntity<MessageResponse> deleteCriteria(
       @RequestHeader("Authorization") String authHeader, @RequestParam String criteriaId) {
     return ResponseEntity.ok(staffService.deleteCriteria(authHeader, criteriaId));
   }

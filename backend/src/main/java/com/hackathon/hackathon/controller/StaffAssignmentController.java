@@ -1,5 +1,7 @@
 package com.hackathon.hackathon.controller;
 
+import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
+import com.hackathon.hackathon.model.dto.request.AssignMentorGroupRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateJudgeAssignmentRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateMentorAssignmentRequest;
 import com.hackathon.hackathon.model.dto.response.EventAssignedJudgeResponse;
@@ -10,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -24,6 +27,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class StaffAssignmentController {
 
   @Autowired private StaffService staffService;
+
+  @PostMapping("/judge")
+  public ResponseEntity<MessageResponse> assignJudge(
+      @RequestHeader("Authorization") String authHeader, @RequestBody AssignJudgeRequest request) {
+    return ResponseEntity.ok(staffService.assignJudge(authHeader, request));
+  }
+
+  @PostMapping("/mentor")
+  public ResponseEntity<MessageResponse> assignMentor(
+      @RequestHeader("Authorization") String authHeader,
+      @RequestBody AssignMentorGroupRequest request) {
+    return ResponseEntity.ok(staffService.assignMentor(authHeader, request));
+  }
 
   @PutMapping("/mentor")
   public ResponseEntity<EventAssignedMentorResponse> updateMentorAssignment(

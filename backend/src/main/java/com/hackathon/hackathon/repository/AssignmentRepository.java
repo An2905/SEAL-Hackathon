@@ -80,4 +80,33 @@ public class AssignmentRepository {
       return false;
     }
   }
+
+  public boolean isExpertAssignedAsJudgeInRound(String expertId, String roundId) {
+    String sql = "SELECT assignment_id FROM judge_assignments WHERE judge_id = ? AND round_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, expertId);
+      ps.setString(2, roundId);
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+      }
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  public boolean isExpertAssignedAsMentorInRound(String expertId, String roundId) {
+    String sql =
+        "SELECT assignment_id FROM mentor_assignments WHERE mentor_id = ? AND round_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, expertId);
+      ps.setString(2, roundId);
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+      }
+    } catch (Exception e) {
+      return false;
+    }
+  }
 }
