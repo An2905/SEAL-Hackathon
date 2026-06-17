@@ -95,3 +95,18 @@ export async function updatePassword({ oldPassword, newPassword, confirmPassword
   if (!/password updated successfully/i.test(text)) throw new Error(text)
   return true
 }
+
+export async function getGithubLinkUrl() {
+  const text = await apiFetch('/api/auth/github/link-url')
+  let parsed
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    throw new Error('Không đọc được URL GitHub OAuth từ máy chủ.')
+  }
+  const authorizeUrl = (parsed?.authorizeUrl || '').trim()
+  if (!authorizeUrl) {
+    throw new Error('Máy chủ chưa trả về URL GitHub OAuth hợp lệ.')
+  }
+  return authorizeUrl
+}

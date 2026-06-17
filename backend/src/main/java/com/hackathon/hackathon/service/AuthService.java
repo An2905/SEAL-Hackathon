@@ -218,7 +218,8 @@ public class AuthService {
     String userId = updatedUser.getUserId();
 
     if (isStudentRole(role)) {
-      if (!studentProfileRepository.update(userId, newStudentId, newUniversity)) {
+      String githubUsername = request.getGithubUsername();
+      if (!studentProfileRepository.update(userId, newStudentId, newUniversity, githubUsername)) {
         throw new BadRequestException("Failed to update student profile.");
       }
     } else if (isExpertRole(role)) {
@@ -412,7 +413,8 @@ public class AuthService {
       throw new BadRequestException("Database error while creating user.");
     }
 
-    if (!studentProfileRepository.insert(userId, regData.getStudentId(), regData.getUniversity())) {
+    if (!studentProfileRepository.insert(
+        userId, regData.getStudentId(), regData.getUniversity(), null)) {
       throw new BadRequestException("Database error while creating profile.");
     }
 

@@ -533,6 +533,8 @@ CREATE TABLE `studentprofile` (
   `user_id` varchar(36) NOT NULL,
   `student_code` varchar(30) DEFAULT NULL,
   `university_name` varchar(150) DEFAULT NULL,
+  `github_username` varchar(100) DEFAULT NULL,
+  `github_id` bigint DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`profile_id`),
   UNIQUE KEY `uq_sp_user` (`user_id`),
