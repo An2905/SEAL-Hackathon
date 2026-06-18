@@ -1,14 +1,17 @@
 package com.hackathon.hackathon.controller;
 
 import com.hackathon.hackathon.model.dto.request.AssignGroupTeamRequest;
+import com.hackathon.hackathon.model.dto.request.ChangeEventStatusRequest;
 import com.hackathon.hackathon.model.dto.request.CreateAwardRequest;
 import com.hackathon.hackathon.model.dto.request.CreateEventGroupRequest;
+import com.hackathon.hackathon.model.dto.request.CreateEventRequest;
 import com.hackathon.hackathon.model.dto.request.CreateEventRoundRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateAwardRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventGroupRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventRoundRequest;
 import com.hackathon.hackathon.model.dto.response.CreateEventGroupResponse;
+import com.hackathon.hackathon.model.dto.response.CreateEventResponse;
 import com.hackathon.hackathon.model.dto.response.CreateEventRoundResponse;
 import com.hackathon.hackathon.model.dto.response.EventAwardResponse;
 import com.hackathon.hackathon.model.dto.response.EventRoundSetupResponse;
@@ -36,6 +39,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class EventController {
 
   @Autowired private EventService eventService;
+
+  @PostMapping
+  public ResponseEntity<CreateEventResponse> createEvent(
+      @RequestHeader("Authorization") String authHeader, @RequestBody CreateEventRequest request) {
+    return ResponseEntity.ok(eventService.createEvent(authHeader, request));
+  }
+
+  @PutMapping("/status")
+  public ResponseEntity<MessageResponse> changeEventStatus(
+      @RequestHeader("Authorization") String authHeader,
+      @RequestBody ChangeEventStatusRequest request) {
+    return ResponseEntity.ok(eventService.changeEventStatus(authHeader, request));
+  }
 
   @PutMapping
   public ResponseEntity<EventUpdateResponse> updateEvent(
