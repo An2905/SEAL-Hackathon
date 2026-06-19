@@ -6,8 +6,8 @@ import com.hackathon.hackathon.exception.ForbiddenException;
 import com.hackathon.hackathon.model.dto.request.CreateTeamRequest;
 import com.hackathon.hackathon.model.dto.request.DeleteTeamMemberRequest;
 import com.hackathon.hackathon.model.dto.request.JoinEventRequest;
-import com.hackathon.hackathon.model.dto.request.LeaveEventRequest;
 import com.hackathon.hackathon.model.dto.request.JoinTeamRequest;
+import com.hackathon.hackathon.model.dto.request.LeaveEventRequest;
 import com.hackathon.hackathon.model.dto.request.SubmitProjectRequest;
 import com.hackathon.hackathon.model.dto.response.CreateTeamResponse;
 import com.hackathon.hackathon.model.dto.response.EventRoundResponse;
@@ -29,10 +29,8 @@ import com.hackathon.hackathon.repository.SubmissionRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.repository.TeamRepository;
 import com.hackathon.hackathon.repository.UserRepository;
-import com.hackathon.hackathon.service.EmailService;
 import io.jsonwebtoken.Claims;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -238,8 +236,7 @@ public class TeamService {
     String teamId =
         teamRepository
             .findTeamIdByLeaderId(userId)
-            .orElseThrow(
-                () -> new BadRequestException("Only team leaders can leave events."));
+            .orElseThrow(() -> new BadRequestException("Only team leaders can leave events."));
 
     TeamDetail detail =
         teamRepository
@@ -274,8 +271,7 @@ public class TeamService {
         .findLatestSubmissionIdByTeamAndEvent(teamId, eventId)
         .ifPresent(
             submissionId ->
-                eliminationRepository.insert(
-                    submissionId, "Team left the event", userId));
+                eliminationRepository.insert(submissionId, "Team left the event", userId));
 
     String leaderEmail = detail.getLeaderEmail();
     if (leaderEmail != null && !leaderEmail.isBlank()) {

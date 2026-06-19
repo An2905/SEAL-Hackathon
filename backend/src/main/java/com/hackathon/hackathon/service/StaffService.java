@@ -1,21 +1,5 @@
 package com.hackathon.hackathon.service;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
@@ -58,6 +42,20 @@ import com.hackathon.hackathon.repository.StudentProfileRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.repository.UniversityRepository;
 import com.hackathon.hackathon.repository.UserRepository;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class StaffService {
@@ -530,7 +528,8 @@ public class StaffService {
     University university =
         universityRepository
             .findById(universityId)
-            .orElseThrow(() -> new BadRequestException("Không tìm thấy trường đại học với ID đã cho."));
+            .orElseThrow(
+                () -> new BadRequestException("Không tìm thấy trường đại học với ID đã cho."));
 
     String oldName = university.getUniversityName();
 
@@ -539,10 +538,12 @@ public class StaffService {
         throw new ConflictException("Tên trường đại học này đã tồn tại trong hệ thống.");
       }
       if (!studentProfileRepository.updateUniversityNameByOldName(oldName, newName)) {
-        throw new BadRequestException("Cập nhật thông tin trường đại học thất bại do lỗi hệ thống.");
+        throw new BadRequestException(
+            "Cập nhật thông tin trường đại học thất bại do lỗi hệ thống.");
       }
       if (!universityRepository.updateName(universityId, newName)) {
-        throw new BadRequestException("Cập nhật thông tin trường đại học thất bại do lỗi hệ thống.");
+        throw new BadRequestException(
+            "Cập nhật thông tin trường đại học thất bại do lỗi hệ thống.");
       }
     }
     return new MessageResponse("Cập nhật thông tin trường đại học thành công.");

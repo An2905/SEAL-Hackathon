@@ -1,11 +1,5 @@
 package com.hackathon.hackathon.service;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ForbiddenException;
 import com.hackathon.hackathon.exception.UnauthorizedException;
@@ -22,8 +16,11 @@ import com.hackathon.hackathon.repository.AssignmentRepository;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.SubmissionRepository;
 import com.hackathon.hackathon.repository.TeamRepository;
-
 import io.jsonwebtoken.Claims;
+import java.util.ArrayList;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 @Service
 public class MentorService {
@@ -187,6 +184,7 @@ public class MentorService {
     return submissionRepository.findForMentorReview(
         mentorId.trim(), normalizedEventId, normalizedRoundId, normalizedGroupId, statusFilter);
   }
+
   // endregion MENTOR VIEW SUBMISSIONS
 
   public GroupColleaguesResponse getGroupColleagues(

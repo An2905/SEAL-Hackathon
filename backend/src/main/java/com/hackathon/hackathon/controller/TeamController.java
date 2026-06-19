@@ -1,19 +1,5 @@
 package com.hackathon.hackathon.controller;
 
-import java.util.List;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
 import com.hackathon.hackathon.model.dto.request.CreateTeamRequest;
 import com.hackathon.hackathon.model.dto.request.DeleteTeamMemberRequest;
 import com.hackathon.hackathon.model.dto.request.JoinEventRequest;
@@ -29,6 +15,18 @@ import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
 import com.hackathon.hackathon.model.dto.response.TeamSubmissionsResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
 import com.hackathon.hackathon.service.TeamService;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping(value = "/api/team", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
@@ -63,8 +61,7 @@ public class TeamController {
 
   @PutMapping("/leave-event")
   public ResponseEntity<MessageResponse> leaveEvent(
-      @RequestHeader("Authorization") String authHeader,
-      @RequestBody LeaveEventRequest request) {
+      @RequestHeader("Authorization") String authHeader, @RequestBody LeaveEventRequest request) {
     return ResponseEntity.ok(teamService.leaveEvent(authHeader, request));
   }
 
