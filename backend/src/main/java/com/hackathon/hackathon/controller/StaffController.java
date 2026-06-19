@@ -1,5 +1,20 @@
 package com.hackathon.hackathon.controller;
 
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.hackathon.hackathon.model.dto.request.ChangeAccountStatusRequest;
 import com.hackathon.hackathon.model.dto.request.ChangeTeamRegistrationStatusRequest;
 import com.hackathon.hackathon.model.dto.request.CheckInMemberRequest;
@@ -24,12 +39,8 @@ import com.hackathon.hackathon.model.dto.response.UniversityOverviewResponse;
 import com.hackathon.hackathon.model.dto.response.UniversityResponse;
 import com.hackathon.hackathon.service.EventService;
 import com.hackathon.hackathon.service.StaffService;
+
 import jakarta.validation.Valid;
-import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(
@@ -104,7 +115,7 @@ public class StaffController {
       @RequestBody CreateUniversityRequest request) {
     return ResponseEntity.ok(staffService.createUniversity(authHeader, request));
   }
-
+//--------------------------------------------------------------------------------
   @PutMapping("/universities")
   public ResponseEntity<MessageResponse> updateUniversity(
       @RequestHeader("Authorization") String authHeader,

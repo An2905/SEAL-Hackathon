@@ -1,5 +1,21 @@
 package com.hackathon.hackathon.service;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
@@ -42,19 +58,6 @@ import com.hackathon.hackathon.repository.StudentProfileRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.repository.UniversityRepository;
 import com.hackathon.hackathon.repository.UserRepository;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.stereotype.Service;
 
 @Service
 public class StaffService {
@@ -512,32 +515,37 @@ public class StaffService {
     return response;
   }
 
+  @Transactional(rollbackFor = Exception.class)
   public MessageResponse updateUniversity(String authHeader, UpdateUniversityRequest request) {
     authService.validateRole(authHeader, "COORDINATOR");
+
     String universityId = trim(request.getUniversityId());
     String newName = trim(request.getUniversityName());
+
     if (universityId.isEmpty()) {
-      throw new BadRequestException("ID trường đại học là bắt buộc.");
+      throw new BadRequestException("ID trường đại học không được để trống.");
     }
     validateUniversityName(newName);
+
     University university =
         universityRepository
             .findById(universityId)
-            .orElseThrow(() -> new BadRequestException("Trường đại học không hợp lệ."));
+            .orElseThrow(() -> new BadRequestException("Không tìm thấy trường đại học với ID đã cho."));
+
     String oldName = university.getUniversityName();
+
     if (!newName.equals(oldName)) {
       if (universityRepository.existsByNameExcludingId(newName, universityId)) {
-        throw new ConflictException("Tên trường đại học đã tồn tại.");
+        throw new ConflictException("Tên trường đại học này đã tồn tại trong hệ thống.");
       }
       if (!studentProfileRepository.updateUniversityNameByOldName(oldName, newName)) {
-        throw new BadRequestException("Cập nhật trường đại học thất bại.");
+        throw new BadRequestException("Cập nhật thông tin trường đại học thất bại do lỗi hệ thống.");
       }
       if (!universityRepository.updateName(universityId, newName)) {
-        studentProfileRepository.updateUniversityNameByOldName(newName, oldName);
-        throw new BadRequestException("Cập nhật trường đại học thất bại.");
+        throw new BadRequestException("Cập nhật thông tin trường đại học thất bại do lỗi hệ thống.");
       }
     }
-    return new MessageResponse("Cập nhật trường đại học thành công.");
+    return new MessageResponse("Cập nhật thông tin trường đại học thành công.");
   }
 
   public DeleteUniversityPreviewResponse getDeleteUniversityPreview(

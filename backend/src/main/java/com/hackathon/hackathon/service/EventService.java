@@ -1,5 +1,23 @@
 package com.hackathon.hackathon.service;
 
+import java.io.ByteArrayOutputStream;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.model.dto.request.AssignGroupTeamRequest;
@@ -36,6 +54,7 @@ import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.EventSetupRepository;
 import com.hackathon.hackathon.repository.EventSetupRepository.EventRoundSetupRow;
 import com.hackathon.hackathon.repository.EventSetupRepository.EventSetupRow;
+
 import io.jsonwebtoken.Claims;
 import java.io.ByteArrayOutputStream;
 import java.sql.Timestamp;
@@ -53,6 +72,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class EventService {
@@ -944,12 +964,14 @@ public class EventService {
     return response;
   }
 
+  @Transactional(rollbackFor = Exception.class)
   public CheckInTeamResponse setTeamCheckIn(String authHeader, CheckInTeamRequest request) {
     Claims claims = authService.validateRole(authHeader, "COORDINATOR");
     String staffUserId = requireCheckInStaffUserId(claims);
 
     if (request == null) {
       throw new BadRequestException("Request body is required.");
+      throw new BadRequestException("Dữ liệu yêu cầu không được để trống.");
     }
 
     String eventId = requireCheckInEventId(request.getEventId());
@@ -960,12 +982,14 @@ public class EventService {
     return checkInRepository.applyTeamCheckIn(eventId, teamId, staffUserId, request.isChecked());
   }
 
+  @Transactional(rollbackFor = Exception.class)
   public CheckInTeamResponse setMemberCheckIn(String authHeader, CheckInMemberRequest request) {
     Claims claims = authService.validateRole(authHeader, "COORDINATOR");
     String staffUserId = requireCheckInStaffUserId(claims);
 
     if (request == null) {
       throw new BadRequestException("Request body is required.");
+      throw new BadRequestException("Dữ liệu yêu cầu không được để trống.");
     }
 
     String eventId = requireCheckInEventId(request.getEventId());
@@ -982,6 +1006,7 @@ public class EventService {
     String clean = trim(eventId);
     if (clean.isEmpty()) {
       throw new BadRequestException("Event ID is required.");
+      throw new BadRequestException("ID sự kiện không được để trống.");
     }
     return clean;
   }
@@ -990,6 +1015,7 @@ public class EventService {
     String clean = trim(teamId);
     if (clean.isEmpty()) {
       throw new BadRequestException("Team ID is required.");
+      throw new BadRequestException("ID đội không được để trống.");
     }
     return clean;
   }
@@ -998,6 +1024,7 @@ public class EventService {
     String clean = trim(userId);
     if (clean.isEmpty()) {
       throw new BadRequestException("User ID is required.");
+      throw new BadRequestException("ID người dùng không được để trống.");
     }
     return clean;
   }
@@ -1007,6 +1034,7 @@ public class EventService {
     String clean = trim(userId);
     if (clean.isEmpty()) {
       throw new BadRequestException("Invalid staff session.");
+      throw new BadRequestException("Phiên đăng nhập của cán bộ không hợp lệ.");
     }
     return clean;
   }
@@ -1014,12 +1042,14 @@ public class EventService {
   private void requireCheckInEventExists(String eventId) {
     if (!eventRepository.existsById(eventId)) {
       throw new BadRequestException("Event not found.");
+      throw new BadRequestException("Không tìm thấy sự kiện.");
     }
   }
 
   private void requireCheckInRegistration(String eventId, String teamId) {
     if (!checkInRepository.registrationExistsForCheckIn(eventId, teamId)) {
       throw new BadRequestException("Team registration not found for this event.");
+      throw new BadRequestException("Không tìm thấy thông tin đăng ký của đội cho sự kiện này.");
     }
   }
 
