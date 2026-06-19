@@ -45,6 +45,23 @@ public class EventRepository {
     return false;
   }
 
+  public boolean isUpcomingOrOngoing(String eventId) {
+    String sql = "SELECT status FROM events WHERE event_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          String status = rs.getString("status");
+          return "UPCOMING".equalsIgnoreCase(status) || "ONGOING".equalsIgnoreCase(status);
+        }
+      }
+    } catch (Exception e) {
+      return false;
+    }
+    return false;
+  }
+
   public boolean existsById(String eventId) {
     String sql = "SELECT 1 FROM events WHERE event_id = ?";
     try (Connection conn = dataSource.getConnection();
@@ -543,82 +560,6 @@ public class EventRepository {
       ps.setString(2, eventId);
       try (ResultSet rs = ps.executeQuery()) {
         return rs.next();
-      }
-    } catch (Exception e) {
-      return false;
-    }
-  }
-
-  public boolean isSubmissionDeadlinePassed(String roundId) {
-    String sql = "SELECT submission_deadline, end_date FROM rounds WHERE round_id = ?";
-    try (Connection conn = dataSource.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, roundId);
-      try (ResultSet rs = ps.executeQuery()) {
-        if (!rs.next()) {
-          return false;
-        }
-        java.sql.Timestamp now = new java.sql.Timestamp(System.currentTimeMillis());
-        java.sql.Timestamp deadline = rs.getTimestamp("submission_deadline");
-        if (deadline != null) {
-          return now.after(deadline);
-        }
-        java.sql.Timestamp endDate = rs.getTimestamp("end_date");
-        if (endDate != null) {
-          return now.after(endDate);
-        }
-        return false;
-      }
-    } catch (Exception e) {
-      return false;
-    }
-  }
-
-  public Optional<String> findSubmissionDeadlineByRoundId(String roundId) {
-    String sql = "SELECT submission_deadline FROM rounds WHERE round_id = ?";
-    try (Connection conn = dataSource.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, roundId);
-      try (ResultSet rs = ps.executeQuery()) {
-        if (rs.next()) {
-          java.sql.Timestamp deadline = rs.getTimestamp("submission_deadline");
-          return Optional.ofNullable(deadline == null ? null : deadline.toString());
-        }
-      }
-    } catch (Exception e) {
-      throw new RuntimeException(sql, e);
-    }
-    return Optional.empty();
-  }
-
-  /**
-   * Submission allowed only while round is active: started, not ended, and before deadline (if
-   * set). Locks automatically when {@code NOW() > end_date} or past {@code submission_deadline}.
-   */
-  public boolean isRoundOpenForSubmission(String roundId) {
-    String sql = "SELECT start_date, end_date, submission_deadline FROM rounds WHERE round_id = ?";
-    try (Connection conn = dataSource.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, roundId);
-      try (ResultSet rs = ps.executeQuery()) {
-        if (!rs.next()) {
-          return false;
-        }
-        java.sql.Timestamp now = new java.sql.Timestamp(System.currentTimeMillis());
-        java.sql.Timestamp startDate = rs.getTimestamp("start_date");
-        java.sql.Timestamp endDate = rs.getTimestamp("end_date");
-        java.sql.Timestamp deadline = rs.getTimestamp("submission_deadline");
-
-        if (startDate != null && now.before(startDate)) {
-          return false;
-        }
-        if (endDate != null && now.after(endDate)) {
-          return false;
-        }
-        if (deadline != null && now.after(deadline)) {
-          return false;
-        }
-        return true;
       }
     } catch (Exception e) {
       return false;

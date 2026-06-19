@@ -234,14 +234,17 @@ DROP TABLE IF EXISTS `eliminations`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `eliminations` (
   `elimination_id` varchar(36) NOT NULL,
-  `submission_id` varchar(36) NOT NULL,
+  `team_id` varchar(36) NOT NULL,
+  `event_id` varchar(36) NOT NULL,
   `reason` longtext NOT NULL,
   `eliminated_by` varchar(36) NOT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`elimination_id`),
-  KEY `idx_el_submission` (`submission_id`),
+  KEY `idx_el_team` (`team_id`),
+  KEY `idx_el_event` (`event_id`),
   KEY `fk_el_user` (`eliminated_by`),
-  CONSTRAINT `fk_el_submission` FOREIGN KEY (`submission_id`) REFERENCES `submissions` (`submission_id`),
+  CONSTRAINT `fk_el_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`),
+  CONSTRAINT `fk_el_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`team_id`),
   CONSTRAINT `fk_el_user` FOREIGN KEY (`eliminated_by`) REFERENCES `users` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -608,7 +611,7 @@ CREATE TABLE `team_registrations` (
   KEY `idx_tr_team` (`team_id`),
   CONSTRAINT `fk_tr_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`),
   CONSTRAINT `fk_tr_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`team_id`),
-  CONSTRAINT `chk_tr_status` CHECK ((`status` in (_utf8mb4'PENDING',_utf8mb4'APPROVED',_utf8mb4'REJECTED',_utf8mb4'SUSPENDED')))
+  CONSTRAINT `chk_tr_status` CHECK ((`status` in (_utf8mb4'PENDING',_utf8mb4'APPROVED',_utf8mb4'REJECTED',_utf8mb4'SUSPENDED',_utf8mb4'DROPPED')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

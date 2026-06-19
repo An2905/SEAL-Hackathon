@@ -2,16 +2,16 @@ package com.hackathon.hackathon.controller;
 
 import com.hackathon.hackathon.model.dto.request.CreateTeamRequest;
 import com.hackathon.hackathon.model.dto.request.DeleteTeamMemberRequest;
+import com.hackathon.hackathon.model.dto.request.DropEventRequest;
 import com.hackathon.hackathon.model.dto.request.JoinEventRequest;
 import com.hackathon.hackathon.model.dto.request.JoinTeamRequest;
-import com.hackathon.hackathon.model.dto.request.SubmitProjectRequest;
 import com.hackathon.hackathon.model.dto.response.CreateTeamResponse;
+import com.hackathon.hackathon.model.dto.response.DropEventResponse;
 import com.hackathon.hackathon.model.dto.response.EventRoundResponse;
 import com.hackathon.hackathon.model.dto.response.JoinTeamResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.dto.response.MyTeamResponse;
 import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
-import com.hackathon.hackathon.model.dto.response.TeamSubmissionsResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
 import com.hackathon.hackathon.service.TeamService;
 import java.util.List;
@@ -51,17 +51,16 @@ public class TeamController {
     return ResponseEntity.ok(teamService.joinEvent(authHeader, request));
   }
 
+  @DeleteMapping("/drop-event")
+  public ResponseEntity<DropEventResponse> dropEvent(
+      @RequestHeader("Authorization") String authHeader, @RequestBody DropEventRequest request) {
+    return ResponseEntity.ok(teamService.dropEvent(authHeader, request));
+  }
+
   @GetMapping("/me")
   public ResponseEntity<MyTeamResponse> getMyTeam(
       @RequestHeader("Authorization") String authHeader) {
     return ResponseEntity.ok(teamService.getMyTeam(authHeader));
-  }
-
-  @PutMapping("/submit-project")
-  public ResponseEntity<MessageResponse> submitProject(
-      @RequestHeader("Authorization") String authHeader,
-      @RequestBody SubmitProjectRequest request) {
-    return ResponseEntity.ok(teamService.submitProject(authHeader, request));
   }
 
   @GetMapping("/mentors")
@@ -74,14 +73,6 @@ public class TeamController {
   public ResponseEntity<List<TeamEventRegistrationResponse>> getTeamEventRegistrations(
       @RequestHeader("Authorization") String authHeader) {
     return ResponseEntity.ok(teamService.getTeamEventRegistrations(authHeader));
-  }
-
-  @GetMapping("/submissions")
-  public ResponseEntity<TeamSubmissionsResponse> getTeamSubmissions(
-      @RequestHeader("Authorization") String authHeader,
-      @RequestParam("eventId") String eventId,
-      @RequestParam(value = "roundId", required = false) String roundId) {
-    return ResponseEntity.ok(teamService.getTeamSubmissions(authHeader, eventId, roundId));
   }
 
   @GetMapping("/rounds")

@@ -26,43 +26,25 @@ public class ScoreRepository {
       String eventId, String roundId, String groupId, String judgeId) {
     List<JudgeTeamToScoreResponse> teams = new ArrayList<>();
     String sql =
-        "SELECT gt.team_id, t.team_name, sub.submission_id, sub.status AS submission_status, sub.submitted_at, "
-            + "sub.github_url, sub.demo_url, sub.report_url, sub.slide_url, "
-            + "(CASE WHEN sc.score_id IS NOT NULL THEN 1 ELSE 0 END) AS scored, "
-            + "sc.total_score, sc.score_id "
+        "SELECT gt.team_id, t.team_name "
             + "FROM group_teams gt "
             + "JOIN teams t ON gt.team_id = t.team_id "
             + "JOIN team_registrations tr ON tr.team_id = t.team_id AND tr.event_id = ? "
-            + "LEFT JOIN submissions sub ON sub.team_id = t.team_id AND sub.round_id = gt.round_id AND sub.group_id = gt.group_id "
-            + "LEFT JOIN scores sc ON sc.submission_id = sub.submission_id AND sc.judge_id = ? AND sc.group_id = gt.group_id "
             + "WHERE gt.round_id = ? AND gt.group_id = ? AND tr.status = 'APPROVED' "
             + "ORDER BY t.team_name ASC";
 
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, eventId);
-      ps.setString(2, judgeId);
-      ps.setString(3, roundId);
-      ps.setString(4, groupId);
+      ps.setString(2, roundId);
+      ps.setString(3, groupId);
 
       try (ResultSet rs = ps.executeQuery()) {
         while (rs.next()) {
           JudgeTeamToScoreResponse item = new JudgeTeamToScoreResponse();
           item.setTeamId(rs.getString("team_id"));
           item.setTeamName(rs.getString("team_name"));
-          item.setSubmissionId(rs.getString("submission_id"));
-          item.setSubmissionStatus(rs.getString("submission_status"));
-          item.setSubmittedAt(rs.getString("submitted_at"));
-          item.setGithubUrl(rs.getString("github_url"));
-          item.setDemoUrl(rs.getString("demo_url"));
-          item.setReportUrl(rs.getString("report_url"));
-          item.setSlideUrl(rs.getString("slide_url"));
-          item.setScored(rs.getInt("scored") == 1);
-
-          double totalScoreVal = rs.getDouble("total_score");
-          item.setTotalScore(rs.wasNull() ? null : totalScoreVal);
-
-          item.setScoreId(rs.getString("score_id"));
+          item.setScored(false);
           teams.add(item);
         }
       }

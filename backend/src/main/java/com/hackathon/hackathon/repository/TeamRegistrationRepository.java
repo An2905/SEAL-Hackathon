@@ -86,6 +86,31 @@ public class TeamRegistrationRepository {
     }
   }
 
+  public boolean updateStatusByTeamAndEvent(String teamId, String eventId, String status) {
+    String sql = "UPDATE team_registrations SET status = ? WHERE team_id = ? AND event_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, status);
+      ps.setString(2, teamId);
+      ps.setString(3, eventId);
+      return ps.executeUpdate() > 0;
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+  }
+
+  public boolean deleteByTeamAndEvent(String teamId, String eventId) {
+    String sql = "DELETE FROM team_registrations WHERE team_id = ? AND event_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, teamId);
+      ps.setString(2, eventId);
+      return ps.executeUpdate() > 0;
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+  }
+
   public Optional<String> findStatusByTeamAndEvent(String teamId, String eventId) {
     String sql = "SELECT status FROM team_registrations WHERE team_id = ? AND event_id = ?";
     try (Connection conn = dataSource.getConnection();

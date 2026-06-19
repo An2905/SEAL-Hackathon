@@ -5,17 +5,16 @@ import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.exception.ForbiddenException;
 import com.hackathon.hackathon.model.dto.request.CreateTeamRequest;
 import com.hackathon.hackathon.model.dto.request.DeleteTeamMemberRequest;
+import com.hackathon.hackathon.model.dto.request.DropEventRequest;
 import com.hackathon.hackathon.model.dto.request.JoinEventRequest;
 import com.hackathon.hackathon.model.dto.request.JoinTeamRequest;
-import com.hackathon.hackathon.model.dto.request.SubmitProjectRequest;
 import com.hackathon.hackathon.model.dto.response.CreateTeamResponse;
+import com.hackathon.hackathon.model.dto.response.DropEventResponse;
 import com.hackathon.hackathon.model.dto.response.EventRoundResponse;
 import com.hackathon.hackathon.model.dto.response.JoinTeamResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.dto.response.MyTeamResponse;
 import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
-import com.hackathon.hackathon.model.dto.response.TeamSubmissionItemResponse;
-import com.hackathon.hackathon.model.dto.response.TeamSubmissionsResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorItemResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
 import com.hackathon.hackathon.model.entity.Round;
@@ -23,8 +22,8 @@ import com.hackathon.hackathon.model.entity.TeamDetail;
 import com.hackathon.hackathon.model.entity.User;
 import com.hackathon.hackathon.model.mapper.EventMapper;
 import com.hackathon.hackathon.model.mapper.TeamMapper;
+import com.hackathon.hackathon.repository.EliminationRepository;
 import com.hackathon.hackathon.repository.EventRepository;
-import com.hackathon.hackathon.repository.SubmissionRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.repository.TeamRepository;
 import com.hackathon.hackathon.repository.UserRepository;
@@ -36,6 +35,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class TeamService {
 
+  private final EliminationRepository eliminationRepository;
+
   @Autowired private TeamRepository teamRepository;
 
   @Autowired private TeamMapper teamMapper;
@@ -44,8 +45,6 @@ public class TeamService {
 
   @Autowired private TeamRegistrationRepository teamRegistrationRepository;
 
-  @Autowired private SubmissionRepository submissionRepository;
-
   @Autowired private AuthService authService;
 
   @Autowired private UserRepository userRepository;
@@ -53,6 +52,10 @@ public class TeamService {
   @Autowired private EventMapper eventMapper;
 
   private static final int TEAM_NAME_MAX_LENGTH = 100;
+
+  TeamService(EliminationRepository eliminationRepository) {
+    this.eliminationRepository = eliminationRepository;
+  }
 
   private String normalizeTeamName(String raw) {
     if (raw == null) {
@@ -212,6 +215,71 @@ public class TeamService {
   }
 
   // #endregion
+  // #region TEAM DROP EVENT
+  public DropEventResponse dropEvent(String authHeader, DropEventRequest request) {
+    Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
+    String userId = claims.get("userId", String.class);
+
+    String leaderTeamId =
+        teamRepository
+            .findTeamIdByLeaderId(userId)
+            .orElseThrow(() -> new BadRequestException("Only team leaders can drop events."));
+
+    String teamId = request.getTeamId() == null ? "" : request.getTeamId().trim();
+    String eventId = request.getEventId() == null ? "" : request.getEventId().trim();
+
+    if (!leaderTeamId.equals(teamId)) {
+      throw new BadRequestException("Team ID does not match your team.");
+    }
+
+    // lấy eventID kiểm tra status trước, nêu status != UPCOMMING && status !=
+    // ONGOING thì báo lỗi,
+    // nếu status == UPCOMMING || status == ONGOING thì
+
+    if (!eventRepository.isUpcomingOrOngoing(eventId)) {
+      throw new BadRequestException("Event is already finished or not valid.");
+    }
+
+    // check trạng thái của team trong bảng regis bằng findStatusByTeamAndEvent, nếu
+    // trạng thái của team == pending thì xóa cứng,
+    // == denied thì cho tbao,
+
+    String status =
+        teamRegistrationRepository
+            .findStatusByTeamAndEvent(teamId, eventId)
+            .orElseThrow(() -> new BadRequestException("Your team has not joined this event."));
+
+    if ("PENDING".equalsIgnoreCase(status)) {
+      if (!teamRegistrationRepository.deleteByTeamAndEvent(teamId, eventId)) {
+        throw new BadRequestException("Drop event failed.");
+      }
+      return new DropEventResponse("Drop event successfully", teamId, eventId);
+    }
+
+    if ("DENIED".equalsIgnoreCase(status)) {
+      throw new BadRequestException("Your team registration has been denied. You cannot drop.");
+    }
+
+    // còn nếu APPROVED thì thêm vào bảng elimination, update trạng thái team trong
+    // bảng regis là
+    // SUSPENDED
+
+    if (!teamRegistrationRepository.updateStatusByTeamAndEvent(teamId, eventId, "SUSPENDED")) {
+      throw new BadRequestException("Drop event failed.");
+    }
+
+    if (!eliminationRepository.insert(teamId, eventId, "Team dropped", status)) {
+      throw new BadRequestException("Drop event failed.");
+    }
+
+    if (!teamRegistrationRepository.deleteByTeamAndEvent(teamId, eventId)) {
+      throw new BadRequestException("Drop event failed.");
+    }
+
+    return new DropEventResponse("Drop event successfully", teamId, eventId);
+  }
+
+  // #endregion
   // #region GET MY TEAM (read-only)
   public MyTeamResponse getMyTeam(String authHeader) {
     Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
@@ -226,99 +294,6 @@ public class TeamService {
   }
 
   // #endregion
-
-  // region SUBMIT PROJECT
-  public MessageResponse submitProject(String authHeader, SubmitProjectRequest request) {
-    if (request.getEventId() == null
-        || request.getRoundId() == null
-        || request.getEventId().trim().isEmpty()
-        || request.getRoundId().trim().isEmpty()) {
-      throw new BadRequestException("Event ID and Round ID are required.");
-    }
-    if (request.getGithubUrl() == null
-        || request.getDemoUrl() == null
-        || request.getReportUrl() == null
-        || request.getGithubUrl().trim().isEmpty()
-        || request.getDemoUrl().trim().isEmpty()
-        || request.getReportUrl().trim().isEmpty()) {
-      throw new BadRequestException("All project submission fields are required.");
-    }
-
-    String eventId = request.getEventId().trim();
-    String roundId = request.getRoundId().trim();
-    String githubUrl = request.getGithubUrl().trim();
-    String demoUrl = request.getDemoUrl().trim();
-    String reportUrl = request.getReportUrl().trim();
-    String slideUrl = request.getSlideUrl() == null ? null : request.getSlideUrl().trim();
-    String repositoryMetadata =
-        request.getRepositoryMetadata() == null ? null : request.getRepositoryMetadata().trim();
-
-    Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
-    String userId = claims.get("userId", String.class);
-
-    String teamId =
-        teamRepository
-            .findTeamIdByLeaderId(userId)
-            .orElseThrow(() -> new BadRequestException("Only team leaders can submit projects."));
-
-    String status =
-        teamRepository
-            .findTeamStatusById(teamId)
-            .orElseThrow(() -> new BadRequestException("Team status not found."));
-    if (!"ACTIVE".equalsIgnoreCase(status)) {
-      throw new BadRequestException("Team is suspended and cannot submit projects.");
-    }
-
-    if (!teamRegistrationRepository.existsByTeamAndEvent(teamId, eventId)) {
-      throw new BadRequestException("Your team has not joined this event.");
-    }
-
-    String registrationStatus =
-        teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse("");
-    if (!"APPROVED".equalsIgnoreCase(registrationStatus)) {
-      throw new BadRequestException(
-          "Team registration is suspended or not approved. Cannot submit project.");
-    }
-
-    String eventStatus =
-        eventRepository
-            .findStatusById(eventId)
-            .orElseThrow(() -> new BadRequestException("Event is not valid."));
-    if ("COMPLETED".equalsIgnoreCase(eventStatus)) {
-      throw new BadRequestException("Event already completed.");
-    }
-    if (!"ONGOING".equalsIgnoreCase(eventStatus)) {
-      throw new BadRequestException("Event is not ongoing.");
-    }
-
-    if (!eventRepository.roundBelongsToEvent(roundId, eventId)) {
-      throw new BadRequestException("Round does not belong to this event.");
-    }
-
-    if (!eventRepository.isRoundOpenForSubmission(roundId)) {
-      throw new BadRequestException(
-          "Submission is locked. The round has ended, not started yet, or the deadline has passed.");
-    }
-
-    boolean saved;
-    if (submissionRepository.existsByTeamAndRound(teamId, roundId)) {
-      saved =
-          submissionRepository.update(
-              teamId, roundId, githubUrl, demoUrl, reportUrl, slideUrl, repositoryMetadata);
-    } else {
-      saved =
-          submissionRepository.insert(
-              teamId, roundId, githubUrl, demoUrl, reportUrl, slideUrl, repositoryMetadata);
-    }
-
-    if (!saved) {
-      throw new BadRequestException("Submit project failed.");
-    }
-
-    return new MessageResponse("Submit project successfully");
-  }
-
-  // endregion
 
   // region GET TEAM TRACK MENTORS
   public TeamTrackMentorsResponse getTeamTrackMentors(String authHeader, String eventId) {
@@ -376,60 +351,6 @@ public class TeamService {
 
   // endregion
 
-  // region GET TEAM SUBMISSIONS
-  public TeamSubmissionsResponse getTeamSubmissions(
-      String authHeader, String eventId, String roundId) {
-
-    // 1. eventId is mandatory
-    if (eventId == null || eventId.trim().isEmpty()) {
-      throw new BadRequestException("Event ID is required.");
-    }
-    String cleanEventId = eventId.trim();
-    // roundId is optional — treat blank as absent
-    String cleanRoundId = (roundId != null && !roundId.isBlank()) ? roundId.trim() : null;
-
-    // 2. JWT auth — students only
-    Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
-    String userId = claims.get("userId", String.class);
-
-    // 3. Any team member (not just leader) may view submissions
-    TeamDetail detail =
-        teamRepository
-            .findTeamDetailByUserId(userId)
-            .orElseThrow(() -> new BadRequestException("No team found for this user."));
-    String teamId = detail.getTeamId();
-
-    // 4. Team must have a registration for this event (PENDING | APPROVED | REJECTED allowed —
-    // read-only)
-    TeamTrackMentorsResponse trackDetails =
-        teamRegistrationRepository
-            .findTrackDetailsByTeamAndEvent(teamId, cleanEventId)
-            .orElseThrow(() -> new BadRequestException("Your team has not joined this event."));
-
-    // 5. If roundId provided, it must belong to this event
-    if (cleanRoundId != null && !eventRepository.roundBelongsToEvent(cleanRoundId, cleanEventId)) {
-      throw new BadRequestException("Round does not belong to this event.");
-    }
-
-    // 6. Query submissions (empty list is a valid 200 response)
-    List<TeamSubmissionItemResponse> submissions =
-        submissionRepository.findByTeamAndEvent(teamId, cleanEventId, cleanRoundId);
-
-    // 7. Assemble wrapper response
-    TeamSubmissionsResponse response = new TeamSubmissionsResponse();
-    response.setEventId(cleanEventId);
-    response.setEventTitle(trackDetails.getEventTitle());
-    response.setTeamId(teamId);
-    response.setTeamName(detail.getTeamName());
-    response.setGroupId(trackDetails.getGroupId());
-    response.setGroupName(trackDetails.getGroupName());
-    response.setSubmissions(submissions);
-
-    return response;
-  }
-
-  // endregion
-
   // region GET TEAM ROUNDS
   public List<EventRoundResponse> getTeamRounds(String authHeader, String eventId) {
     if (eventId == null || eventId.trim().isEmpty()) {
@@ -453,5 +374,6 @@ public class TeamService {
     List<Round> rounds = eventRepository.findRoundsByEventId(cleanEventId);
     return rounds.stream().map(eventMapper::toRoundResponse).toList();
   }
+
   // endregion
 }

@@ -21,7 +21,6 @@ import com.hackathon.hackathon.repository.AssignmentRepository;
 import com.hackathon.hackathon.repository.CriteriaRepository;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.ScoreRepository;
-import com.hackathon.hackathon.repository.SubmissionRepository;
 import io.jsonwebtoken.Claims;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -48,8 +47,6 @@ public class JudgeService {
   @Autowired private CriteriaMapper criteriaMapper;
 
   @Autowired private AssignmentRepository assignmentRepository;
-
-  @Autowired private SubmissionRepository submissionRepository;
 
   @Autowired private ScoreRepository scoreRepository;
 
@@ -242,7 +239,6 @@ public class JudgeService {
     String cleanEventId = request.getEventId().trim();
     String cleanRoundId = request.getRoundId().trim();
     String cleanGroupId = request.getGroupId().trim();
-    String cleanSubmissionId = request.getSubmissionId().trim();
 
     // 1. Judge assign đúng round + group
     if (!assignmentRepository.judgeAssignmentExists(judgeId, cleanRoundId, cleanGroupId)) {
@@ -255,13 +251,6 @@ public class JudgeService {
     }
     if (!eventRepository.groupBelongsToEvent(cleanGroupId, cleanEventId)) {
       throw new BadRequestException("Group does not belong to this event.");
-    }
-
-    // 2. submissionId thuộc team trong group, round, event, và tr.status = APPROVED
-    if (!submissionRepository.validateSubmissionForScoring(
-        cleanSubmissionId, cleanRoundId, cleanGroupId, cleanEventId)) {
-      throw new BadRequestException(
-          "Submission does not belong to this group/round or is not from an approved team.");
     }
 
     List<EventCriterion> criteriaList = criteriaRepository.findCriteriaByRoundId(cleanRoundId);
