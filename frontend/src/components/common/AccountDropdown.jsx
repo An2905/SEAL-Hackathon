@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { getGithubLinkStatus, getGithubLinkUrl } from '../../api/auth'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import { localizeError } from '../../utils/errors'
+import { STUDENT_ROLES } from '../../utils/roleLabels'
 import Avatar from './Avatar'
 
 /**
@@ -15,11 +18,42 @@ export default function AccountDropdown({ roleLabel, onNavigateProfile }) {
   const { auth, clearAuth, pathForRole } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [open, setOpen] = useState(false)
+  const [githubLinked, setGithubLinked] = useState(null)
+  const [oauthLoading, setOauthLoading] = useState(false)
   const ref = useRef(null)
 
   const displayName = auth.fullName || auth.email || 'User'
+  const isStudent = STUDENT_ROLES.includes(auth.role)
+
+  const loadGithubStatus = useCallback(async () => {
+    if (!isStudent) {
+      setGithubLinked(null)
+      return
+    }
+    try {
+      const status = await getGithubLinkStatus()
+      setGithubLinked(status.githubLinked)
+    } catch {
+      setGithubLinked(false)
+    }
+  }, [isStudent])
+
+  useEffect(() => {
+    loadGithubStatus()
+  }, [loadGithubStatus])
+
+  useEffect(() => {
+    if (!isStudent) return
+    const status = new URLSearchParams(location.search).get('github_oauth')
+    if (status === 'success') loadGithubStatus()
+  }, [location.search, isStudent, loadGithubStatus])
+
+  useEffect(() => {
+    if (open && isStudent) loadGithubStatus()
+  }, [open, isStudent, loadGithubStatus])
 
   useEffect(() => {
     const handler = (e) => {
@@ -55,6 +89,20 @@ export default function AccountDropdown({ roleLabel, onNavigateProfile }) {
     setOpen(false)
     navigate(pathForRole(auth.role))
   }
+
+  const handleConnectGithub = async () => {
+    setOpen(false)
+    setOauthLoading(true)
+    try {
+      const authorizeUrl = await getGithubLinkUrl()
+      window.location.href = authorizeUrl
+    } catch (err) {
+      showToast(localizeError(err.message), 'error')
+      setOauthLoading(false)
+    }
+  }
+
+  const showGithubLink = isStudent && githubLinked === false
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
@@ -97,9 +145,9 @@ export default function AccountDropdown({ roleLabel, onNavigateProfile }) {
       {open && (
         <div style={dropdownStyle} role='menu' aria-label='Menu tài khoản'>
           {/* Header block */}
-          <div style={dropdownHeaderStyle}>
+          <div className='account-dropdown-header'>
             <Avatar name={displayName} avatarUrl={auth.avatarUrl} size={36} fontSize={14} />
-            <div>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text, #1a202c)' }}>{displayName}</div>
               <div style={{ fontSize: 12, color: 'var(--text-dim, #718096)', marginTop: 1 }}>{roleLabel}</div>
             </div>
@@ -109,6 +157,15 @@ export default function AccountDropdown({ roleLabel, onNavigateProfile }) {
 
           <DropdownItem icon={<IconBriefcase />} label='Trang làm việc' onClick={handleWorkspace} />
           <DropdownItem icon={<IconUser />} label='Hồ sơ của tôi' onClick={handleProfile} />
+          {showGithubLink && (
+            <DropdownItem
+              icon={<IconGithub />}
+              label={oauthLoading ? 'Đang chuyển hướng...' : 'Liên kết GitHub'}
+              onClick={handleConnectGithub}
+              disabled={oauthLoading}
+              alert
+            />
+          )}
           <DropdownItem icon={<IconBell />} label='Thông báo' badge='Sắp ra mắt' disabled />
 
           <div style={sepStyle} />
@@ -122,7 +179,15 @@ export default function AccountDropdown({ roleLabel, onNavigateProfile }) {
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
-function DropdownItem({ icon, label, onClick, danger, disabled, badge }) {
+function GithubAlertBadge({ className = '', title = 'Chưa liên kết GitHub' }) {
+  return (
+    <span className={`github-alert-badge ${className}`.trim()} title={title} aria-hidden='true'>
+      !
+    </span>
+  )
+}
+
+function DropdownItem({ icon, label, onClick, danger, disabled, badge, alert }) {
   const [hovered, setHovered] = useState(false)
 
   if (disabled) {
@@ -130,11 +195,11 @@ function DropdownItem({ icon, label, onClick, danger, disabled, badge }) {
       <div role='menuitem' aria-disabled='true' style={dropdownItemInertStyle}>
         <span style={{ opacity: 0.5, display: 'flex', alignItems: 'center' }}>{icon}</span>
         <span style={{ flex: 1 }}>{label}</span>
+        {alert && <GithubAlertBadge />}
         {badge && <span className='card-badge'>{badge}</span>}
       </div>
     )
   }
-
   return (
     <button
       type='button'
@@ -159,6 +224,8 @@ function DropdownItem({ icon, label, onClick, danger, disabled, badge }) {
     >
       <span style={{ opacity: 0.6, display: 'flex', alignItems: 'center' }}>{icon}</span>
       <span style={{ flex: 1 }}>{label}</span>
+      {alert && <GithubAlertBadge />}
+      {badge && <span className='card-badge'>{badge}</span>}
     </button>
   )
 }
@@ -188,14 +255,6 @@ const dropdownStyle = {
   boxShadow: 'var(--shadow-md)',
   zIndex: 200,
   overflow: 'hidden'
-}
-
-const dropdownHeaderStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10,
-  padding: '12px 14px',
-  background: 'var(--surface-alt,#f7f8fa)'
 }
 
 const sepStyle = {
@@ -264,6 +323,13 @@ function IconBell() {
     >
       <path d='M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9' />
       <path d='M13.73 21a2 2 0 0 1-3.46 0' />
+    </svg>
+  )
+}
+function IconGithub() {
+  return (
+    <svg width='15' height='15' viewBox='0 0 24 24' fill='currentColor' aria-hidden='true'>
+      <path d='M12 0C5.37 0 0 5.37 0 12c0 5.31 3.44 9.8 8.2 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.38-1.34-1.75-1.34-1.75-1.09-.75.08-.74.08-.74 1.21.08 1.84 1.24 1.84 1.24 1.07 1.85 2.81 1.31 3.49 1 .11-.78.42-1.31.76-1.61-2.67-.31-5.47-1.34-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.31-.54-1.56.12-3.25 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.66 1.69.24 2.94.12 3.25.77.84 1.24 1.91 1.24 3.22 0 4.6-2.81 5.62-5.49 5.92.43.38.82 1.11.82 2.24 0 1.62-.02 2.92-.02 3.32 0 .32.21.69.83.57C20.57 21.79 24 17.31 24 12c0-6.63-5.37-12-12-12z' />
     </svg>
   )
 }

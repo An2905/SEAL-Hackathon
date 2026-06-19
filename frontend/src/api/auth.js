@@ -110,3 +110,17 @@ export async function getGithubLinkUrl() {
   }
   return authorizeUrl
 }
+
+export async function getGithubLinkStatus() {
+  const text = await apiFetch('/api/auth/github/status', { method: 'GET' })
+  let parsed
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    throw new Error('Không đọc được trạng thái GitHub từ máy chủ.')
+  }
+  return {
+    githubLinked: Boolean(parsed.githubLinked ?? parsed.github_linked),
+    githubUsername: String(parsed.githubUsername ?? parsed.github_username ?? '').trim()
+  }
+}

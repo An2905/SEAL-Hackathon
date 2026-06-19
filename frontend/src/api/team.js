@@ -20,11 +20,29 @@ function errorMessage(err) {
   }
 }
 
+function mapMyTeamMember(row) {
+  const m = row && typeof row === 'object' ? row : {}
+  return {
+    ...m,
+    // Jackson serializes boolean isLeader as "leader" in JSON.
+    isLeader: Boolean(m.isLeader ?? m.leader)
+  }
+}
+
+function mapMyTeamResponse(data) {
+  const r = data && typeof data === 'object' ? data : {}
+  return {
+    ...r,
+    isLeader: Boolean(r.isLeader ?? r.leader),
+    members: Array.isArray(r.members) ? r.members.map(mapMyTeamMember) : []
+  }
+}
+
 // GET /api/team/me
 // Response: MyTeamResponse JSON object
 export async function getMyTeam() {
   try {
-    const data = parseJson(await apiFetch('/api/team/me', { method: 'GET' }))
+    const data = mapMyTeamResponse(parseJson(await apiFetch('/api/team/me', { method: 'GET' })))
     if (data.teamId) return { hasTeam: true, data }
     return { hasTeam: false }
   } catch (err) {

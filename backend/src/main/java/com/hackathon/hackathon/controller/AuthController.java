@@ -7,6 +7,7 @@ import com.hackathon.hackathon.model.dto.request.StudentRegisterRequest;
 import com.hackathon.hackathon.model.dto.request.UpdatePasswordRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateProfileRequest;
 import com.hackathon.hackathon.model.dto.request.VerifyStudentRegisterRequest;
+import com.hackathon.hackathon.model.dto.response.GithubLinkStatusResponse;
 import com.hackathon.hackathon.model.dto.response.GithubOauthUrlResponse;
 import com.hackathon.hackathon.model.dto.response.LoginResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
@@ -77,6 +78,12 @@ public class AuthController {
       @RequestHeader("Authorization") String authHeader, HttpSession session) {
     String authorizeUrl = githubOauthService.buildAuthorizeUrl(authHeader, session);
     return ResponseEntity.ok(new GithubOauthUrlResponse(authorizeUrl));
+  }
+
+  @GetMapping("/github/status")
+  public ResponseEntity<GithubLinkStatusResponse> getGithubLinkStatus(
+      @RequestHeader("Authorization") String authHeader) {
+    return ResponseEntity.ok(authService.getGithubLinkStatus(authHeader));
   }
 
   @GetMapping(value = "/github/callback", produces = MediaType.TEXT_HTML_VALUE)

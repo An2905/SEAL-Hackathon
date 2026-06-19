@@ -3,6 +3,7 @@ package com.hackathon.hackathon.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hackathon.hackathon.exception.BadRequestException;
+import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.repository.StudentProfileRepository;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpSession;
@@ -48,6 +49,10 @@ public class GithubOauthService {
     if (userId == null || userId.trim().isEmpty()) {
       throw new BadRequestException("Invalid user token.");
     }
+    userId = userId.trim();
+    if (authService.isStudentGithubLinked(userId)) {
+      throw new BadRequestException("GitHub account is already linked.");
+    }
 
     String state = UUID.randomUUID().toString();
     long expireAt = System.currentTimeMillis() + STATE_TTL_MS;
@@ -70,14 +75,27 @@ public class GithubOauthService {
       validateGithubConfig();
       validateState(state, session);
       String userId = extractUserIdByState(state, session);
+      if (authService.isStudentGithubLinked(userId)) {
+        throw new BadRequestException("GitHub account is already linked.");
+      }
+
       String accessToken = exchangeCodeForAccessToken(code);
       GithubUser githubUser = fetchGithubUser(accessToken);
+
+      authService.requireGithubAvailableForUser(
+          userId, githubUser.username(), githubUser.githubId());
+
       boolean updated =
-          studentProfileRepository.updateGithubProfile(
+          studentProfileRepository.updateGithubProfileIfNotLinked(
               userId, githubUser.username(), githubUser.githubId());
       if (!updated) {
-        throw new BadRequestException("Failed to save GitHub profile.");
+        if (studentProfileRepository.isGithubLinkedToOtherUser(
+            userId, githubUser.username(), githubUser.githubId())) {
+          throw new ConflictException("This GitHub account is already linked to another user.");
+        }
+        throw new BadRequestException("GitHub account is already linked.");
       }
+
       return githubFrontendRedirect
           + "?github_oauth=success&github_username="
           + urlEncode(githubUser.username());

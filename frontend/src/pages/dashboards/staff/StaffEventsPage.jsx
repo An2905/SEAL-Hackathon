@@ -72,7 +72,7 @@ export default function StaffEventsPage() {
 
   const handleStatusChange = async (eventId, nextStatus) => {
     try {
-      await changeEventStatus({ eventId, status: nextStatus })
+      await changeEventStatus({ eventId, newStatus: nextStatus })
       setEvents((prev) => prev.map((e) => (e.eventId === eventId ? { ...e, status: nextStatus } : e)))
       showToast(`Đã cập nhật trạng thái → ${nextStatus}`, 'success')
     } catch (err) {

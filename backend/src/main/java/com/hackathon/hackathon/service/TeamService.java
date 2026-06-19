@@ -78,6 +78,8 @@ public class TeamService {
     Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
     String userId = claims.get("userId", String.class);
 
+    authService.requireStudentGithubLinked(userId);
+
     if (teamRepository.existsByTeamName(teamName)) {
       throw new ConflictException("Team name already exists. Please choose a different name.");
     }
@@ -109,6 +111,8 @@ public class TeamService {
 
     Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
     String userId = claims.get("userId", String.class);
+
+    authService.requireStudentGithubLinked(userId);
 
     if (teamRepository.isMember(userId)) {
       throw new BadRequestException(

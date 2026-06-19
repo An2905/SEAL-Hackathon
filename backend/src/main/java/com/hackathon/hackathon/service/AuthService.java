@@ -11,6 +11,7 @@ import com.hackathon.hackathon.model.dto.request.StudentRegisterRequest;
 import com.hackathon.hackathon.model.dto.request.UpdatePasswordRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateProfileRequest;
 import com.hackathon.hackathon.model.dto.request.VerifyStudentRegisterRequest;
+import com.hackathon.hackathon.model.dto.response.GithubLinkStatusResponse;
 import com.hackathon.hackathon.model.dto.response.LoginResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.dto.response.ProfileUpdateResponse;
@@ -92,6 +93,39 @@ public class AuthService {
     if (!captchaService.verify(captchaToken)) {
       throw new BadRequestException("Invalid captcha.");
     }
+  }
+
+  public boolean isStudentGithubLinked(String userId) {
+    return studentProfileRepository.hasGithubOAuthLinked(userId);
+  }
+
+  public void requireStudentGithubLinked(String userId) {
+    if (!isStudentGithubLinked(userId)) {
+      throw new BadRequestException("GitHub OAuth is required before joining or creating a team.");
+    }
+  }
+
+  public void requireGithubAvailableForUser(String userId, String githubUsername, Long githubId) {
+    String normalizedUserId = userId == null ? "" : userId.trim();
+    if (normalizedUserId.isEmpty()) {
+      throw new BadRequestException("Invalid user token.");
+    }
+    if (studentProfileRepository.isGithubLinkedToOtherUser(
+        normalizedUserId, githubUsername, githubId)) {
+      throw new ConflictException("This GitHub account is already linked to another user.");
+    }
+  }
+
+  public GithubLinkStatusResponse getGithubLinkStatus(String authHeader) {
+    Claims claims = validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
+    String userId = claims.get("userId", String.class);
+    if (userId == null || userId.isBlank()) {
+      throw new BadRequestException("Invalid user token.");
+    }
+    boolean linked = isStudentGithubLinked(userId.trim());
+    String githubUsername =
+        linked ? studentProfileRepository.findGithubUsernameByUserId(userId.trim()).orElse("") : "";
+    return new GithubLinkStatusResponse(linked, githubUsername);
   }
 
   @Autowired private EmailService emailService;
@@ -219,6 +253,13 @@ public class AuthService {
 
     if (isStudentRole(role)) {
       String githubUsername = request.getGithubUsername();
+      if (githubUsername != null && !githubUsername.trim().isEmpty()) {
+        if (isStudentGithubLinked(userId)) {
+          throw new BadRequestException(
+              "GitHub account is already linked. Profile cannot change GitHub username.");
+        }
+        requireGithubAvailableForUser(userId, githubUsername.trim(), null);
+      }
       if (!studentProfileRepository.update(userId, newStudentId, newUniversity, githubUsername)) {
         throw new BadRequestException("Failed to update student profile.");
       }

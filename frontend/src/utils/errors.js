@@ -5,6 +5,11 @@ const ERROR_MAP = {
   HTTP_404: 'Không tìm thấy tài nguyên yêu cầu.',
   HTTP_500: 'Lỗi máy chủ. Vui lòng thử lại sau.',
   'Invalid captcha.': 'Captcha không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.',
+  'This GitHub account is already linked to another user.':
+    'Tài khoản GitHub này đã được liên kết với sinh viên khác.',
+  'GitHub OAuth is required before joining or creating a team.':
+    'Bạn cần liên kết GitHub trước khi tạo hoặc tham gia đội.',
+  'GitHub account is already linked.': 'Tài khoản GitHub đã được liên kết.',
   'Team name already exists. Please choose a different name.': 'Tên đội đã tồn tại. Vui lòng chọn tên khác.',
   'Team name cannot be empty.': 'Tên đội không được để trống.',
   'Team name must be at most 100 characters.': 'Tên đội tối đa 100 ký tự.',

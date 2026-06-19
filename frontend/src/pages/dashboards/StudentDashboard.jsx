@@ -4,6 +4,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout'
 import FormField from '../../components/common/FormField'
 import FormMessage from '../../components/common/FormMessage'
 import LoadingButton from '../../components/common/LoadingButton'
+import { getUpcomingEvents } from '../../api/publicEvent'
 import {
   getMyTeam,
   createTeam,
@@ -18,7 +19,7 @@ import { localizeError } from '../../utils/errors'
 import ChatPopup, { ChatOpenButton } from '../../components/chat/ChatPopup'
 import Pagination from '../../components/common/Pagination'
 import LoadingState from '../../components/common/LoadingState'
-import { getGithubLinkUrl } from '../../api/auth'
+import { getGithubLinkStatus } from '../../api/auth'
 
 const PAGE_SIZE = 5
 
@@ -152,7 +153,7 @@ function TeamInfoCard({ data, onRefresh }) {
 }
 
 // ─── Create Team Form ─────────────────────────────────────────────────────────
-function CreateTeamForm({ onSuccess }) {
+function CreateTeamForm({ onSuccess, githubLinked }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
@@ -192,6 +193,11 @@ function CreateTeamForm({ onSuccess }) {
       <p className='card-sub'>
         Tạo đội của riêng bạn. Hệ thống sẽ sinh mã <strong>enrollCode</strong> để mời thành viên khác.
       </p>
+      {!githubLinked && (
+        <p className='form-message error' style={{ marginBottom: 12 }}>
+          Bạn cần liên kết GitHub trước khi tạo đội.
+        </p>
+      )}
       <form className='form' onSubmit={handleSubmit}>
         <FormField label='Tên đội'>
           <input
@@ -201,12 +207,13 @@ function CreateTeamForm({ onSuccess }) {
             required
             maxLength={100}
             placeholder='VD: Code Hunters'
+            disabled={!githubLinked || loading}
           />
         </FormField>
         <p className='card-sub' style={{ marginTop: 0 }}>
           Tên đội phải là duy nhất trên toàn hệ thống (không phân biệt hoa thường).
         </p>
-        <LoadingButton loading={loading} type='submit'>
+        <LoadingButton loading={loading} type='submit' disabled={!githubLinked}>
           Tạo đội
         </LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
@@ -216,7 +223,7 @@ function CreateTeamForm({ onSuccess }) {
 }
 
 // ─── Join Team Form ───────────────────────────────────────────────────────────
-function JoinTeamForm({ onSuccess }) {
+function JoinTeamForm({ onSuccess, githubLinked }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
@@ -247,6 +254,11 @@ function JoinTeamForm({ onSuccess }) {
       <p className='card-sub'>
         Nhập mã <strong>enrollCode</strong> mà leader cung cấp cho bạn.
       </p>
+      {!githubLinked && (
+        <p className='form-message error' style={{ marginBottom: 12 }}>
+          Bạn cần liên kết GitHub trước khi tham gia đội.
+        </p>
+      )}
       <form className='form' onSubmit={handleSubmit}>
         <FormField label='Mã enroll'>
           <input
@@ -256,9 +268,10 @@ function JoinTeamForm({ onSuccess }) {
             required
             placeholder='VD: 12345678'
             maxLength={16}
+            disabled={!githubLinked || loading}
           />
         </FormField>
-        <LoadingButton loading={loading} type='submit'>
+        <LoadingButton loading={loading} type='submit' disabled={!githubLinked}>
           Tham gia
         </LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
@@ -486,17 +499,54 @@ function TeamEventsList({ list, mentorsByEvent, onOpenChat }) {
 function JoinEventForm({ onSuccess }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [eventsLoading, setEventsLoading] = useState(true)
   const [message, setMessage] = useState(null)
   const [eventId, setEventId] = useState('')
+  const [events, setEvents] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setEventsLoading(true)
+      try {
+        const [upcoming, registrations] = await Promise.all([getUpcomingEvents(), getTeamRegistrations()])
+        if (cancelled) return
+        const registeredIds = new Set(
+          registrations.map((r) => String(r.eventId ?? '').trim()).filter(Boolean)
+        )
+        const available = upcoming.filter((ev) => !registeredIds.has(String(ev.eventId)))
+        setEvents(available)
+        if (available.length === 1) {
+          setEventId(available[0].eventId)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setEvents([])
+          setMessage({ text: localizeError(err.message), type: 'error' })
+        }
+      } finally {
+        if (!cancelled) setEventsLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setMessage(null)
+    if (!eventId) {
+      setMessage({ text: 'Vui lòng chọn sự kiện', type: 'error' })
+      return
+    }
     setLoading(true)
     try {
-      await joinEvent({ eventId: eventId.trim() })
-      setMessage({ text: 'Đăng ký event thành công!', type: 'success' })
-      showToast('Đăng ký event thành công', 'success')
+      const joinedId = eventId
+      await joinEvent({ eventId: joinedId })
+      setEvents((prev) => prev.filter((ev) => ev.eventId !== joinedId))
+      setMessage({ text: 'Đăng ký sự kiện thành công!', type: 'success' })
+      showToast('Đăng ký sự kiện thành công', 'success')
       setEventId('')
       onSuccess?.()
     } catch (err) {
@@ -506,26 +556,44 @@ function JoinEventForm({ onSuccess }) {
     }
   }
 
+  const formatEventOption = (ev) => {
+    const start = ev.startDate
+      ? new Date(ev.startDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : ''
+    return start ? `${ev.title} (${start})` : ev.title
+  }
+
   return (
     <div className='card'>
       <div className='card-head'>
         <div className='card-title'>Đăng ký sự kiện</div>
       </div>
       <p className='card-sub'>
-        Đăng ký đội tham gia sự kiện hackathon. Liên hệ BTC nếu chưa biết mã sự kiện. BTC sẽ phân bảng sau khi duyệt.
+        Chọn sự kiện đang mở đăng ký (UPCOMING). BTC sẽ duyệt và phân bảng sau khi đội đăng ký.
       </p>
       <form className='form' onSubmit={handleSubmit}>
         <FormField label='Sự kiện'>
-          <input
-            name='eventId'
-            value={eventId}
-            onChange={(e) => setEventId(e.target.value)}
-            required
-            placeholder='Mã sự kiện do BTC cung cấp'
-          />
+          {eventsLoading ? (
+            <div className='empty-state' style={{ padding: '8px 0' }}>
+              Đang tải danh sách sự kiện...
+            </div>
+          ) : events.length === 0 ? (
+            <div className='empty-state' style={{ padding: '8px 0' }}>
+              Hiện chưa có sự kiện nào ở trạng thái UPCOMING hoặc đội đã đăng ký hết.
+            </div>
+          ) : (
+            <select name='eventId' value={eventId} onChange={(e) => setEventId(e.target.value)} required disabled={loading}>
+              <option value=''>-- Chọn sự kiện --</option>
+              {events.map((ev) => (
+                <option key={ev.eventId} value={ev.eventId}>
+                  {formatEventOption(ev)}
+                </option>
+              ))}
+            </select>
+          )}
         </FormField>
-        <LoadingButton loading={loading} type='submit'>
-          Đăng ký event
+        <LoadingButton loading={loading} type='submit' disabled={eventsLoading || events.length === 0}>
+          Đăng ký sự kiện
         </LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
       </form>
@@ -620,10 +688,24 @@ export default function StudentDashboard() {
   const [activities, setActivities] = useState([])
   const [registrationsRefreshKey, setRegistrationsRefreshKey] = useState(0)
   const [chatTarget, setChatTarget] = useState(null)
-  const [oauthLoading, setOauthLoading] = useState(false)
+  const [githubStatus, setGithubStatus] = useState({ loading: true, linked: false, username: '' })
   const handledOauthSearchRef = useRef('')
 
   const logActivity = (text) => setActivities((prev) => [{ text, at: new Date() }, ...prev])
+
+  const loadGithubStatus = useCallback(async () => {
+    setGithubStatus((prev) => ({ ...prev, loading: true }))
+    try {
+      const status = await getGithubLinkStatus()
+      setGithubStatus({
+        loading: false,
+        linked: status.githubLinked,
+        username: status.githubUsername
+      })
+    } catch {
+      setGithubStatus({ loading: false, linked: false, username: '' })
+    }
+  }, [])
 
   const loadMyTeam = useCallback(async () => {
     setTeamState('loading')
@@ -644,6 +726,10 @@ export default function StudentDashboard() {
   useEffect(() => { loadMyTeam() }, [loadMyTeam])
 
   useEffect(() => {
+    loadGithubStatus()
+  }, [loadGithubStatus])
+
+  useEffect(() => {
     const params = new URLSearchParams(location.search)
     const status = params.get('github_oauth')
     if (!status) return
@@ -657,24 +743,20 @@ export default function StudentDashboard() {
         'success'
       )
       logActivity('Liên kết GitHub thành công')
+      loadGithubStatus()
     } else {
-      const message = params.get('message') || 'Liên kết GitHub thất bại.'
-      showToast(message, 'error')
+      const rawMessage = params.get('message') || 'Liên kết GitHub thất bại.'
+      let message = rawMessage
+      try {
+        message = decodeURIComponent(rawMessage.replace(/\+/g, ' '))
+      } catch {
+        message = rawMessage
+      }
+      showToast(localizeError(message), 'error')
     }
 
     navigate('/student', { replace: true })
-  }, [location.search, navigate, showToast])
-
-  const handleConnectGithub = async () => {
-    setOauthLoading(true)
-    try {
-      const authorizeUrl = await getGithubLinkUrl()
-      window.location.href = authorizeUrl
-    } catch (err) {
-      showToast(localizeError(err.message), 'error')
-      setOauthLoading(false)
-    }
-  }
+  }, [location.search, navigate, showToast, loadGithubStatus])
 
   const handleTeamCreated = () => {
     logActivity('Tạo đội mới')
@@ -701,25 +783,6 @@ export default function StudentDashboard() {
       moduleSubtitle='Quản lý đội thi và đăng ký sự kiện hackathon ngay tại đây.'
       showStudentFields
     >
-      <div className='card'>
-        <div className='card-head'>
-          <div className='card-title'>GitHub OAuth</div>
-        </div>
-        <div className='card-actions'>
-          <LoadingButton loading={oauthLoading} type='button' className='btn github-connect-btn' onClick={handleConnectGithub}>
-            <span className='github-connect-btn-content'>
-              <svg viewBox='0 0 24 24' width='18' height='18' aria-hidden='true' focusable='false'>
-                <path
-                  fill='currentColor'
-                  d='M12 0C5.37 0 0 5.37 0 12c0 5.31 3.44 9.8 8.2 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.38-1.34-1.75-1.34-1.75-1.09-.75.08-.74.08-.74 1.21.08 1.84 1.24 1.84 1.24 1.07 1.85 2.81 1.31 3.49 1 .11-.78.42-1.31.76-1.61-2.67-.31-5.47-1.34-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.31-.54-1.56.12-3.25 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.66 1.69.24 2.94.12 3.25.77.84 1.24 1.91 1.24 3.22 0 4.6-2.81 5.62-5.49 5.92.43.38.82 1.11.82 2.24 0 1.62-.02 2.92-.02 3.32 0 .32.21.69.83.57C20.57 21.79 24 17.31 24 12c0-6.63-5.37-12-12-12z'
-                />
-              </svg>
-              <span>Liên kết GitHub</span>
-            </span>
-          </LoadingButton>
-        </div>
-      </div>
-
       <div className="section-title">
         <h2>Đội của tôi</h2>
         <span className='hint'>Mỗi sinh viên chỉ có thể tham gia 1 đội</span>
@@ -744,8 +807,8 @@ export default function StudentDashboard() {
 
       {teamState === 'no-team' && (
         <div className='cards'>
-          <CreateTeamForm onSuccess={handleTeamCreated} />
-          <JoinTeamForm onSuccess={handleTeamJoined} />
+          <CreateTeamForm onSuccess={handleTeamCreated} githubLinked={githubStatus.linked} />
+          <JoinTeamForm onSuccess={handleTeamJoined} githubLinked={githubStatus.linked} />
         </div>
       )}
 

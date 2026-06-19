@@ -24,4 +24,9 @@ export async function getPublicEvents() {
   }
 }
 
+export async function getUpcomingEvents() {
+  const events = await getPublicEvents()
+  return events.filter((ev) => String(ev.status ?? '').toUpperCase() === 'UPCOMING')
+}
+
 export { PUBLIC_STATUS_ORDER }
