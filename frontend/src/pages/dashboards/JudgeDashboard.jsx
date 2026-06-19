@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import ExpertGroupColleaguesBoard from '../../components/expert/ExpertGroupColleaguesBoard'
 import {
@@ -23,6 +22,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
+import { vietnameseRoleLabel } from '../../utils/roleLabels'
 
 const JUDGE_PAGE_SIZE = 5
 
@@ -163,18 +163,18 @@ export default function JudgeDashboard() {
     if (selectedAssignment) reloadTeams(selectedAssignment)
   }
 
+  const isDualRole = auth.role === 'EXPERT_INTERNAL'
+  const roleLabel = vietnameseRoleLabel(auth.role)
+  const navLinks = isDualRole ? [{ label: 'Mentor', to: '/mentor' }, { label: 'Judge', to: '/judge' }] : null
+
   return (
     <DashboardLayout
-      roleLabel='Giám khảo'
+      roleLabel={roleLabel}
       moduleTitle='Khu vực Judge'
-      moduleSubtitle='Khách được phân công giám khảo — chấm điểm các đội thi. Cùng tài khoản có thể vào khu Mentor nếu được gán hướng dẫn.'
+      moduleSubtitle='Khách được phân công giám khảo — chấm điểm các đội thi.'
       showStaffFields
+      navLinks={navLinks}
     >
-      <div className='action-row' style={{ marginBottom: '1rem' }}>
-        <Link className='btn btn-outline' to='/mentor'>
-          Chuyển sang khu Mentor
-        </Link>
-      </div>
 
       <div className='section-title'>
         <h2>Sự kiện được phân công</h2>

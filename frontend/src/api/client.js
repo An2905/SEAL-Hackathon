@@ -1,4 +1,4 @@
-import { parseJwt } from '../utils/jwt'
+import { parseJwt, isTokenExpired } from '../utils/jwt'
 
 // Dev: empty => Vite proxies /api to localhost:8080 (vite.config.js).
 // Vercel / prod: set VITE_API_BASE to your backend URL (no trailing slash).
@@ -14,8 +14,12 @@ export async function apiFetch(path, { method = 'GET', body, auth = true } = {})
   const headers = { 'Content-Type': 'application/json' }
   if (auth) {
     const token = localStorage.getItem('hh_token')
-    // FIX: Tránh gửi "Bearer null" khi chưa đăng nhập hoặc token bị lưu sai.
+    // Tránh gửi "Bearer null" khi chưa đăng nhập hoặc token bị lưu sai.
     if (token && token !== 'null' && token !== 'undefined') {
+      if (isTokenExpired(token)) {
+        window.dispatchEvent(new Event('auth:token-expired'))
+        throw new Error('TOKEN_EXPIRED')
+      }
       headers['Authorization'] = `Bearer ${token}`
     }
   }

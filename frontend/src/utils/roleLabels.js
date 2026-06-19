@@ -1,8 +1,8 @@
 export const ROLE_UI_LABELS = {
   COORDINATOR: 'Staff',
   EXPERT: 'Khách',
-  EXPERT_INTERNAL: 'Khách (INTERNAL)',
-  EXPERT_EXTERNAL: 'Khách (EXTERNAL)',
+  EXPERT_INTERNAL: 'Khách',
+  EXPERT_EXTERNAL: 'Khách',
   STUDENT_FPT: 'Student',
   STUDENT_EXTERNAL: 'Student',
   MENTOR: 'Mentor',
@@ -18,7 +18,7 @@ export function roleUiLabel(role) {
 // Vietnamese role label for the unified AccountDropdown header
 export const ROLE_VI_LABELS = {
   COORDINATOR: 'Nhân viên',
-  EXPERT_INTERNAL: 'Cố vấn',
+  EXPERT_INTERNAL: 'Cố vấn / Giám khảo',
   EXPERT_EXTERNAL: 'Cố vấn',
   STUDENT_FPT: 'Sinh viên',
   STUDENT_EXTERNAL: 'Sinh viên'

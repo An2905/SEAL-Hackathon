@@ -80,18 +80,16 @@ function PageBtn({ onClick, disabled, active, label }) {
   )
 }
 
-// Build page list with ellipsis: [1, '...', 4, 5, 6, '...', 12]
+// Build page list: [1, 2, 3, ..., current, ..., N].
+// Current page is always visible. Show all if total <= 4.
 function buildPages(current, total) {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
-  const pages = []
-  pages.push(1)
-  if (current > 3) pages.push('...')
-  for (let p = Math.max(2, current - 1); p <= Math.min(total - 1, current + 1); p++) {
-    pages.push(p)
-  }
-  if (current < total - 2) pages.push('...')
-  pages.push(total)
-  return pages
+  if (total <= 4) return Array.from({ length: total }, (_, i) => i + 1)
+  // Current page is within first 3 or is the last page → no mid section needed
+  if (current <= 3 || current === total) return [1, 2, 3, '...', total]
+  // Current page is page 4 and last page is 5 → [1, 2, 3, 4, 5], no ellipsis
+  if (current === 4 && total === 5) return [1, 2, 3, 4, 5]
+  // Current page sits between first 3 and last page
+  return [1, 2, 3, '...', current, '...', total]
 }
 
 const wrapStyle = {

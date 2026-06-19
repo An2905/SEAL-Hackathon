@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 
 import {
@@ -14,6 +13,7 @@ import ExpertGroupColleaguesBoard from '../../components/expert/ExpertGroupColle
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
+import { vietnameseRoleLabel } from '../../utils/roleLabels'
 import ChatPopup from '../../components/chat/ChatPopup'
 import Pagination from '../../components/common/Pagination'
 import LoadingState from '../../components/common/LoadingState'
@@ -225,19 +225,21 @@ export default function MentorDashboard() {
       cancelled = true
     }
   }, [selectedAssignment, teamStatusFilter])
+  const isDualRole = auth.role === 'EXPERT_INTERNAL'
+  const roleLabel = vietnameseRoleLabel(auth.role)
+  const navLinks = isDualRole
+    ? [{ label: 'Mentor', to: '/mentor' }, { label: 'Judge', to: '/judge' }]
+    : null
+
   return (
     <DashboardLayout
-      roleLabel='Cố vấn'
+      roleLabel={roleLabel}
       moduleTitle='Khu vực Mentor'
-      moduleSubtitle='Khách được phân công mentor — đồng hành cùng các đội thí sinh. Cùng tài khoản có thể vào khu Judge nếu được gán chấm thi.'
+      moduleSubtitle='Khách được phân công mentor — đồng hành cùng các đội thí sinh.'
       showStaffFields
       className='dashboard-shell--mentor-zone'
+      navLinks={navLinks}
     >
-      <div className='action-row' style={{ marginBottom: '1rem' }}>
-        <Link className='btn btn-outline' to='/judge'>
-          Chuyển sang khu Judge
-        </Link>
-      </div>
       {/* ── Sự kiện được phân công ── */}
       <div className='section-title'>
         <h2>Sự kiện được phân công</h2>
@@ -432,31 +434,6 @@ export default function MentorDashboard() {
             )}
           </>
         )}
-      </div>
-
-      {/* ── Thông tin tài khoản ── */}
-      <div className='section-title'>
-        <h2>Thông tin tài khoản</h2>
-      </div>
-      <div className='card'>
-        <div className='kv-list'>
-          <div className='kv'>
-            <span>Họ tên</span>
-            <span>{auth.fullName || '—'}</span>
-          </div>
-          <div className='kv'>
-            <span>Email</span>
-            <span>{auth.email}</span>
-          </div>
-          <div className='kv'>
-            <span>Vai trò</span>
-            <span>Cố vấn</span>
-          </div>
-          <div className='kv'>
-            <span>Trạng thái phiên</span>
-            <span>Đã đăng nhập</span>
-          </div>
-        </div>
       </div>
 
       {!chatOpen && (

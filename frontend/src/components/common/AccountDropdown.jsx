@@ -118,11 +118,11 @@ export default function AccountDropdown({ roleLabel, onNavigateProfile }) {
         aria-label='Menu tài khoản'
       >
         <Avatar name={displayName} avatarUrl={auth.avatarUrl} size={28} />
-        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text, #1a202c)', lineHeight: 1.3 }}>
+        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text, #1a202c)', lineHeight: 1.2 }}>
             {displayName}
           </span>
-          <span style={{ fontSize: 11, color: 'var(--text-dim, #718096)', lineHeight: 1.3 }}>{roleLabel}</span>
+          <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--accent, #2563eb)', lineHeight: 1.2 }}>{roleLabel}</span>
         </span>
         <svg
           width='12'
@@ -146,10 +146,13 @@ export default function AccountDropdown({ roleLabel, onNavigateProfile }) {
         <div style={dropdownStyle} role='menu' aria-label='Menu tài khoản'>
           {/* Header block */}
           <div className='account-dropdown-header'>
-            <Avatar name={displayName} avatarUrl={auth.avatarUrl} size={36} fontSize={14} />
+            <Avatar name={displayName} avatarUrl={auth.avatarUrl} size={40} fontSize={16} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text, #1a202c)' }}>{displayName}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-dim, #718096)', marginTop: 1 }}>{roleLabel}</div>
+              <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text, #1a202c)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-dim, #718096)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{auth.email}</div>
+              <span style={{ display: 'inline-block', marginTop: 5, padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: 'var(--accent-soft,#dbeafe)', color: 'var(--accent,#2563eb)' }}>
+                {roleLabel}
+              </span>
             </div>
           </div>
 

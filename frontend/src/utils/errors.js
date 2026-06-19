@@ -1,5 +1,6 @@
 const ERROR_MAP = {
   NETWORK: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng.',
+  TOKEN_EXPIRED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
   HTTP_401: 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.',
   HTTP_403: 'Bạn không có quyền thực hiện thao tác này.',
   HTTP_404: 'Không tìm thấy tài nguyên yêu cầu.',

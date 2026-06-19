@@ -16,3 +16,10 @@ export function parseJwt(token) {
     return null
   }
 }
+
+// Returns true if token is missing, malformed, or past its exp claim.
+export function isTokenExpired(token) {
+  const claims = parseJwt(token)
+  if (!claims || typeof claims.exp !== 'number') return true
+  return Date.now() >= claims.exp * 1000
+}

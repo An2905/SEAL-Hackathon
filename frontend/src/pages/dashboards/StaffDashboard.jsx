@@ -20,8 +20,8 @@ import { roleUiLabel } from '../../utils/roleLabels'
 const ACCOUNT_ROLE_FILTERS = [
   { value: 'ALL', label: 'Tất cả' },
   { value: 'EXPERT', label: 'Khách' },
-  { value: 'EXPERT_INTERNAL', label: 'Khách (INTERNAL)' },
-  { value: 'EXPERT_EXTERNAL', label: 'Khách (EXTERNAL)' },
+  { value: 'EXPERT_INTERNAL', label: 'Khách - INTERNAL' },
+  { value: 'EXPERT_EXTERNAL', label: 'Khách - EXTERNAL' },
   { value: 'STUDENT_EXTERNAL', label: 'Student' },
   { value: 'STUDENT_FPT', label: 'FPT Student' }
 ]

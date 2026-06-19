@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useCallback } from 'react'
-import { parseJwt } from '../utils/jwt'
+import { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import { parseJwt, isTokenExpired } from '../utils/jwt'
 import { ROLE_UI_LABELS } from '../utils/roleLabels'
 
 const AuthContext = createContext(null)
@@ -27,13 +27,26 @@ const ROLE_DISPLAY_LABELS = {
   STUDENT_EXTERNAL: 'Trang Sinh viên'
 }
 
+function clearStorage() {
+  Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k))
+}
+
 export function AuthProvider({ children }) {
-  const [auth, setAuthState] = useState(() => ({
-    token: localStorage.getItem(STORAGE_KEYS.token) || '',
-    email: localStorage.getItem(STORAGE_KEYS.email) || '',
-    role: localStorage.getItem(STORAGE_KEYS.role) || '',
-    fullName: localStorage.getItem(STORAGE_KEYS.fullName) || ''
-  }))
+  const [auth, setAuthState] = useState(() => {
+    const token = localStorage.getItem(STORAGE_KEYS.token) || ''
+    if (token && isTokenExpired(token)) {
+      clearStorage()
+      return { token: '', email: '', role: '', fullName: '', phone: '', avatarUrl: '' }
+    }
+    return {
+      token,
+      email: localStorage.getItem(STORAGE_KEYS.email) || '',
+      role: localStorage.getItem(STORAGE_KEYS.role) || '',
+      fullName: localStorage.getItem(STORAGE_KEYS.fullName) || '',
+      phone: '',
+      avatarUrl: ''
+    }
+  })
 
   const saveAuth = useCallback((patch = {}) => {
     const { token, email, role, fullName } = patch
@@ -62,11 +75,18 @@ export function AuthProvider({ children }) {
   }, [])
 
   const clearAuth = useCallback(() => {
-    Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k))
-    setAuthState({ token: '', email: '', role: '', fullName: '' })
+    clearStorage()
+    setAuthState({ token: '', email: '', role: '', fullName: '', phone: '', avatarUrl: '' })
   }, [])
 
-  const isLoggedIn = !!auth.token
+  // Auto-logout khi apiFetch phát hiện token hết hạn giữa phiên
+  useEffect(() => {
+    const handler = () => clearAuth()
+    window.addEventListener('auth:token-expired', handler)
+    return () => window.removeEventListener('auth:token-expired', handler)
+  }, [clearAuth])
+
+  const isLoggedIn = !!auth.token && !isTokenExpired(auth.token)
 
   const pathForRole = (role) => ROLE_PATHS[role] || '/'
 
