@@ -19,9 +19,15 @@ import { localizeError } from '../../utils/errors'
 import ChatPopup, { ChatOpenButton } from '../../components/chat/ChatPopup'
 import Pagination from '../../components/common/Pagination'
 import LoadingState from '../../components/common/LoadingState'
-import { getGithubLinkStatus } from '../../api/auth'
+import { getGithubLinkStatus, getGithubLinkUrl } from '../../api/auth'
 
 const PAGE_SIZE = 5
+
+const REGISTRATION_FILTERS = [
+  { value: 'APPROVED', label: 'Đã duyệt' },
+  { value: 'PENDING', label: 'Chờ duyệt' },
+  { value: 'ALL', label: 'Tất cả' }
+]
 
 function formatDateTime(value) {
   if (!value) return '—'
@@ -40,8 +46,43 @@ function registrationStatusPillClass(status) {
   const key = (status || '').toUpperCase()
   if (key === 'APPROVED') return 'status-active'
   if (key === 'PENDING') return 'status-pending'
-  if (key === 'REJECTED') return 'status-default'
+  if (key === 'REJECTED') return 'status-rejected'
   return 'status-default'
+}
+
+function StatusBadge({ status, className }) {
+  return (
+    <span className='status-picker' style={{ flexShrink: 0 }}>
+      <span className={`status-pill ${className || eventStatusPillClass(status)}`} style={{ cursor: 'default' }}>
+        {status || '—'}
+      </span>
+    </span>
+  )
+}
+
+function FilterTabs({ options, value, onChange }) {
+  return (
+    <div className='dashboard-filter-tabs'>
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type='button'
+          className={`btn ${value === opt.value ? 'btn-primary' : 'btn-outline'}`}
+          onClick={() => onChange(opt.value)}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function registrationStatusLabel(status) {
+  const key = (status || '').toUpperCase()
+  if (key === 'APPROVED') return 'Đã duyệt'
+  if (key === 'PENDING') return 'Chờ duyệt'
+  if (key === 'REJECTED') return 'Từ chối'
+  return status || '—'
 }
 
 function eventStatusPillClass(status) {
@@ -64,11 +105,33 @@ function eventStatusLabel(status) {
   return status || '—'
 }
 
+function DashboardSection({ title, hint, children, spaced = false }) {
+  return (
+    <>
+      <div className={`section-title${spaced ? ' section-title--spaced' : ''}`}>
+        <h2>{title}</h2>
+        {hint ? <span className='hint'>{hint}</span> : null}
+      </div>
+      {children}
+    </>
+  )
+}
+
+function DetailMeta({ children, muted = false }) {
+  return <div className={`student-meta-line${muted ? ' student-meta-line--muted' : ''}`}>{children}</div>
+}
+
+function StatusStack({ children }) {
+  return <div className='student-status-stack'>{children}</div>
+}
+
 // ─── Team Info Card ───────────────────────────────────────────────────────────
-function TeamInfoCard({ data, onRefresh }) {
+function TeamInfoCard({ data, onRefresh, onMemberDeleted }) {
   const { showToast } = useToast()
   const [membersPage, setMembersPage] = useState(1)
+  const [deletingId, setDeletingId] = useState(null)
   const members = data.members || []
+  const isLeader = Boolean(data.isLeader)
 
   const handleCopyEnroll = async () => {
     const code = data.enrollCode
@@ -80,74 +143,153 @@ function TeamInfoCard({ data, onRefresh }) {
     }
   }
 
+  const handleDeleteMember = async (member) => {
+    const label = member.fullName || member.email || 'thành viên này'
+    if (!window.confirm(`Xóa ${label} khỏi đội?`)) return
+
+    const memberId = (member.email || member.userId || '').trim()
+    if (!memberId) return
+
+    setDeletingId(member.userId || memberId)
+    try {
+      await deleteMember({ memberId })
+      showToast('Đã xóa thành viên khỏi đội', 'success')
+      onMemberDeleted?.()
+    } catch (err) {
+      showToast(localizeError(err.message), 'error')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
-    <div className='card team-info-card'>
-      <div className='card-head'>
-        <div>
-          <div className='card-title'>{data.teamName}</div>
-          <div className='card-sub' style={{ margin: 0 }}>
-            {data.isLeader ? 'Bạn là leader của đội này' : 'Bạn đang là thành viên của đội'}
-          </div>
-        </div>
-        <span className={`role-pill ${data.isLeader ? 'role-judge' : 'role-student'}`} style={{ marginLeft: 'auto' }}>
-          {data.isLeader ? 'Leader' : 'Thành viên'}
-        </span>
-      </div>
-
-      <div className='kv-list'>
-        <div className='kv'>
-          <span>Tên đội</span>
-          <span>{data.teamName}</span>
-        </div>
-        <div className='kv'>
-          <span>Mã enroll</span>
-          <span>
-            <code>{data.enrollCode}</code>
+    <div className='card'>
+      <div className='mentor-team-card student-team-summary'>
+        <div className='kv student-kv-row'>
+          <span className='student-kv-main'>
+            <div className='student-kv-title'>{data.teamName || '—'}</div>
+            <DetailMeta>
+              Trưởng nhóm: {data.leaderName || '—'}
+              {data.leaderEmail ? ` · ${data.leaderEmail}` : ''}
+            </DetailMeta>
+            {data.enrollCode && (
+              <DetailMeta>
+                Mã đội: <code>{data.enrollCode}</code>
+              </DetailMeta>
+            )}
+            <DetailMeta>
+              Thành viên: {data.memberCount ?? members.length} / 5
+            </DetailMeta>
           </span>
-        </div>
-        <div className='kv'>
-          <span>Leader</span>
-          <span>
-            {data.leaderName} ({data.leaderEmail})
-          </span>
-        </div>
-        <div className='kv'>
-          <span>Trạng thái</span>
-          <span>{data.status}</span>
-        </div>
-        <div className='kv'>
-          <span>Số thành viên</span>
-          <span>{data.memberCount} / 5</span>
+          <StatusStack>
+            <span className={`role-pill ${isLeader ? 'role-judge' : 'role-student'}`}>
+              {isLeader ? 'Leader' : 'Thành viên'}
+            </span>
+            {data.status ? <StatusBadge status={data.status} className='status-default' /> : null}
+          </StatusStack>
         </div>
       </div>
 
-      <div className='section-title' style={{ margin: '22px 0 10px' }}>
-        <h2 style={{ fontSize: 16 }}>Thành viên</h2>
+      <div className='student-panel-divider'>
+        <span className='student-panel-divider__label'>Thành viên</span>
       </div>
-      <div className='kv-list'>
-        {members.slice((membersPage - 1) * PAGE_SIZE, membersPage * PAGE_SIZE).map((m) => (
-          <div className='member-row' key={m.userId}>
-            <div className='avatar'>{(m.fullName?.[0] || m.email?.[0] || 'U').toUpperCase()}</div>
-            <div className='member-info'>
-              <div className='member-name'>
-                {m.fullName || '(Chưa có tên)'}
-                {m.isLeader && <span className='leader-tag'>Leader</span>}
+      <div className='kv-list student-members-list'>
+        {members.slice((membersPage - 1) * PAGE_SIZE, membersPage * PAGE_SIZE).map((m) => {
+          const canDelete = isLeader && !m.isLeader
+          const isDeleting = deletingId === (m.userId || m.email)
+          return (
+            <div className='member-row' key={m.userId}>
+              <div className='avatar'>{(m.fullName?.[0] || m.email?.[0] || 'U').toUpperCase()}</div>
+              <div className='member-info'>
+                <div className='member-name-row'>
+                  <div className='member-name'>
+                    {m.fullName || '(Chưa có tên)'}
+                    {m.isLeader && <span className='leader-tag'>Leader</span>}
+                  </div>
+                  {canDelete && (
+                    <button
+                      type='button'
+                      className='member-delete-btn'
+                      onClick={() => handleDeleteMember(m)}
+                      disabled={isDeleting}
+                      aria-label={`Xóa ${m.fullName || m.email}`}
+                      title='Xóa thành viên'
+                    >
+                      {isDeleting ? (
+                        <span className='spinner spinner-dark spinner--sm' aria-hidden='true' />
+                      ) : (
+                        <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' aria-hidden='true'>
+                          <path d='M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6' strokeLinecap='round' strokeLinejoin='round' />
+                          <path d='M10 11v6M14 11v6' strokeLinecap='round' />
+                        </svg>
+                      )}
+                    </button>
+                  )}
+                </div>
+                <div className='member-meta'>{m.email || ''}</div>
               </div>
-              <div className='member-meta'>{m.email || ''}</div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
       <Pagination total={members.length} pageSize={PAGE_SIZE} currentPage={membersPage} onChange={setMembersPage} />
 
-      <div className='card-actions' style={{ marginTop: 18 }}>
-        <button className='btn btn-outline' onClick={handleCopyEnroll}>
+      <div className='card-actions student-card-actions'>
+        <button type='button' className='btn btn-outline' onClick={handleCopyEnroll}>
           Sao chép mã enroll
         </button>
-        <button className='btn btn-ghost' onClick={onRefresh}>
+        <button type='button' className='btn btn-ghost' onClick={onRefresh}>
           Làm mới
         </button>
       </div>
+    </div>
+  )
+}
+
+// ─── GitHub connect ───────────────────────────────────────────────────────────
+function IconGithub({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox='0 0 24 24' fill='currentColor' aria-hidden='true'>
+      <path d='M12 0C5.37 0 0 5.37 0 12c0 5.31 3.44 9.8 8.2 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.38-1.34-1.75-1.34-1.75-1.09-.75.08-.74.08-.74 1.21.08 1.84 1.24 1.84 1.24 1.07 1.85 2.81 1.31 3.49 1 .11-.78.42-1.31.76-1.61-2.67-.31-5.47-1.34-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.31-.54-1.56.12-3.25 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.66 1.69.24 2.94.12 3.25.77.84 1.24 1.91 1.24 3.22 0 4.6-2.81 5.62-5.49 5.92.43.38.82 1.11.82 2.24 0 1.62-.02 2.92-.02 3.32 0 .32.21.69.83.57C20.57 21.79 24 17.31 24 12c0-6.63-5.37-12-12-12z' />
+    </svg>
+  )
+}
+
+function GithubRequiredBanner({ onConnect, loading }) {
+  return (
+    <div className='github-required-banner' role='status'>
+      <div className='github-required-banner__icon' aria-hidden='true'>
+        <IconGithub size={22} />
+      </div>
+      <div className='github-required-banner__body'>
+        <p className='github-required-banner__title'>Liên kết GitHub để tham gia đội</p>
+        <p className='github-required-banner__text'>
+          Tạo hoặc tham gia đội yêu cầu tài khoản GitHub đã xác thực. Liên kết một lần để tiếp tục.
+        </p>
+      </div>
+      <button
+        type='button'
+        className='btn github-connect-btn github-required-banner__action'
+        onClick={onConnect}
+        disabled={loading}
+      >
+        <span className='github-connect-btn-content'>
+          <IconGithub size={16} />
+          {loading ? 'Đang chuyển hướng...' : 'Kết nối ngay'}
+        </span>
+      </button>
+    </div>
+  )
+}
+
+function GithubLinkedBadge({ username }) {
+  if (!username) return null
+  return (
+    <div className='github-linked-badge'>
+      <IconGithub size={14} />
+      <span>
+        GitHub đã liên kết · <strong>@{username}</strong>
+      </span>
     </div>
   )
 }
@@ -186,19 +328,21 @@ function CreateTeamForm({ onSuccess, githubLinked }) {
   }
 
   return (
-    <div className='card'>
-      <div className='card-head'>
-        <div className='card-title'>Tạo đội mới</div>
+    <div className={`card student-team-card${!githubLinked ? ' student-team-card--locked' : ''}`}>
+      <div className='student-team-card__head'>
+        <span className='student-team-card__icon student-team-card__icon--create' aria-hidden='true'>
+          <svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.8'>
+            <path d='M12 5v14M5 12h14' strokeLinecap='round' />
+          </svg>
+        </span>
+        <div className='student-team-card__intro'>
+          <div className='card-title'>Tạo đội mới</div>
+          <p className='student-team-card__lead'>
+            Khởi tạo đội thi của bạn. Hệ thống tự sinh mã <strong>enrollCode</strong> để mời thành viên.
+          </p>
+        </div>
       </div>
-      <p className='card-sub'>
-        Tạo đội của riêng bạn. Hệ thống sẽ sinh mã <strong>enrollCode</strong> để mời thành viên khác.
-      </p>
-      {!githubLinked && (
-        <p className='form-message error' style={{ marginBottom: 12 }}>
-          Bạn cần liên kết GitHub trước khi tạo đội.
-        </p>
-      )}
-      <form className='form' onSubmit={handleSubmit}>
+      <form className='form student-team-form' onSubmit={handleSubmit}>
         <FormField label='Tên đội'>
           <input
             name='teamName'
@@ -210,10 +354,13 @@ function CreateTeamForm({ onSuccess, githubLinked }) {
             disabled={!githubLinked || loading}
           />
         </FormField>
-        <p className='card-sub' style={{ marginTop: 0 }}>
-          Tên đội phải là duy nhất trên toàn hệ thống (không phân biệt hoa thường).
-        </p>
-        <LoadingButton loading={loading} type='submit' disabled={!githubLinked}>
+        <p className='student-team-form__hint'>Tên đội phải duy nhất trên toàn hệ thống (không phân biệt hoa thường).</p>
+        <LoadingButton
+          loading={loading}
+          type='submit'
+          disabled={!githubLinked}
+          className='btn btn-primary btn-block student-team-form__submit'
+        >
           Tạo đội
         </LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
@@ -247,19 +394,23 @@ function JoinTeamForm({ onSuccess, githubLinked }) {
   }
 
   return (
-    <div className='card'>
-      <div className='card-head'>
-        <div className='card-title'>Tham gia đội</div>
+    <div className={`card student-team-card${!githubLinked ? ' student-team-card--locked' : ''}`}>
+      <div className='student-team-card__head'>
+        <span className='student-team-card__icon student-team-card__icon--join' aria-hidden='true'>
+          <svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.8'>
+            <path d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2' strokeLinecap='round' />
+            <circle cx='9' cy='7' r='4' />
+            <path d='M19 8v6M22 11h-6' strokeLinecap='round' />
+          </svg>
+        </span>
+        <div className='student-team-card__intro'>
+          <div className='card-title'>Tham gia đội</div>
+          <p className='student-team-card__lead'>
+            Nhập mã <strong>enrollCode</strong> do leader cung cấp để gia nhập đội có sẵn.
+          </p>
+        </div>
       </div>
-      <p className='card-sub'>
-        Nhập mã <strong>enrollCode</strong> mà leader cung cấp cho bạn.
-      </p>
-      {!githubLinked && (
-        <p className='form-message error' style={{ marginBottom: 12 }}>
-          Bạn cần liên kết GitHub trước khi tham gia đội.
-        </p>
-      )}
-      <form className='form' onSubmit={handleSubmit}>
+      <form className='form student-team-form' onSubmit={handleSubmit}>
         <FormField label='Mã enroll'>
           <input
             name='enrollCode'
@@ -271,7 +422,12 @@ function JoinTeamForm({ onSuccess, githubLinked }) {
             disabled={!githubLinked || loading}
           />
         </FormField>
-        <LoadingButton loading={loading} type='submit' disabled={!githubLinked}>
+        <LoadingButton
+          loading={loading}
+          type='submit'
+          disabled={!githubLinked}
+          className='btn btn-primary btn-block student-team-form__submit'
+        >
           Tham gia
         </LoadingButton>
         <FormMessage message={message?.text} type={message?.type} />
@@ -287,44 +443,36 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
 
   if (status !== 'APPROVED') {
     return (
-      <div className='empty-state' style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }}>
-        Mentor hiển thị sau khi đăng ký được duyệt (APPROVED).
+      <div className='student-inline-note'>
+        Mentor hiển thị sau khi đăng ký được duyệt.
       </div>
     )
   }
 
   if (state.loading) {
-    return <LoadingState text='Đang tải mentor…' style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }} />
+    return <LoadingState text='Đang tải mentor…' className='student-inline-loading' />
   }
 
   if (state.error) {
-    return (
-      <div className='empty-state' style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }}>
-        {state.error}
-      </div>
-    )
+    return <div className='student-inline-note student-inline-note--error'>{state.error}</div>
   }
 
   const mentors = state.data?.mentors || []
   if (mentors.length === 0) {
-    return (
-      <div className='empty-state' style={{ marginTop: 12, padding: '12px 0', fontSize: 13 }}>
-        Chưa có mentor cho bảng này.
-      </div>
-    )
+    return <div className='student-inline-note'>Chưa có mentor cho bảng này.</div>
   }
 
   return (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-dim)', marginBottom: 8 }}>Mentor bảng</div>
-      <div className='kv-list'>
+    <div className='student-mentors-block'>
+      <div className='student-mentors-block__label'>Mentor bảng</div>
+      <div className='kv-list student-mentors-list'>
         {mentors.slice((mentorsPage - 1) * PAGE_SIZE, mentorsPage * PAGE_SIZE).map((m) => (
           <div className='member-row' key={m.mentorId}>
             <div className='avatar'>{(m.mentorName?.[0] || 'M').toUpperCase()}</div>
             <div className='member-info'>
-              <div className='member-name' style={{ display: 'flex', alignItems: 'center' }}>
-                <span>{m.mentorName || '—'}</span>
-                {onOpenChat && (
+              <div className='member-name-row'>
+                <div className='member-name'>{m.mentorName || '—'}</div>
+                {onOpenChat ? (
                   <ChatOpenButton
                     title={`Nhắn tin với ${m.mentorName || 'mentor'}`}
                     onClick={() =>
@@ -336,7 +484,7 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
                       })
                     }
                   />
-                )}
+                ) : null}
               </div>
               <div className='member-meta'>{m.mentorEmail || ''}</div>
             </div>
@@ -348,13 +496,14 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
   )
 }
 
-// ─── Sự kiện + mentor (cùng một card) ───────────────────────────────────────
-function TeamEventsPanel({ refreshKey, onOpenChat }) {
+// ─── Sự kiện + mentor ─────────────────────────────────────────────────────────
+function TeamEventsPanel({ refreshKey, onOpenChat, isLeader, onRegisterSuccess }) {
   const { showToast } = useToast()
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [mentorsByEvent, setMentorsByEvent] = useState({})
+  const [statusFilter, setStatusFilter] = useState('APPROVED')
 
   useEffect(() => {
     let cancelled = false
@@ -404,17 +553,39 @@ function TeamEventsPanel({ refreshKey, onOpenChat }) {
     }
   }, [refreshKey, showToast])
 
+  const filteredList = list.filter((reg) => {
+    if (statusFilter === 'ALL') return true
+    return (reg.registrationStatus || '').toUpperCase() === statusFilter
+  })
+
+  useEffect(() => {
+    setStatusFilter('APPROVED')
+  }, [refreshKey])
+
   return (
     <div className='card'>
-      <div className='card-head'>
-        <div className='card-title'>Sự kiện & mentor</div>
-      </div>
-      <p className='card-sub'>Các hackathon đội đã đăng ký — bảng và mentor được gán sau khi BTC duyệt và phân bảng.</p>
-      {loading && <LoadingState />}
-      {!loading && error && <div className='empty-state'>{error}</div>}
-      {!loading && !error && list.length === 0 && <div className='empty-state'>Đội chưa đăng ký sự kiện nào.</div>}
+      {isLeader && (
+        <div className='student-events-register'>
+          <JoinEventForm embedded onSuccess={onRegisterSuccess} />
+        </div>
+      )}
+
       {!loading && list.length > 0 && (
-        <TeamEventsList list={list} mentorsByEvent={mentorsByEvent} onOpenChat={onOpenChat} />
+        <FilterTabs options={REGISTRATION_FILTERS} value={statusFilter} onChange={setStatusFilter} />
+      )}
+
+      {loading && <LoadingState text='Đang tải danh sách sự kiện…' />}
+      {!loading && error && <div className='empty-state'>{error}</div>}
+      {!loading && !error && list.length === 0 && (
+        <div className='empty-state'>
+          {isLeader ? 'Đội chưa đăng ký sự kiện nào. Dùng form phía trên để đăng ký.' : 'Đội chưa đăng ký sự kiện nào.'}
+        </div>
+      )}
+      {!loading && list.length > 0 && filteredList.length === 0 && (
+        <div className='empty-state'>Không có sự kiện nào khớp bộ lọc.</div>
+      )}
+      {!loading && filteredList.length > 0 && (
+        <TeamEventsList list={filteredList} mentorsByEvent={mentorsByEvent} onOpenChat={onOpenChat} />
       )}
     </div>
   )
@@ -424,68 +595,52 @@ function TeamEventsList({ list, mentorsByEvent, onOpenChat }) {
   const [page, setPage] = useState(1)
   const visibleItems = list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
+  useEffect(() => {
+    setPage(1)
+  }, [list])
+
   return (
     <>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {visibleItems.map((reg, index) => {
+      <div className='kv-list student-events-list'>
+        {visibleItems.map((reg) => {
           const isOngoing = (reg.eventStatus || '').toUpperCase() === 'ONGOING'
           return (
             <div
               key={reg.registrationId || reg.eventId}
-              className={isOngoing ? 'team-event-item team-event-item--ongoing' : 'team-event-item'}
-              style={{
-                paddingBottom: index < visibleItems.length - 1 ? (isOngoing ? 24 : 20) : isOngoing ? 4 : 0,
-                borderBottom:
-                  index < visibleItems.length - 1 ? '1px solid var(--border, rgba(255,255,255,0.08))' : 'none'
-              }}
+              className={`mentor-team-card student-event-card${isOngoing ? ' student-event-card--ongoing' : ''}`}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 16 }}>{reg.eventTitle || '—'}</div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: 'var(--text-dim)',
-                      marginTop: 6,
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      alignItems: 'center',
-                      gap: 8
-                    }}
-                  >
-                    <span>
-                      Bảng:{' '}
-                      <strong style={isOngoing ? { color: 'var(--text)' } : undefined}>{reg.groupName || '—'}</strong>
-                    </span>
-                    <span
-                      className={`status-pill ${eventStatusPillClass(reg.eventStatus)}`}
-                      style={{ cursor: 'default' }}
-                      title={`Trạng thái sự kiện: ${reg.eventStatus || '—'}`}
-                    >
-                      {isOngoing ? '● ' : ''}
-                      {eventStatusLabel(reg.eventStatus)}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>
+              <div className='kv student-kv-row'>
+                <span className='student-kv-main'>
+                  <div className='student-kv-title'>{reg.eventTitle || '—'}</div>
+                  <DetailMeta>
+                    Bảng: <strong>{reg.groupName || '—'}</strong>
+                    {isOngoing ? (
+                      <span className='status-pill status-active student-event-live-pill'>
+                        ● {eventStatusLabel(reg.eventStatus)}
+                      </span>
+                    ) : null}
+                  </DetailMeta>
+                  <DetailMeta muted>
                     {formatDateTime(reg.eventStartDate)} → {formatDateTime(reg.eventEndDate)}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2 }}>
+                  </DetailMeta>
+                  <DetailMeta muted>
                     Đăng ký: {formatDateTime(reg.registeredAt)}
-                  </div>
-                </div>
-                <div
-                  style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end', flexShrink: 0 }}
-                >
-                  <span
-                    className={`status-pill ${registrationStatusPillClass(reg.registrationStatus)}`}
-                    style={{ cursor: 'default' }}
-                    title='Trạng thái duyệt đăng ký'
-                  >
-                    {reg.registrationStatus || '—'}
-                  </span>
-                </div>
+                  </DetailMeta>
+                  <EventMentorsBlock registration={reg} mentorState={mentorsByEvent[reg.eventId]} onOpenChat={onOpenChat} />
+                </span>
+                <StatusStack>
+                  {!isOngoing && reg.eventStatus ? (
+                    <StatusBadge
+                      status={eventStatusLabel(reg.eventStatus)}
+                      className={eventStatusPillClass(reg.eventStatus)}
+                    />
+                  ) : null}
+                  <StatusBadge
+                    status={registrationStatusLabel(reg.registrationStatus)}
+                    className={registrationStatusPillClass(reg.registrationStatus)}
+                  />
+                </StatusStack>
               </div>
-              <EventMentorsBlock registration={reg} mentorState={mentorsByEvent[reg.eventId]} onOpenChat={onOpenChat} />
             </div>
           )
         })}
@@ -496,7 +651,7 @@ function TeamEventsList({ list, mentorsByEvent, onOpenChat }) {
 }
 
 // ─── Join Event Form ──────────────────────────────────────────────────────────
-function JoinEventForm({ onSuccess }) {
+function JoinEventForm({ onSuccess, embedded = false }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [eventsLoading, setEventsLoading] = useState(true)
@@ -563,6 +718,54 @@ function JoinEventForm({ onSuccess }) {
     return start ? `${ev.title} (${start})` : ev.title
   }
 
+  const formBody = (
+    <form className='form student-register-event-form' onSubmit={handleSubmit}>
+      <FormField label='Sự kiện'>
+        {eventsLoading ? (
+          <div className='empty-state' style={{ padding: '8px 0' }}>
+            Đang tải danh sách sự kiện...
+          </div>
+        ) : events.length === 0 ? (
+          <div className='empty-state' style={{ padding: '8px 0' }}>
+            Hiện chưa có sự kiện UPCOMING hoặc đội đã đăng ký hết.
+          </div>
+        ) : (
+          <select name='eventId' value={eventId} onChange={(e) => setEventId(e.target.value)} required disabled={loading}>
+            <option value=''>-- Chọn sự kiện --</option>
+            {events.map((ev) => (
+              <option key={ev.eventId} value={ev.eventId}>
+                {formatEventOption(ev)}
+              </option>
+            ))}
+          </select>
+        )}
+      </FormField>
+      <LoadingButton
+        loading={loading}
+        type='submit'
+        disabled={eventsLoading || events.length === 0}
+        className='btn btn-primary student-register-event-form__submit'
+      >
+        Đăng ký sự kiện
+      </LoadingButton>
+      <FormMessage message={message?.text} type={message?.type} />
+    </form>
+  )
+
+  if (embedded) {
+    return (
+      <div className='student-events-register__inner'>
+        <div className='student-events-register__head'>
+          <div className='card-title'>Đăng ký sự kiện mới</div>
+          <p className='card-sub' style={{ margin: 0 }}>
+            Chọn sự kiện UPCOMING — BTC sẽ duyệt và phân bảng sau khi đội đăng ký.
+          </p>
+        </div>
+        {formBody}
+      </div>
+    )
+  }
+
   return (
     <div className='card'>
       <div className='card-head'>
@@ -571,110 +774,8 @@ function JoinEventForm({ onSuccess }) {
       <p className='card-sub'>
         Chọn sự kiện đang mở đăng ký (UPCOMING). BTC sẽ duyệt và phân bảng sau khi đội đăng ký.
       </p>
-      <form className='form' onSubmit={handleSubmit}>
-        <FormField label='Sự kiện'>
-          {eventsLoading ? (
-            <div className='empty-state' style={{ padding: '8px 0' }}>
-              Đang tải danh sách sự kiện...
-            </div>
-          ) : events.length === 0 ? (
-            <div className='empty-state' style={{ padding: '8px 0' }}>
-              Hiện chưa có sự kiện nào ở trạng thái UPCOMING hoặc đội đã đăng ký hết.
-            </div>
-          ) : (
-            <select name='eventId' value={eventId} onChange={(e) => setEventId(e.target.value)} required disabled={loading}>
-              <option value=''>-- Chọn sự kiện --</option>
-              {events.map((ev) => (
-                <option key={ev.eventId} value={ev.eventId}>
-                  {formatEventOption(ev)}
-                </option>
-              ))}
-            </select>
-          )}
-        </FormField>
-        <LoadingButton loading={loading} type='submit' disabled={eventsLoading || events.length === 0}>
-          Đăng ký sự kiện
-        </LoadingButton>
-        <FormMessage message={message?.text} type={message?.type} />
-      </form>
+      {formBody}
     </div>
-  )
-}
-
-// ─── Delete Member Form ───────────────────────────────────────────────────────
-function DeleteMemberForm({ onSuccess }) {
-  const { showToast } = useToast()
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState(null)
-  const [memberId, setMemberId] = useState('')
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setMessage(null)
-    setLoading(true)
-    try {
-      await deleteMember({ memberId: memberId.trim() })
-      setMessage({ text: 'Đã xóa thành viên', type: 'success' })
-      showToast('Đã xóa thành viên khỏi đội', 'success')
-      setMemberId('')
-      setTimeout(onSuccess, 400)
-    } catch (err) {
-      setMessage({ text: localizeError(err.message), type: 'error' })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className='card'>
-      <div className='card-head'>
-        <div className='card-title'>Xóa thành viên</div>
-      </div>
-      <p className='card-sub'>Loại một thành viên ra khỏi đội. Chỉ leader mới có quyền này.</p>
-      <form className='form' onSubmit={handleSubmit}>
-        <FormField label='Email thành viên'>
-          <input
-            name='memberId'
-            type='email'
-            value={memberId}
-            onChange={(e) => setMemberId(e.target.value)}
-            required
-            placeholder='Nhập email thành viên'
-          />
-        </FormField>
-        <LoadingButton loading={loading} type='submit'>
-          Xóa thành viên
-        </LoadingButton>
-        <FormMessage message={message?.text} type={message?.type} />
-      </form>
-    </div>
-  )
-}
-
-// ─── Activity Log ─────────────────────────────────────────────────────────────
-function ActivityLog({ activities }) {
-  const [page, setPage] = useState(1)
-
-  if (!activities.length) {
-    return (
-      <div className='empty-state'>
-        Chưa có hoạt động nào trong phiên này. Hãy thử tạo đội hoặc tham gia một đội ở trên.
-      </div>
-    )
-  }
-
-  return (
-    <>
-      <div className='kv-list'>
-        {activities.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((a, i) => (
-          <div className='kv' key={`${a.at?.getTime?.() ?? i}-${a.text}`}>
-            <span>{a.at.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
-            <span>{a.text}</span>
-          </div>
-        ))}
-      </div>
-      <Pagination total={activities.length} pageSize={PAGE_SIZE} currentPage={page} onChange={setPage} />
-    </>
   )
 }
 
@@ -683,15 +784,13 @@ export default function StudentDashboard() {
   const { showToast } = useToast()
   const navigate = useNavigate()
   const location = useLocation()
-  const [teamState, setTeamState] = useState('loading') // 'loading' | 'no-team' | 'has-team'
+  const [teamState, setTeamState] = useState('loading')
   const [teamData, setTeamData] = useState(null)
-  const [activities, setActivities] = useState([])
   const [registrationsRefreshKey, setRegistrationsRefreshKey] = useState(0)
   const [chatTarget, setChatTarget] = useState(null)
   const [githubStatus, setGithubStatus] = useState({ loading: true, linked: false, username: '' })
+  const [oauthLoading, setOauthLoading] = useState(false)
   const handledOauthSearchRef = useRef('')
-
-  const logActivity = (text) => setActivities((prev) => [{ text, at: new Date() }, ...prev])
 
   const loadGithubStatus = useCallback(async () => {
     setGithubStatus((prev) => ({ ...prev, loading: true }))
@@ -742,7 +841,6 @@ export default function StudentDashboard() {
         username ? `Đã liên kết GitHub: ${username}` : 'Đã liên kết GitHub thành công.',
         'success'
       )
-      logActivity('Liên kết GitHub thành công')
       loadGithubStatus()
     } else {
       const rawMessage = params.get('message') || 'Liên kết GitHub thất bại.'
@@ -758,16 +856,24 @@ export default function StudentDashboard() {
     navigate('/student', { replace: true })
   }, [location.search, navigate, showToast, loadGithubStatus])
 
+  const handleConnectGithub = async () => {
+    setOauthLoading(true)
+    try {
+      const authorizeUrl = await getGithubLinkUrl()
+      window.location.href = authorizeUrl
+    } catch (err) {
+      showToast(localizeError(err.message), 'error')
+      setOauthLoading(false)
+    }
+  }
+
   const handleTeamCreated = () => {
-    logActivity('Tạo đội mới')
     loadMyTeam()
   }
   const handleTeamJoined = () => {
-    logActivity('Tham gia đội thành công')
     loadMyTeam()
   }
   const handleMemberDeleted = () => {
-    logActivity('Xóa thành viên')
     loadMyTeam()
   }
   const handleRefresh = () => {
@@ -779,55 +885,58 @@ export default function StudentDashboard() {
   return (
     <DashboardLayout
       roleLabel='Sinh viên'
-      moduleTitle='Tài khoản sinh viên'
-      moduleSubtitle='Quản lý đội thi và đăng ký sự kiện hackathon ngay tại đây.'
+      moduleTitle='Khu vực Sinh viên'
+      moduleSubtitle='Quản lý đội thi, đăng ký sự kiện hackathon và liên kết GitHub.'
       showStudentFields
+      className='dashboard-shell--student-zone'
     >
-      <div className="section-title">
-        <h2>Đội của tôi</h2>
-        <span className='hint'>Mỗi sinh viên chỉ có thể tham gia 1 đội</span>
-      </div>
-
-      {teamState === 'loading' && <LoadingState text='Đang tải thông tin đội...' />}
-
-      {teamState === 'has-team' && teamData && <TeamInfoCard data={teamData} onRefresh={handleRefresh} />}
-
       {teamState === 'has-team' && (
-        <>
-          <div className='section-title' style={{ marginTop: 24 }}>
-            <h2>Đăng ký sự kiện</h2>
-            <span className='hint'>Sự kiện, bảng và mentor của đội</span>
-          </div>
+        <DashboardSection
+          title='Sự kiện'
+          hint='Các hackathon đội đã đăng ký — bảng và mentor sau khi BTC duyệt'
+        >
           <TeamEventsPanel
             refreshKey={registrationsRefreshKey}
+            isLeader={Boolean(teamData?.isLeader)}
+            onRegisterSuccess={() => refreshRegistrations()}
             onOpenChat={(target) => setChatTarget({ ...target, teamName: teamData?.teamName })}
           />
-        </>
+        </DashboardSection>
       )}
 
-      {teamState === 'no-team' && (
-        <div className='cards'>
-          <CreateTeamForm onSuccess={handleTeamCreated} githubLinked={githubStatus.linked} />
-          <JoinTeamForm onSuccess={handleTeamJoined} githubLinked={githubStatus.linked} />
-        </div>
+      {teamState === 'loading' && (
+        <DashboardSection title='Đội của tôi' hint='Mỗi sinh viên chỉ có thể tham gia 1 đội'>
+          <div className='card'>
+            <LoadingState text='Đang tải thông tin đội…' />
+          </div>
+        </DashboardSection>
       )}
 
-      {teamState === 'has-team' && teamData?.isLeader && (
-        <>
-          <div className='section-title'>
-            <h2>Quản lý leader</h2>
-            <span className='hint'>Chỉ leader mới thực hiện được các thao tác bên dưới</span>
-          </div>
-          <div className='cards'>
-            <JoinEventForm
-              onSuccess={() => {
-                refreshRegistrations()
-                logActivity('Đăng ký sự kiện')
-              }}
-            />
-            <DeleteMemberForm onSuccess={handleMemberDeleted} />
-          </div>
-        </>
+      {teamState !== 'loading' && (
+        <DashboardSection
+          title='Đội của tôi'
+          hint='Mỗi sinh viên chỉ có thể tham gia 1 đội'
+          spaced={teamState === 'has-team'}
+        >
+          {teamState === 'has-team' && teamData ? (
+            <TeamInfoCard data={teamData} onRefresh={handleRefresh} onMemberDeleted={handleMemberDeleted} />
+          ) : null}
+
+          {teamState === 'no-team' ? (
+            <>
+              {!githubStatus.loading && !githubStatus.linked ? (
+                <GithubRequiredBanner onConnect={handleConnectGithub} loading={oauthLoading} />
+              ) : null}
+              {!githubStatus.loading && githubStatus.linked ? (
+                <GithubLinkedBadge username={githubStatus.username} />
+              ) : null}
+              <div className='cards student-team-cards'>
+                <CreateTeamForm onSuccess={handleTeamCreated} githubLinked={githubStatus.linked} />
+                <JoinTeamForm onSuccess={handleTeamJoined} githubLinked={githubStatus.linked} />
+              </div>
+            </>
+          ) : null}
+        </DashboardSection>
       )}
 
       {chatTarget && (
@@ -842,10 +951,6 @@ export default function StudentDashboard() {
         />
       )}
 
-      <div className='section-title'>
-        <h2>Hoạt động gần đây</h2>
-      </div>
-      <ActivityLog activities={activities} />
     </DashboardLayout>
   )
 }
