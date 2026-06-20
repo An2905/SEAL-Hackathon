@@ -4,7 +4,6 @@ import { getGithubLinkStatus, getGithubLinkUrl } from '../../api/auth'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
-import { STUDENT_ROLES } from '../../utils/roleLabels'
 import Avatar from './Avatar'
 
 /**
@@ -26,10 +25,10 @@ export default function AccountDropdown({ roleLabel, onNavigateProfile }) {
   const ref = useRef(null)
 
   const displayName = auth.fullName || auth.email || 'User'
-  const isStudent = STUDENT_ROLES.includes(auth.role)
+  const isAuthenticated = Boolean(auth.token)
 
   const loadGithubStatus = useCallback(async () => {
-    if (!isStudent) {
+    if (!isAuthenticated) {
       setGithubLinked(null)
       return
     }
@@ -39,21 +38,21 @@ export default function AccountDropdown({ roleLabel, onNavigateProfile }) {
     } catch {
       setGithubLinked(false)
     }
-  }, [isStudent])
+  }, [isAuthenticated])
 
   useEffect(() => {
     loadGithubStatus()
   }, [loadGithubStatus])
 
   useEffect(() => {
-    if (!isStudent) return
+    if (!isAuthenticated) return
     const status = new URLSearchParams(location.search).get('github_oauth')
     if (status === 'success') loadGithubStatus()
-  }, [location.search, isStudent, loadGithubStatus])
+  }, [location.search, isAuthenticated, loadGithubStatus])
 
   useEffect(() => {
-    if (open && isStudent) loadGithubStatus()
-  }, [open, isStudent, loadGithubStatus])
+    if (open && isAuthenticated) loadGithubStatus()
+  }, [open, isAuthenticated, loadGithubStatus])
 
   useEffect(() => {
     const handler = (e) => {
@@ -102,7 +101,7 @@ export default function AccountDropdown({ roleLabel, onNavigateProfile }) {
     }
   }
 
-  const showGithubLink = isStudent && githubLinked === false
+  const showGithubLink = isAuthenticated && githubLinked === false
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>

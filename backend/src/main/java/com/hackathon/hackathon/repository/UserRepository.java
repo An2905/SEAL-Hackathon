@@ -306,6 +306,110 @@ public class UserRepository {
     return null;
   }
 
+  public boolean updateGithubUsernameIfNotOAuthLinked(String userId, String githubUsername) {
+    String sql =
+        "UPDATE users SET github_username = ? WHERE user_id = ? AND github_id IS NULL";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, githubUsername);
+      ps.setString(2, userId);
+      return ps.executeUpdate() > 0;
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+  }
+
+  public boolean updateGithubProfileIfNotLinked(
+      String userId, String githubUsername, Long githubId) {
+    String sql =
+        "UPDATE users SET github_username = ?, github_id = ? WHERE user_id = ? AND github_id IS NULL";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, githubUsername);
+      ps.setObject(2, githubId);
+      ps.setString(3, userId);
+      return ps.executeUpdate() > 0;
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+  }
+
+  public boolean hasGithubOAuthLinked(String userId) {
+    String sql =
+        "SELECT 1 FROM users WHERE user_id = ? "
+            + "AND github_id IS NOT NULL "
+            + "AND github_username IS NOT NULL AND github_username <> '' "
+            + "LIMIT 1";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, userId);
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+  }
+
+  public Optional<String> findGithubUsernameByUserId(String userId) {
+    String sql = "SELECT github_username FROM users WHERE user_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, userId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return Optional.ofNullable(rs.getString("github_username"));
+        }
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+    return Optional.empty();
+  }
+
+  public boolean isGithubIdLinkedToOtherUser(String userId, long githubId) {
+    String sql =
+        "SELECT 1 FROM users WHERE user_id <> ? "
+            + "AND github_id IS NOT NULL AND github_id = ? LIMIT 1";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, userId);
+      ps.setLong(2, githubId);
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+  }
+
+  public boolean isGithubUsernameLinkedToOtherUser(String userId, String githubUsername) {
+    if (githubUsername == null || githubUsername.isBlank()) {
+      return false;
+    }
+    String sql =
+        "SELECT 1 FROM users WHERE user_id <> ? "
+            + "AND github_username IS NOT NULL AND github_username <> '' "
+            + "AND LOWER(github_username) = LOWER(?) LIMIT 1";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, userId);
+      ps.setString(2, githubUsername.trim());
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+  }
+
+  public boolean isGithubLinkedToOtherUser(String userId, String githubUsername, Long githubId) {
+    if (githubId != null && isGithubIdLinkedToOtherUser(userId, githubId)) {
+      return true;
+    }
+    return isGithubUsernameLinkedToOtherUser(userId, githubUsername);
+  }
+
   // #endregion
 
   // #region DELETE

@@ -29,6 +29,14 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class AuthService {
+  private static final String[] AUTHENTICATED_ROLES = {
+    "COORDINATOR",
+    "EXPERT_INTERNAL",
+    "EXPERT_EXTERNAL",
+    "STUDENT_FPT",
+    "STUDENT_EXTERNAL"
+  };
+
   @Autowired private CaptchaService captchaService;
 
   private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
@@ -96,7 +104,7 @@ public class AuthService {
   }
 
   public boolean isStudentGithubLinked(String userId) {
-    return studentProfileRepository.hasGithubOAuthLinked(userId);
+    return userRepository.hasGithubOAuthLinked(userId);
   }
 
   public void requireStudentGithubLinked(String userId) {
@@ -110,21 +118,21 @@ public class AuthService {
     if (normalizedUserId.isEmpty()) {
       throw new BadRequestException("Invalid user token.");
     }
-    if (studentProfileRepository.isGithubLinkedToOtherUser(
+    if (userRepository.isGithubLinkedToOtherUser(
         normalizedUserId, githubUsername, githubId)) {
       throw new ConflictException("This GitHub account is already linked to another user.");
     }
   }
 
   public GithubLinkStatusResponse getGithubLinkStatus(String authHeader) {
-    Claims claims = validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
+    Claims claims = validateRole(authHeader, AUTHENTICATED_ROLES);
     String userId = claims.get("userId", String.class);
     if (userId == null || userId.isBlank()) {
       throw new BadRequestException("Invalid user token.");
     }
     boolean linked = isStudentGithubLinked(userId.trim());
     String githubUsername =
-        linked ? studentProfileRepository.findGithubUsernameByUserId(userId.trim()).orElse("") : "";
+        linked ? userRepository.findGithubUsernameByUserId(userId.trim()).orElse("") : "";
     return new GithubLinkStatusResponse(linked, githubUsername);
   }
 
@@ -259,8 +267,11 @@ public class AuthService {
               "GitHub account is already linked. Profile cannot change GitHub username.");
         }
         requireGithubAvailableForUser(userId, githubUsername.trim(), null);
+        if (!userRepository.updateGithubUsernameIfNotOAuthLinked(userId, githubUsername.trim())) {
+          throw new BadRequestException("Failed to update GitHub username.");
+        }
       }
-      if (!studentProfileRepository.update(userId, newStudentId, newUniversity, githubUsername)) {
+      if (!studentProfileRepository.update(userId, newStudentId, newUniversity)) {
         throw new BadRequestException("Failed to update student profile.");
       }
     } else if (isExpertRole(role)) {
@@ -454,8 +465,7 @@ public class AuthService {
       throw new BadRequestException("Database error while creating user.");
     }
 
-    if (!studentProfileRepository.insert(
-        userId, regData.getStudentId(), regData.getUniversity(), null)) {
+    if (!studentProfileRepository.insert(userId, regData.getStudentId(), regData.getUniversity())) {
       throw new BadRequestException("Database error while creating profile.");
     }
 

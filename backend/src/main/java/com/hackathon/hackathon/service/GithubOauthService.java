@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
-import com.hackathon.hackathon.repository.StudentProfileRepository;
+import com.hackathon.hackathon.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpSession;
 import java.net.URI;
@@ -37,14 +37,21 @@ public class GithubOauthService {
   private String githubFrontendRedirect;
 
   @Autowired private AuthService authService;
-  @Autowired private StudentProfileRepository studentProfileRepository;
+  @Autowired private UserRepository userRepository;
 
   private final HttpClient httpClient = HttpClient.newHttpClient();
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   public String buildAuthorizeUrl(String authHeader, HttpSession session) {
     validateGithubConfig();
-    Claims claims = authService.validateRole(authHeader, "STUDENT_FPT", "STUDENT_EXTERNAL");
+    Claims claims =
+        authService.validateRole(
+            authHeader,
+            "COORDINATOR",
+            "EXPERT_INTERNAL",
+            "EXPERT_EXTERNAL",
+            "STUDENT_FPT",
+            "STUDENT_EXTERNAL");
     String userId = claims.get("userId", String.class);
     if (userId == null || userId.trim().isEmpty()) {
       throw new BadRequestException("Invalid user token.");
@@ -86,26 +93,54 @@ public class GithubOauthService {
           userId, githubUser.username(), githubUser.githubId());
 
       boolean updated =
-          studentProfileRepository.updateGithubProfileIfNotLinked(
+          userRepository.updateGithubProfileIfNotLinked(
               userId, githubUser.username(), githubUser.githubId());
       if (!updated) {
-        if (studentProfileRepository.isGithubLinkedToOtherUser(
+        if (userRepository.isGithubLinkedToOtherUser(
             userId, githubUser.username(), githubUser.githubId())) {
           throw new ConflictException("This GitHub account is already linked to another user.");
         }
         throw new BadRequestException("GitHub account is already linked.");
       }
 
-      return githubFrontendRedirect
+      String frontendRedirect = buildFrontendRedirectForUser(userId);
+      return frontendRedirect
           + "?github_oauth=success&github_username="
           + urlEncode(githubUser.username());
     } catch (Exception ex) {
-      return githubFrontendRedirect + "?github_oauth=error&message=" + urlEncode(ex.getMessage());
+      String userId = extractUserIdByStateQuiet(state, session);
+      String frontendRedirect =
+          userId != null ? buildFrontendRedirectForUser(userId) : resolveFrontendOrigin();
+      return frontendRedirect + "?github_oauth=error&message=" + urlEncode(ex.getMessage());
     } finally {
       if (state != null && !state.isBlank()) {
         clearState(state, session);
       }
     }
+  }
+
+  private String buildFrontendRedirectForUser(String userId) {
+    String role = userRepository.findRoleByUserId(userId).orElse("STUDENT_EXTERNAL");
+    return resolveFrontendOrigin() + pathForRole(role);
+  }
+
+  private String resolveFrontendOrigin() {
+    try {
+      URI uri = URI.create(githubFrontendRedirect);
+      return uri.getScheme() + "://" + uri.getAuthority();
+    } catch (Exception e) {
+      return "http://localhost:5173";
+    }
+  }
+
+  private String pathForRole(String role) {
+    if ("COORDINATOR".equals(role)) {
+      return "/staff";
+    }
+    if ("EXPERT_INTERNAL".equals(role) || "EXPERT_EXTERNAL".equals(role)) {
+      return "/mentor";
+    }
+    return "/student";
   }
 
   private void validateGithubConfig() {
@@ -134,6 +169,17 @@ public class GithubOauthService {
     Object userIdObj = session.getAttribute(STATE_USER_PREFIX + state);
     if (!(userIdObj instanceof String userId) || userId.isBlank()) {
       throw new BadRequestException("Invalid OAuth session.");
+    }
+    return userId;
+  }
+
+  private String extractUserIdByStateQuiet(String state, HttpSession session) {
+    if (state == null || state.isBlank()) {
+      return null;
+    }
+    Object userIdObj = session.getAttribute(STATE_USER_PREFIX + state);
+    if (!(userIdObj instanceof String userId) || userId.isBlank()) {
+      return null;
     }
     return userId;
   }

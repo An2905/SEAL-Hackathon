@@ -17,6 +17,8 @@ public class UserMapper {
     user.setPasswordHash(rs.getString("password_hash"));
     user.setRole(rs.getString("role"));
     user.setStatus(rs.getString("status"));
+    user.setGithubUsername(rs.getString("github_username"));
+    user.setGithubId(rs.getObject("github_id", Long.class));
     user.setCreatedAt(rs.getString("created_at"));
     return user;
   }
