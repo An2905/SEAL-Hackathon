@@ -34,6 +34,8 @@ dist/
 .env.production.local
 hackathon.env
 hackathon.env.properties
+secret/
+*.pem
 
 # OS & System Files
 .DS_Store
