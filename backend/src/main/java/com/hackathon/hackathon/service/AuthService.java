@@ -30,11 +30,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthService {
   private static final String[] AUTHENTICATED_ROLES = {
-    "COORDINATOR",
-    "EXPERT_INTERNAL",
-    "EXPERT_EXTERNAL",
-    "STUDENT_FPT",
-    "STUDENT_EXTERNAL"
+    "COORDINATOR", "EXPERT_INTERNAL", "EXPERT_EXTERNAL", "STUDENT_FPT", "STUDENT_EXTERNAL"
   };
 
   @Autowired private CaptchaService captchaService;
@@ -118,8 +114,7 @@ public class AuthService {
     if (normalizedUserId.isEmpty()) {
       throw new BadRequestException("Invalid user token.");
     }
-    if (userRepository.isGithubLinkedToOtherUser(
-        normalizedUserId, githubUsername, githubId)) {
+    if (userRepository.isGithubLinkedToOtherUser(normalizedUserId, githubUsername, githubId)) {
       throw new ConflictException("This GitHub account is already linked to another user.");
     }
   }

@@ -307,8 +307,7 @@ public class UserRepository {
   }
 
   public boolean updateGithubUsernameIfNotOAuthLinked(String userId, String githubUsername) {
-    String sql =
-        "UPDATE users SET github_username = ? WHERE user_id = ? AND github_id IS NULL";
+    String sql = "UPDATE users SET github_username = ? WHERE user_id = ? AND github_id IS NULL";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, githubUsername);
