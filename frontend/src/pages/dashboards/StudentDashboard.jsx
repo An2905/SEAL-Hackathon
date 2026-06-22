@@ -255,16 +255,20 @@ function IconGithub({ size = 20 }) {
   )
 }
 
-function GithubRequiredBanner({ onConnect, loading }) {
+function GithubRequiredBanner({ onConnect, loading, isWarning }) {
   return (
-    <div className='github-required-banner' role='status'>
+    <div className={`github-required-banner${isWarning ? ' github-required-banner--warning' : ''}`} role='status'>
       <div className='github-required-banner__icon' aria-hidden='true'>
         <IconGithub size={22} />
       </div>
       <div className='github-required-banner__body'>
-        <p className='github-required-banner__title'>Liên kết GitHub để tham gia đội</p>
+        <p className='github-required-banner__title'>
+          {isWarning ? 'Yêu cầu liên kết lại GitHub' : 'Liên kết GitHub để tham gia đội'}
+        </p>
         <p className='github-required-banner__text'>
-          Tạo hoặc tham gia đội yêu cầu tài khoản GitHub đã xác thực. Liên kết một lần để tiếp tục.
+          {isWarning
+            ? 'Tài khoản GitHub của bạn chưa được liên kết hoặc đã bị hủy liên kết do thay đổi username. Vui lòng liên kết lại trước khi check-in.'
+            : 'Tạo hoặc tham gia đội yêu cầu tài khoản GitHub đã xác thực. Liên kết một lần để tiếp tục.'}
         </p>
       </div>
       <button
@@ -275,7 +279,7 @@ function GithubRequiredBanner({ onConnect, loading }) {
       >
         <span className='github-connect-btn-content'>
           <IconGithub size={16} />
-          {loading ? 'Đang chuyển hướng...' : 'Kết nối ngay'}
+          {loading ? 'Đang chuyển hướng...' : isWarning ? 'Liên kết GitHub' : 'Kết nối ngay'}
         </span>
       </button>
     </div>
@@ -890,6 +894,9 @@ export default function StudentDashboard() {
       showStudentFields
       className='dashboard-shell--student-zone'
     >
+      {!githubStatus.loading && (!githubStatus.linked || !githubStatus.username) ? (
+        <GithubRequiredBanner onConnect={handleConnectGithub} loading={oauthLoading} isWarning={true} />
+      ) : null}
       {teamState === 'has-team' && (
         <DashboardSection
           title='Sự kiện'
@@ -924,9 +931,6 @@ export default function StudentDashboard() {
 
           {teamState === 'no-team' ? (
             <>
-              {!githubStatus.loading && !githubStatus.linked ? (
-                <GithubRequiredBanner onConnect={handleConnectGithub} loading={oauthLoading} />
-              ) : null}
               {!githubStatus.loading && githubStatus.linked ? (
                 <GithubLinkedBadge username={githubStatus.username} />
               ) : null}
