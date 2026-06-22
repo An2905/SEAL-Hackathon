@@ -7,7 +7,11 @@ import Modal from '../../components/common/Modal'
 import ConfirmModal from '../../components/common/ConfirmModal'
 import LoadingState from '../../components/common/LoadingState'
 import { getEventDetail } from '../../api/event'
-import { changeTeamRegistrationStatus, getAllAccounts } from '../../api/staff'
+import {
+  changeTeamRegistrationStatus,
+  getAllAccounts,
+  retryGitHubProvisioning
+} from '../../api/staff'
 import {
   deleteJudgeAssignment,
   deleteMentorAssignment,
@@ -1285,7 +1289,141 @@ function TeamRegistrationStatusPicker({ team, onUpdated }) {
   )
 }
 
-function TeamsDropdownContent({ teams, onUpdated }) {
+function GitHubStatusBadge({ team, onGitHubUpdated }) {
+  const { showToast } = useToast()
+  const [loading, setLoading] = useState(false)
+
+  const handleRetry = async () => {
+    if (!team.registrationId) return
+    setLoading(true)
+    try {
+      await retryGitHubProvisioning(team.registrationId)
+      showToast('Đang khởi tạo lại cấp phát tài nguyên GitHub...', 'success')
+      // Update local state to PENDING so coordinator sees loading status immediately
+      onGitHubUpdated?.(team.registrationId, { githubStatus: 'PENDING' })
+    } catch (err) {
+      showToast(localizeError(err.message), 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const status = String(team.githubStatus || '').toUpperCase()
+
+  if (status === 'SUCCESS') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span
+          className='status-pill'
+          style={{
+            background: '#e6fffa',
+            color: '#047481',
+            border: '1px solid #b2f5ea',
+            cursor: 'default',
+            fontSize: 11,
+            padding: '2px 8px',
+            borderRadius: 20,
+            fontWeight: 600
+          }}
+        >
+          GitHub SUCCESS
+        </span>
+        {team.githubRepoUrl && (
+          <a
+            href={team.githubRepoUrl}
+            target='_blank'
+            rel='noopener noreferrer'
+            className='btn btn-ghost btn-sm'
+            style={{ fontSize: 11, padding: '2px 6px', textDecoration: 'underline' }}
+            title={team.githubTeamSlug || 'Repo URL'}
+          >
+            Repo
+          </a>
+        )}
+      </div>
+    )
+  }
+
+  if (status === 'PENDING') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span
+          className='status-pill'
+          style={{
+            background: '#fffbeb',
+            color: '#92400e',
+            border: '1px solid #fde68a',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            cursor: 'default',
+            fontSize: 11,
+            padding: '2px 8px',
+            borderRadius: 20,
+            fontWeight: 600
+          }}
+        >
+          <span className='spinner spinner-dark spinner--sm' style={{ borderTopColor: '#92400e', width: 10, height: 10, borderWidth: 1.5 }} />
+          GitHub PENDING
+        </span>
+      </div>
+    )
+  }
+
+  if (status === 'FAILED') {
+    const showRetry = String(team.status || '').toUpperCase() === 'APPROVED'
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span
+          className='status-pill'
+          style={{
+            background: '#fef2f2',
+            color: '#b91c1c',
+            border: '1px solid #fecaca',
+            cursor: 'default',
+            fontSize: 11,
+            padding: '2px 8px',
+            borderRadius: 20,
+            fontWeight: 600
+          }}
+        >
+          GitHub FAILED
+        </span>
+        {showRetry && (
+          <button
+            type='button'
+            className='btn btn-outline btn-sm'
+            style={{ fontSize: 11, padding: '2px 8px', height: 'auto', minHeight: 0 }}
+            onClick={handleRetry}
+            disabled={loading}
+          >
+            {loading ? '...' : 'Thử lại'}
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <span
+      className='status-pill'
+      style={{
+        background: '#f3f4f6',
+        color: '#374151',
+        border: '1px solid #e5e7eb',
+        cursor: 'default',
+        fontSize: 11,
+        padding: '2px 8px',
+        borderRadius: 20,
+        fontWeight: 600
+      }}
+    >
+      Chưa khởi tạo
+    </span>
+  )
+}
+
+function TeamsDropdownContent({ teams, onUpdated, onGitHubUpdated }) {
   const [page, setPage] = useState(1)
   if (!teams.length) {
     return <div className='event-stat-dropdown-empty'>Chưa có đội nào tham gia.</div>
@@ -1294,11 +1432,12 @@ function TeamsDropdownContent({ teams, onUpdated }) {
     <>
       <div className='kv-list'>
         {teams.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((team) => (
-          <div className='kv' key={team.registrationId || team.teamId}>
+          <div className='kv' key={team.registrationId || team.teamId} style={{ gap: 12, alignItems: 'center' }}>
             <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
               <div style={{ fontWeight: 600 }}>{team.teamName || '—'}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-mute)' }}></div>
+              <div style={{ fontSize: 11, color: 'var(--text-mute)' }}>ID Đăng ký: {team.registrationId || '—'}</div>
             </span>
+            <GitHubStatusBadge team={team} onGitHubUpdated={onGitHubUpdated} />
             <TeamRegistrationStatusPicker team={team} onUpdated={onUpdated} />
           </div>
         ))}
@@ -2620,6 +2759,18 @@ export default function EventDetailsPage() {
     })
   }
 
+  const handleTeamGitHubStatusUpdated = (registrationId, updates) => {
+    setEvent((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        teams: prev.teams.map((team) =>
+          team.registrationId === registrationId ? { ...team, ...updates } : team
+        )
+      }
+    })
+  }
+
   const handleEventUpdated = (updated) => {
     setEvent((prev) => {
       if (!prev) return prev
@@ -2907,6 +3058,17 @@ export default function EventDetailsPage() {
             onGroupUpdated={handleGroupUpdated}
             onGroupDeleted={handleGroupDeleted}
           />
+
+          <div className='event-registrations-section' style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid var(--border)' }}>
+            <h3 className='section-title' style={{ marginBottom: 12 }}>Đăng ký và tích hợp GitHub</h3>
+            <div className='card' style={{ padding: 18, background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: 12 }}>
+              <TeamsDropdownContent
+                teams={event.teams || []}
+                onUpdated={handleTeamRegistrationUpdated}
+                onGitHubUpdated={handleTeamGitHubStatusUpdated}
+              />
+            </div>
+          </div>
 
           <div style={{ marginTop: 24 }}>
             <CriteriaManager rounds={event.rounds ?? []} />
