@@ -10,7 +10,16 @@ function RoleSwitcher({ navLinks }) {
   const navigate = useNavigate()
   if (!navLinks?.length) return null
   return (
-    <div style={{ marginBottom: 20, display: 'inline-flex', background: 'var(--surface-alt,#f1f5f9)', borderRadius: 10, padding: 4, gap: 2 }}>
+    <div
+      style={{
+        marginBottom: 20,
+        display: 'inline-flex',
+        background: 'var(--surface-alt,#f1f5f9)',
+        borderRadius: 10,
+        padding: 4,
+        gap: 2
+      }}
+    >
       {navLinks.map((link) => {
         const active = location.pathname === link.to
         return (

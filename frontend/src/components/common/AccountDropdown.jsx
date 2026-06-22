@@ -121,7 +121,9 @@ export default function AccountDropdown({ roleLabel, onNavigateProfile }) {
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text, #1a202c)', lineHeight: 1.2 }}>
             {displayName}
           </span>
-          <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--accent, #2563eb)', lineHeight: 1.2 }}>{roleLabel}</span>
+          <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--accent, #2563eb)', lineHeight: 1.2 }}>
+            {roleLabel}
+          </span>
         </span>
         <svg
           width='12'
@@ -147,9 +149,42 @@ export default function AccountDropdown({ roleLabel, onNavigateProfile }) {
           <div className='account-dropdown-header'>
             <Avatar name={displayName} avatarUrl={auth.avatarUrl} size={40} fontSize={16} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text, #1a202c)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim, #718096)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{auth.email}</div>
-              <span style={{ display: 'inline-block', marginTop: 5, padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: 'var(--accent-soft,#dbeafe)', color: 'var(--accent,#2563eb)' }}>
+              <div
+                style={{
+                  fontWeight: 600,
+                  fontSize: 13,
+                  color: 'var(--text, #1a202c)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {displayName}
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: 'var(--text-dim, #718096)',
+                  marginTop: 1,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {auth.email}
+              </div>
+              <span
+                style={{
+                  display: 'inline-block',
+                  marginTop: 5,
+                  padding: '2px 8px',
+                  borderRadius: 20,
+                  fontSize: 11,
+                  fontWeight: 500,
+                  background: 'var(--accent-soft,#dbeafe)',
+                  color: 'var(--accent,#2563eb)'
+                }}
+              >
                 {roleLabel}
               </span>
             </div>

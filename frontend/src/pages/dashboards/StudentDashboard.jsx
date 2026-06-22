@@ -177,9 +177,7 @@ function TeamInfoCard({ data, onRefresh, onMemberDeleted }) {
                 Mã đội: <code>{data.enrollCode}</code>
               </DetailMeta>
             )}
-            <DetailMeta>
-              Thành viên: {data.memberCount ?? members.length} / 5
-            </DetailMeta>
+            <DetailMeta>Thành viên: {data.memberCount ?? members.length} / 5</DetailMeta>
           </span>
           <StatusStack>
             <span className={`role-pill ${isLeader ? 'role-judge' : 'role-student'}`}>
@@ -218,7 +216,15 @@ function TeamInfoCard({ data, onRefresh, onMemberDeleted }) {
                       {isDeleting ? (
                         <span className='spinner spinner-dark spinner--sm' aria-hidden='true' />
                       ) : (
-                        <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' aria-hidden='true'>
+                        <svg
+                          width='14'
+                          height='14'
+                          viewBox='0 0 24 24'
+                          fill='none'
+                          stroke='currentColor'
+                          strokeWidth='2'
+                          aria-hidden='true'
+                        >
                           <path d='M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6' strokeLinecap='round' strokeLinejoin='round' />
                           <path d='M10 11v6M14 11v6' strokeLinecap='round' />
                         </svg>
@@ -358,7 +364,9 @@ function CreateTeamForm({ onSuccess, githubLinked }) {
             disabled={!githubLinked || loading}
           />
         </FormField>
-        <p className='student-team-form__hint'>Tên đội phải duy nhất trên toàn hệ thống (không phân biệt hoa thường).</p>
+        <p className='student-team-form__hint'>
+          Tên đội phải duy nhất trên toàn hệ thống (không phân biệt hoa thường).
+        </p>
         <LoadingButton
           loading={loading}
           type='submit'
@@ -446,11 +454,7 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
   const state = mentorState || {}
 
   if (status !== 'APPROVED') {
-    return (
-      <div className='student-inline-note'>
-        Mentor hiển thị sau khi đăng ký được duyệt.
-      </div>
-    )
+    return <div className='student-inline-note'>Mentor hiển thị sau khi đăng ký được duyệt.</div>
   }
 
   if (state.loading) {
@@ -627,10 +631,12 @@ function TeamEventsList({ list, mentorsByEvent, onOpenChat }) {
                   <DetailMeta muted>
                     {formatDateTime(reg.eventStartDate)} → {formatDateTime(reg.eventEndDate)}
                   </DetailMeta>
-                  <DetailMeta muted>
-                    Đăng ký: {formatDateTime(reg.registeredAt)}
-                  </DetailMeta>
-                  <EventMentorsBlock registration={reg} mentorState={mentorsByEvent[reg.eventId]} onOpenChat={onOpenChat} />
+                  <DetailMeta muted>Đăng ký: {formatDateTime(reg.registeredAt)}</DetailMeta>
+                  <EventMentorsBlock
+                    registration={reg}
+                    mentorState={mentorsByEvent[reg.eventId]}
+                    onOpenChat={onOpenChat}
+                  />
                 </span>
                 <StatusStack>
                   {!isOngoing && reg.eventStatus ? (
@@ -670,9 +676,7 @@ function JoinEventForm({ onSuccess, embedded = false }) {
       try {
         const [upcoming, registrations] = await Promise.all([getUpcomingEvents(), getTeamRegistrations()])
         if (cancelled) return
-        const registeredIds = new Set(
-          registrations.map((r) => String(r.eventId ?? '').trim()).filter(Boolean)
-        )
+        const registeredIds = new Set(registrations.map((r) => String(r.eventId ?? '').trim()).filter(Boolean))
         const available = upcoming.filter((ev) => !registeredIds.has(String(ev.eventId)))
         setEvents(available)
         if (available.length === 1) {
@@ -734,7 +738,13 @@ function JoinEventForm({ onSuccess, embedded = false }) {
             Hiện chưa có sự kiện UPCOMING hoặc đội đã đăng ký hết.
           </div>
         ) : (
-          <select name='eventId' value={eventId} onChange={(e) => setEventId(e.target.value)} required disabled={loading}>
+          <select
+            name='eventId'
+            value={eventId}
+            onChange={(e) => setEventId(e.target.value)}
+            required
+            disabled={loading}
+          >
             <option value=''>-- Chọn sự kiện --</option>
             {events.map((ev) => (
               <option key={ev.eventId} value={ev.eventId}>
@@ -826,7 +836,9 @@ export default function StudentDashboard() {
     }
   }, [showToast])
 
-  useEffect(() => { loadMyTeam() }, [loadMyTeam])
+  useEffect(() => {
+    loadMyTeam()
+  }, [loadMyTeam])
 
   useEffect(() => {
     loadGithubStatus()
@@ -841,10 +853,7 @@ export default function StudentDashboard() {
 
     if (status === 'success') {
       const username = params.get('github_username')
-      showToast(
-        username ? `Đã liên kết GitHub: ${username}` : 'Đã liên kết GitHub thành công.',
-        'success'
-      )
+      showToast(username ? `Đã liên kết GitHub: ${username}` : 'Đã liên kết GitHub thành công.', 'success')
       loadGithubStatus()
     } else {
       const rawMessage = params.get('message') || 'Liên kết GitHub thất bại.'
@@ -898,10 +907,7 @@ export default function StudentDashboard() {
         <GithubRequiredBanner onConnect={handleConnectGithub} loading={oauthLoading} isWarning={true} />
       ) : null}
       {teamState === 'has-team' && (
-        <DashboardSection
-          title='Sự kiện'
-          hint='Các hackathon đội đã đăng ký — bảng và mentor sau khi BTC duyệt'
-        >
+        <DashboardSection title='Sự kiện' hint='Các hackathon đội đã đăng ký — bảng và mentor sau khi BTC duyệt'>
           <TeamEventsPanel
             refreshKey={registrationsRefreshKey}
             isLeader={Boolean(teamData?.isLeader)}
@@ -954,7 +960,6 @@ export default function StudentDashboard() {
           teamName={chatTarget.teamName}
         />
       )}
-
     </DashboardLayout>
   )
 }

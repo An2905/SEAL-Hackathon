@@ -7,11 +7,7 @@ import Modal from '../../components/common/Modal'
 import ConfirmModal from '../../components/common/ConfirmModal'
 import LoadingState from '../../components/common/LoadingState'
 import { getEventDetail } from '../../api/event'
-import {
-  changeTeamRegistrationStatus,
-  getAllAccounts,
-  retryGitHubProvisioning
-} from '../../api/staff'
+import { changeTeamRegistrationStatus, getAllAccounts, retryGitHubProvisioning } from '../../api/staff'
 import {
   deleteJudgeAssignment,
   deleteMentorAssignment,
@@ -1363,7 +1359,10 @@ function GitHubStatusBadge({ team, onGitHubUpdated }) {
             fontWeight: 600
           }}
         >
-          <span className='spinner spinner-dark spinner--sm' style={{ borderTopColor: '#92400e', width: 10, height: 10, borderWidth: 1.5 }} />
+          <span
+            className='spinner spinner-dark spinner--sm'
+            style={{ borderTopColor: '#92400e', width: 10, height: 10, borderWidth: 1.5 }}
+          />
           GitHub PENDING
         </span>
       </div>
@@ -2764,9 +2763,7 @@ export default function EventDetailsPage() {
       if (!prev) return prev
       return {
         ...prev,
-        teams: prev.teams.map((team) =>
-          team.registrationId === registrationId ? { ...team, ...updates } : team
-        )
+        teams: prev.teams.map((team) => (team.registrationId === registrationId ? { ...team, ...updates } : team))
       }
     })
   }
@@ -3059,9 +3056,22 @@ export default function EventDetailsPage() {
             onGroupDeleted={handleGroupDeleted}
           />
 
-          <div className='event-registrations-section' style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid var(--border)' }}>
-            <h3 className='section-title' style={{ marginBottom: 12 }}>Đăng ký và tích hợp GitHub</h3>
-            <div className='card' style={{ padding: 18, background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: 12 }}>
+          <div
+            className='event-registrations-section'
+            style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid var(--border)' }}
+          >
+            <h3 className='section-title' style={{ marginBottom: 12 }}>
+              Đăng ký và tích hợp GitHub
+            </h3>
+            <div
+              className='card'
+              style={{
+                padding: 18,
+                background: 'var(--card-bg, #fff)',
+                border: '1px solid var(--border)',
+                borderRadius: 12
+              }}
+            >
               <TeamsDropdownContent
                 teams={event.teams || []}
                 onUpdated={handleTeamRegistrationUpdated}

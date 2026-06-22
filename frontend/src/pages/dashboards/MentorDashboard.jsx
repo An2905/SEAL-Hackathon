@@ -228,7 +228,10 @@ export default function MentorDashboard() {
   const isDualRole = auth.role === 'EXPERT_INTERNAL'
   const roleLabel = vietnameseRoleLabel(auth.role)
   const navLinks = isDualRole
-    ? [{ label: 'Mentor', to: '/mentor' }, { label: 'Judge', to: '/judge' }]
+    ? [
+        { label: 'Mentor', to: '/mentor' },
+        { label: 'Judge', to: '/judge' }
+      ]
     : null
 
   return (

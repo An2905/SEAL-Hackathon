@@ -165,7 +165,12 @@ export default function JudgeDashboard() {
 
   const isDualRole = auth.role === 'EXPERT_INTERNAL'
   const roleLabel = vietnameseRoleLabel(auth.role)
-  const navLinks = isDualRole ? [{ label: 'Mentor', to: '/mentor' }, { label: 'Judge', to: '/judge' }] : null
+  const navLinks = isDualRole
+    ? [
+        { label: 'Mentor', to: '/mentor' },
+        { label: 'Judge', to: '/judge' }
+      ]
+    : null
 
   return (
     <DashboardLayout
@@ -175,7 +180,6 @@ export default function JudgeDashboard() {
       showStaffFields
       navLinks={navLinks}
     >
-
       <div className='section-title'>
         <h2>Sự kiện được phân công</h2>
         <span className='hint'>Các sự kiện bạn được Coordinator gán chấm thi</span>
