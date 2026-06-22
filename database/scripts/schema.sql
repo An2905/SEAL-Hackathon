@@ -287,6 +287,7 @@ CREATE TABLE `events` (
   `status` varchar(20) NOT NULL DEFAULT 'BUILDING',
   `max_teams` int DEFAULT NULL,
   `num_rounds` int NOT NULL DEFAULT '1',
+  `github_template_repo` varchar(100) DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`event_id`),
   CONSTRAINT `chk_events_status` CHECK ((`status` in (_utf8mb3'BUILDING',_utf8mb3'UPCOMING',_utf8mb3'ONGOING',_utf8mb3'COMPLETED')))
@@ -604,6 +605,7 @@ CREATE TABLE `team_registrations` (
   `team_id` varchar(36) NOT NULL,
   `status` varchar(20) NOT NULL DEFAULT 'PENDING',
   `registered_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `github_status` varchar(20) NOT NULL DEFAULT 'PENDING',
   `github_team_id` bigint DEFAULT NULL,
   `github_team_slug` varchar(100) DEFAULT NULL,
   `github_repo_id` bigint DEFAULT NULL,

@@ -10,6 +10,7 @@ public class TeamRegistration {
   private String teamName;
   private String status;
   private String registeredAt;
+  private String githubStatus;
   private Long githubTeamId;
   private String githubTeamSlug;
   private Long githubRepoId;

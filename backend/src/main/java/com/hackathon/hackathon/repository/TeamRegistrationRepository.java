@@ -2,6 +2,7 @@ package com.hackathon.hackathon.repository;
 
 import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
+import com.hackathon.hackathon.model.entity.TeamRegistration;
 import com.hackathon.hackathon.model.mapper.TeamMapper;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -83,6 +84,80 @@ public class TeamRegistrationRepository {
       return ps.executeUpdate() > 0;
     } catch (Exception e) {
       return false;
+    }
+  }
+
+  public Optional<TeamRegistration> findDetailsByRegistrationId(String registrationId) {
+    String sql =
+        "SELECT registration_id, event_id, team_id, status, registered_at, github_status, "
+            + "github_team_id, github_team_slug, github_repo_id, github_repo_url FROM team_registrations WHERE registration_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, registrationId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          TeamRegistration tr = new TeamRegistration();
+          tr.setRegistrationId(rs.getString("registration_id"));
+          tr.setEventId(rs.getString("event_id"));
+          tr.setTeamId(rs.getString("team_id"));
+          tr.setStatus(rs.getString("status"));
+          tr.setRegisteredAt(rs.getString("registered_at"));
+          tr.setGithubStatus(rs.getString("github_status"));
+          tr.setGithubTeamId(
+              rs.getObject("github_team_id") != null ? rs.getLong("github_team_id") : null);
+          tr.setGithubTeamSlug(rs.getString("github_team_slug"));
+          tr.setGithubRepoId(
+              rs.getObject("github_repo_id") != null ? rs.getLong("github_repo_id") : null);
+          tr.setGithubRepoUrl(rs.getString("github_repo_url"));
+          return Optional.of(tr);
+        }
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+    return Optional.empty();
+  }
+
+  public boolean updateGithubDetails(
+      String registrationId,
+      String githubStatus,
+      Long githubTeamId,
+      String githubTeamSlug,
+      Long githubRepoId,
+      String githubRepoUrl) {
+    String sql =
+        "UPDATE team_registrations SET github_status = ?, github_team_id = ?, github_team_slug = ?, github_repo_id = ?, github_repo_url = ? WHERE registration_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, githubStatus);
+      if (githubTeamId != null) {
+        ps.setLong(2, githubTeamId);
+      } else {
+        ps.setNull(2, java.sql.Types.BIGINT);
+      }
+      ps.setString(3, githubTeamSlug);
+      if (githubRepoId != null) {
+        ps.setLong(4, githubRepoId);
+      } else {
+        ps.setNull(4, java.sql.Types.BIGINT);
+      }
+      ps.setString(5, githubRepoUrl);
+      ps.setString(6, registrationId);
+      return ps.executeUpdate() > 0;
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+  }
+
+  public boolean updateGithubStatus(String registrationId, String githubStatus) {
+    String sql = "UPDATE team_registrations SET github_status = ? WHERE registration_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, githubStatus);
+      ps.setString(2, registrationId);
+      return ps.executeUpdate() > 0;
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
     }
   }
 

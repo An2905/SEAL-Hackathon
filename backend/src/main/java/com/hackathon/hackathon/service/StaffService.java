@@ -1,5 +1,6 @@
 package com.hackathon.hackathon.service;
 
+import com.hackathon.hackathon.event.TeamApprovedEvent;
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
@@ -28,6 +29,7 @@ import com.hackathon.hackathon.model.dto.response.StaffEmailRecipientResponse;
 import com.hackathon.hackathon.model.dto.response.UniversityOverviewResponse;
 import com.hackathon.hackathon.model.dto.response.UniversityResponse;
 import com.hackathon.hackathon.model.entity.EventCriterion;
+import com.hackathon.hackathon.model.entity.TeamRegistration;
 import com.hackathon.hackathon.model.entity.University;
 import com.hackathon.hackathon.model.entity.User;
 import com.hackathon.hackathon.model.mapper.CriteriaMapper;
@@ -53,6 +55,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -61,6 +64,7 @@ public class StaffService {
   @Autowired private BCryptPasswordEncoder encoder;
 
   @Autowired private UserRepository userRepository;
+  @Autowired private ApplicationEventPublisher eventPublisher;
 
   @Autowired private ParticipantsProfileRepository participantsProfileRepository;
 
@@ -226,11 +230,58 @@ public class StaffService {
       throw new BadRequestException("Không tìm thấy thông tin đăng ký.");
     }
 
+    TeamRegistration registration =
+        teamRegistrationRepository
+            .findDetailsByRegistrationId(registrationId)
+            .orElseThrow(() -> new BadRequestException("Không tìm thấy thông tin đăng ký."));
+
     if (!teamRegistrationRepository.updateStatus(registrationId, status)) {
       throw new BadRequestException("Cập nhật thất bại.");
     }
 
+    if (status.equals("APPROVED")) {
+      try {
+        eventPublisher.publishEvent(
+            new TeamApprovedEvent(
+                this, registrationId, registration.getEventId(), registration.getTeamId()));
+      } catch (Exception e) {
+        teamRegistrationRepository.updateGithubStatus(registrationId, "FAILED");
+        throw e;
+      }
+    }
+
     return new MessageResponse("Cập nhật trạng thái đăng ký của đội thành công.");
+  }
+
+  public MessageResponse retryGitHubProvisioning(String authHeader, String registrationId) {
+    authService.validateRole(authHeader, "COORDINATOR");
+
+    TeamRegistration tr =
+        teamRegistrationRepository
+            .findDetailsByRegistrationId(registrationId)
+            .orElseThrow(() -> new BadRequestException("Không tìm thấy thông tin đăng ký."));
+
+    if (!"APPROVED".equals(tr.getStatus())) {
+      throw new BadRequestException(
+          "Không thể thử lại: Đăng ký của đội không ở trạng thái APPROVED.");
+    }
+
+    if (!"FAILED".equals(tr.getGithubStatus())) {
+      throw new BadRequestException(
+          "Không thể thử lại: Trạng thái GitHub không ở trạng thái FAILED.");
+    }
+
+    teamRegistrationRepository.updateGithubStatus(registrationId, "PENDING");
+
+    try {
+      eventPublisher.publishEvent(
+          new TeamApprovedEvent(this, registrationId, tr.getEventId(), tr.getTeamId()));
+    } catch (Exception e) {
+      teamRegistrationRepository.updateGithubStatus(registrationId, "FAILED");
+      throw e;
+    }
+
+    return new MessageResponse("Đã kích hoạt lại tiến trình cấp phát GitHub thành công.");
   }
 
   // endregion

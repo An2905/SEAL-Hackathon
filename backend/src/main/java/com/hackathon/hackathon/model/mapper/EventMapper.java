@@ -81,6 +81,7 @@ public class EventMapper {
     registration.setTeamId(rs.getString("team_id"));
     registration.setTeamName(rs.getString("team_name"));
     registration.setStatus(rs.getString("status"));
+    registration.setGithubStatus(rs.getString("github_status"));
     registration.setGithubTeamId(
         rs.getObject("github_team_id") != null ? rs.getLong("github_team_id") : null);
     registration.setGithubTeamSlug(rs.getString("github_team_slug"));

@@ -18,4 +18,5 @@ public class Event {
   private String totalRounds;
   private String totalAwards;
   private String pendingTeams;
+  private String githubTemplateRepo;
 }

@@ -21,14 +21,19 @@ public class GitHubRepoService {
 
   // ── Create repo from template ──────────────────────────────────────────
 
-  public Map<String, Object> createOrgRepo(
-      String authHeader,
-      String templateOwner,
-      String templateRepo,
-      String owner,
-      String repoName,
-      boolean isPrivate) {
-    authService.validateRole(authHeader, "COORDINATOR");
+  public Map<String, Object> getOrgRepoInternal(String owner, String repoName) {
+    return restClient
+        .get()
+        .uri(config.getApiBaseUrl() + "/repos/" + owner + "/" + repoName)
+        .header("Authorization", "Bearer " + tokenService.getInstallationToken())
+        .header("Accept", "application/vnd.github+json")
+        .header("X-GitHub-Api-Version", "2026-03-10")
+        .retrieve()
+        .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+  }
+
+  public Map<String, Object> createOrgRepoInternal(
+      String templateOwner, String templateRepo, String owner, String repoName, boolean isPrivate) {
     Map<String, Object> body =
         Map.of(
             "owner", owner,
@@ -43,5 +48,16 @@ public class GitHubRepoService {
         .body(body)
         .retrieve()
         .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+  }
+
+  public Map<String, Object> createOrgRepo(
+      String authHeader,
+      String templateOwner,
+      String templateRepo,
+      String owner,
+      String repoName,
+      boolean isPrivate) {
+    authService.validateRole(authHeader, "COORDINATOR");
+    return createOrgRepoInternal(templateOwner, templateRepo, owner, repoName, isPrivate);
   }
 }

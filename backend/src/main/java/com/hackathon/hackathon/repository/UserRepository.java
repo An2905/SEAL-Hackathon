@@ -409,6 +409,17 @@ public class UserRepository {
     return isGithubUsernameLinkedToOtherUser(userId, githubUsername);
   }
 
+  public boolean unlinkGithub(String userId) {
+    String sql = "UPDATE users SET github_id = NULL, github_username = NULL WHERE user_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, userId);
+      return ps.executeUpdate() > 0;
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+  }
+
   // #endregion
 
   // #region DELETE
