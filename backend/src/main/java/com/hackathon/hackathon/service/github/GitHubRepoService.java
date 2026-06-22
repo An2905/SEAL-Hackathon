@@ -1,26 +1,34 @@
 package com.hackathon.hackathon.service.github;
 
 import com.hackathon.hackathon.config.GitHubAppConfig;
+import com.hackathon.hackathon.service.AuthService;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class GitHubRepoService {
 
-  private final GitHubAppConfig config;
-  private final GitHubTokenService tokenService;
+  @Autowired private GitHubAppConfig config;
+  @Autowired private GitHubTokenService tokenService;
+  @Autowired private AuthService authService;
+
   private final RestClient restClient = RestClient.create();
 
   // ── Create repo from template ──────────────────────────────────────────
 
   public Map<String, Object> createOrgRepo(
-      String templateOwner, String templateRepo, String owner, String repoName, boolean isPrivate) {
+      String authHeader,
+      String templateOwner,
+      String templateRepo,
+      String owner,
+      String repoName,
+      boolean isPrivate) {
+    authService.validateRole(authHeader, "COORDINATOR");
     Map<String, Object> body =
         Map.of(
             "owner", owner,

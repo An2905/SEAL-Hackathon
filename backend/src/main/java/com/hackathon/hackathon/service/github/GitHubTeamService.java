@@ -1,21 +1,23 @@
 package com.hackathon.hackathon.service.github;
 
 import com.hackathon.hackathon.config.GitHubAppConfig;
+import com.hackathon.hackathon.service.AuthService;
 import java.util.List;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class GitHubTeamService {
 
-  private final GitHubAppConfig config;
-  private final GitHubTokenService tokenService;
+  @Autowired private GitHubAppConfig config;
+  @Autowired private GitHubTokenService tokenService;
+  @Autowired private AuthService authService;
+
   private final RestClient restClient = RestClient.create();
 
   // ── Helper ────────────────────────────────────────────────────────────
@@ -41,9 +43,22 @@ public class GitHubTeamService {
         .body(responseType);
   }
 
+  // ── Teams ─────────────────────────────────────────────────────────────
+
+  public List<Map<String, Object>> listTeams(String authHeader, String org) {
+    authService.validateRole(authHeader, "COORDINATOR");
+
+    return authorizedGet("/orgs/" + org + "/teams")
+        .retrieve()
+        .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+  }
+
   // ── Create team in org ─────────────────────────────────────────────────
 
-  public Map<String, Object> createTeam(String org, String teamName, String repoName) {
+  public Map<String, Object> createTeam(
+      String authHeader, String org, String teamName, String repoName) {
+    authService.validateRole(authHeader, "COORDINATOR");
+
     Map<String, Object> body =
         Map.of("name", teamName, "repo_names", List.of(org + "/" + repoName), "privacy", "closed");
     return restClient
@@ -57,19 +72,14 @@ public class GitHubTeamService {
         .body(new ParameterizedTypeReference<Map<String, Object>>() {});
   }
 
-  // ── Teams ─────────────────────────────────────────────────────────────
-
-  public List<Map<String, Object>> listTeams(String org) {
-    return authorizedGet("/orgs/" + org + "/teams")
-        .retrieve()
-        .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
-  }
-
   // ── Add user to team ──────────────────────────────────────────────────
 
   public Map<String, Object> addMemberToTeam(
-      String org, String teamSlug, String username, String role) {
-    Map<String, String> body = Map.of("role", role); // "member" or "maintainer"
+      String authHeader, String org, String teamSlug, String username, String role) {
+
+    authService.validateRole(authHeader, "COORDINATOR");
+
+    Map<String, String> body = Map.of("role", role);
     return authorizedPut(
         "/orgs/" + org + "/teams/" + teamSlug + "/memberships/" + username,
         body,
@@ -79,7 +89,14 @@ public class GitHubTeamService {
   // ── Add repo to team ──────────────────────────────────────────────────
 
   public void addRepoToTeam(
-      String org, String teamSlug, String owner, String repo, String permission) {
+      String authHeader,
+      String org,
+      String teamSlug,
+      String owner,
+      String repo,
+      String permission) {
+    authService.validateRole(authHeader, "COORDINATOR");
+
     Map<String, String> body = Map.of("permission", permission);
     restClient
         .put()

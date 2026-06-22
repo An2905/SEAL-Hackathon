@@ -10,14 +10,13 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 public class GitHubJwtService {
 
-  private final GitHubAppConfig config;
+  @Autowired private GitHubAppConfig config;
 
   public String generateJwt() {
     try {
