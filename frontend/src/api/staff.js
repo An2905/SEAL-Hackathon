@@ -208,3 +208,16 @@ export async function exportEventsExcel() {
   // Trả về Blob để caller tự tạo download link
   return await response.blob()
 }
+
+// POST /api/github/registrations/{registrationId}/retry
+// Requires a Bearer token of a COORDINATOR.
+export async function retryGitHubProvisioning(registrationId) {
+  const id = normalizeRegistrationId(registrationId)
+  if (!id) {
+    throw new Error('Không xác định được đăng ký — vui lòng tải lại danh sách đội')
+  }
+  const text = await apiFetch(`/api/github/registrations/${id}/retry`, {
+    method: 'POST'
+  })
+  return parseStaffJson(text)
+}

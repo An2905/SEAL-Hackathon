@@ -111,7 +111,10 @@ function mapTeamRow(row) {
     registrationId: normalizeId(row.registrationId ?? row.registration_id),
     teamId: normalizeId(row.teamId ?? row.team_id),
     teamName: row.teamName ?? row.team_name ?? '',
-    status: row.status ?? ''
+    status: row.status ?? '',
+    githubStatus: row.githubStatus ?? row.github_status ?? '',
+    githubRepoUrl: row.githubRepoUrl ?? row.github_repo_url ?? '',
+    githubTeamSlug: row.githubTeamSlug ?? row.github_team_slug ?? ''
   }
 }
 
