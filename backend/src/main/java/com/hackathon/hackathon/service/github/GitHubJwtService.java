@@ -31,7 +31,7 @@ public class GitHubJwtService {
       // Build and sign the JWT with RS256
       return Jwts.builder()
           .issuedAt(Date.from(Instant.ofEpochSecond(now - 60))) // 60s in past for clock drift
-          .expiration(Date.from(Instant.ofEpochSecond(now + 600))) // 10 min max
+          .expiration(Date.from(Instant.ofEpochSecond(now + 540))) // iat+600s = 10 min max
           .issuer(config.getClientId())
           .signWith(privateKey, Jwts.SIG.RS256)
           .compact();

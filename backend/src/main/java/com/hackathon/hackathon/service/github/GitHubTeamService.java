@@ -12,7 +12,7 @@ import org.springframework.web.client.RestClient;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class GitHubOrgService {
+public class GitHubTeamService {
 
   private final GitHubAppConfig config;
   private final GitHubTokenService tokenService;
@@ -41,6 +41,22 @@ public class GitHubOrgService {
         .body(responseType);
   }
 
+  // ── Create team in org ─────────────────────────────────────────────────
+
+  public Map<String, Object> createTeam(String org, String teamName, String repoName) {
+    Map<String, Object> body =
+        Map.of("name", teamName, "repo_names", List.of(org + "/" + repoName), "privacy", "closed");
+    return restClient
+        .post()
+        .uri(config.getApiBaseUrl() + "/orgs/" + org + "/teams")
+        .header("Authorization", "Bearer " + tokenService.getInstallationToken())
+        .header("Accept", "application/vnd.github+json")
+        .header("X-GitHub-Api-Version", "2026-03-10")
+        .body(body)
+        .retrieve()
+        .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+  }
+
   // ── Teams ─────────────────────────────────────────────────────────────
 
   public List<Map<String, Object>> listTeams(String org) {
@@ -62,7 +78,8 @@ public class GitHubOrgService {
 
   // ── Add repo to team ──────────────────────────────────────────────────
 
-  public void addRepoToTeam(String org, String teamSlug, String repoName, String permission) {
+  public void addRepoToTeam(
+      String org, String teamSlug, String owner, String repo, String permission) {
     Map<String, String> body = Map.of("permission", permission);
     restClient
         .put()
@@ -73,34 +90,14 @@ public class GitHubOrgService {
                 + "/teams/"
                 + teamSlug
                 + "/repos/"
-                + org
+                + owner
                 + "/"
-                + repoName)
+                + repo)
         .header("Authorization", "Bearer " + tokenService.getInstallationToken())
         .header("Accept", "application/vnd.github+json")
         .header("X-GitHub-Api-Version", "2026-03-10")
         .body(body)
         .retrieve()
         .toBodilessEntity(); // returns 204 No Content
-  }
-
-  // ── Create org repo ───────────────────────────────────────────────────
-
-  public Map<String, Object> createOrgRepo(
-      String org, String repoName, String description, boolean isPrivate) {
-    Map<String, Object> body =
-        Map.of(
-            "name", repoName,
-            "description", description,
-            "private", isPrivate);
-    return restClient
-        .post()
-        .uri(config.getApiBaseUrl() + "/orgs/" + org + "/repos")
-        .header("Authorization", "Bearer " + tokenService.getInstallationToken())
-        .header("Accept", "application/vnd.github+json")
-        .header("X-GitHub-Api-Version", "2026-03-10")
-        .body(body)
-        .retrieve()
-        .body(new ParameterizedTypeReference<Map<String, Object>>() {});
   }
 }
