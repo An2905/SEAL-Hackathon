@@ -105,6 +105,13 @@ function eventStatusLabel(status) {
   return status || '—'
 }
 
+function hasOngoingOrUpcomingRegistration(registrations) {
+  return registrations.some((reg) => {
+    const key = (reg.eventStatus || '').toUpperCase()
+    return key === 'ONGOING' || key === 'UPCOMING'
+  })
+}
+
 function DashboardSection({ title, hint, children, spaced = false }) {
   return (
     <>
@@ -558,13 +565,16 @@ function TeamEventsPanel({ refreshKey, onOpenChat, isLeader, onRegisterSuccess }
     return (reg.registrationStatus || '').toUpperCase() === statusFilter
   })
 
+  const showRegisterForm =
+    isLeader && !loading && !hasOngoingOrUpcomingRegistration(list)
+
   useEffect(() => {
     setStatusFilter('APPROVED')
   }, [refreshKey])
 
   return (
     <div className='card'>
-      {isLeader && (
+      {showRegisterForm && (
         <div className='student-events-register'>
           <JoinEventForm embedded onSuccess={onRegisterSuccess} />
         </div>
@@ -578,7 +588,9 @@ function TeamEventsPanel({ refreshKey, onOpenChat, isLeader, onRegisterSuccess }
       {!loading && error && <div className='empty-state'>{error}</div>}
       {!loading && !error && list.length === 0 && (
         <div className='empty-state'>
-          {isLeader ? 'Đội chưa đăng ký sự kiện nào. Dùng form phía trên để đăng ký.' : 'Đội chưa đăng ký sự kiện nào.'}
+          {isLeader && showRegisterForm
+            ? 'Đội chưa đăng ký sự kiện nào. Dùng form phía trên để đăng ký.'
+            : 'Đội chưa đăng ký sự kiện nào.'}
         </div>
       )}
       {!loading && list.length > 0 && filteredList.length === 0 && (
