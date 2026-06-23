@@ -7,22 +7,19 @@ import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.repository.UserRepository;
 import com.hackathon.hackathon.service.AuthService;
 import io.jsonwebtoken.Claims;
-import jakarta.servlet.http.HttpSession;
+import io.jsonwebtoken.Jwts;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class GithubOauthService {
-  private static final String STATE_PREFIX = "GITHUB_OAUTH_STATE_";
-  private static final String STATE_USER_PREFIX = "GITHUB_OAUTH_USER_";
   private static final long STATE_TTL_MS = 5 * 60 * 1000L;
 
   @Value("${github.client.id:}")
@@ -37,13 +34,16 @@ public class GithubOauthService {
   @Value("${github.frontend.redirect:http://localhost:5173/student}")
   private String githubFrontendRedirect;
 
+  @Value("${JWT_SECRET_KEY}")
+  private String jwtSecretKey;
+
   @Autowired private AuthService authService;
   @Autowired private UserRepository userRepository;
 
   private final HttpClient httpClient = HttpClient.newHttpClient();
   private final ObjectMapper objectMapper = new ObjectMapper();
 
-  public String buildAuthorizeUrl(String authHeader, HttpSession session) {
+  public String buildAuthorizeUrl(String authHeader) {
     validateGithubConfig();
     Claims claims =
         authService.validateRole(
@@ -62,10 +62,7 @@ public class GithubOauthService {
       throw new BadRequestException("GitHub account is already linked.");
     }
 
-    String state = UUID.randomUUID().toString();
-    long expireAt = System.currentTimeMillis() + STATE_TTL_MS;
-    session.setAttribute(STATE_PREFIX + state, expireAt);
-    session.setAttribute(STATE_USER_PREFIX + state, userId);
+    String state = generateStateToken(userId);
 
     return "https://github.com/login/oauth/authorize"
         + "?client_id="
@@ -78,11 +75,10 @@ public class GithubOauthService {
         + urlEncode(state);
   }
 
-  public String processCallback(String code, String state, HttpSession session) {
+  public String processCallback(String code, String state) {
     try {
       validateGithubConfig();
-      validateState(state, session);
-      String userId = extractUserIdByState(state, session);
+      String userId = verifyStateTokenAndGetUserId(state);
       if (authService.isStudentGithubLinked(userId)) {
         throw new BadRequestException("GitHub account is already linked.");
       }
@@ -109,14 +105,32 @@ public class GithubOauthService {
           + "?github_oauth=success&github_username="
           + urlEncode(githubUser.username());
     } catch (Exception ex) {
-      String userId = extractUserIdByStateQuiet(state, session);
+      String userId = null;
+      try {
+        if (state != null && !state.isBlank()) {
+          Claims claims = null;
+          try {
+            claims =
+                Jwts.parser()
+                    .verifyWith(
+                        io.jsonwebtoken.security.Keys.hmacShaKeyFor(
+                            jwtSecretKey.getBytes(StandardCharsets.UTF_8)))
+                    .build()
+                    .parseSignedClaims(state)
+                    .getPayload();
+          } catch (io.jsonwebtoken.ExpiredJwtException eje) {
+            claims = eje.getClaims();
+          }
+          if (claims != null) {
+            userId = claims.get("userId", String.class);
+          }
+        }
+      } catch (Exception ignored) {
+      }
+
       String frontendRedirect =
           userId != null ? buildFrontendRedirectForUser(userId) : resolveFrontendOrigin();
       return frontendRedirect + "?github_oauth=error&message=" + urlEncode(ex.getMessage());
-    } finally {
-      if (state != null && !state.isBlank()) {
-        clearState(state, session);
-      }
     }
   }
 
@@ -153,36 +167,41 @@ public class GithubOauthService {
     }
   }
 
-  private void validateState(String state, HttpSession session) {
-    if (state == null || state.isBlank()) {
+  private String generateStateToken(String userId) {
+    return Jwts.builder()
+        .claim("userId", userId)
+        .issuedAt(new java.util.Date())
+        .expiration(new java.util.Date(System.currentTimeMillis() + STATE_TTL_MS))
+        .signWith(
+            io.jsonwebtoken.security.Keys.hmacShaKeyFor(
+                jwtSecretKey.getBytes(StandardCharsets.UTF_8)))
+        .compact();
+  }
+
+  private String verifyStateTokenAndGetUserId(String stateToken) {
+    if (stateToken == null || stateToken.isBlank()) {
       throw new BadRequestException("Missing OAuth state.");
     }
-    Object expireObject = session.getAttribute(STATE_PREFIX + state);
-    if (!(expireObject instanceof Long expireAt)) {
+    try {
+      Claims claims =
+          Jwts.parser()
+              .verifyWith(
+                  io.jsonwebtoken.security.Keys.hmacShaKeyFor(
+                      jwtSecretKey.getBytes(StandardCharsets.UTF_8)))
+              .build()
+              .parseSignedClaims(stateToken)
+              .getPayload();
+
+      String userId = claims.get("userId", String.class);
+      if (userId == null || userId.isBlank()) {
+        throw new BadRequestException("Invalid OAuth state payload.");
+      }
+      return userId;
+    } catch (io.jsonwebtoken.ExpiredJwtException e) {
+      throw new BadRequestException("OAuth state expired. Please try again.");
+    } catch (Exception e) {
       throw new BadRequestException("Invalid or expired OAuth state.");
     }
-    if (System.currentTimeMillis() > expireAt) {
-      throw new BadRequestException("OAuth state expired. Please try again.");
-    }
-  }
-
-  private String extractUserIdByState(String state, HttpSession session) {
-    Object userIdObj = session.getAttribute(STATE_USER_PREFIX + state);
-    if (!(userIdObj instanceof String userId) || userId.isBlank()) {
-      throw new BadRequestException("Invalid OAuth session.");
-    }
-    return userId;
-  }
-
-  private String extractUserIdByStateQuiet(String state, HttpSession session) {
-    if (state == null || state.isBlank()) {
-      return null;
-    }
-    Object userIdObj = session.getAttribute(STATE_USER_PREFIX + state);
-    if (!(userIdObj instanceof String userId) || userId.isBlank()) {
-      return null;
-    }
-    return userId;
   }
 
   private String exchangeCodeForAccessToken(String code) throws Exception {
@@ -247,11 +266,6 @@ public class GithubOauthService {
       throw new BadRequestException("GitHub id is missing.");
     }
     return new GithubUser(username, idNode.asLong());
-  }
-
-  private void clearState(String state, HttpSession session) {
-    session.removeAttribute(STATE_PREFIX + state);
-    session.removeAttribute(STATE_USER_PREFIX + state);
   }
 
   private String urlEncode(String value) {

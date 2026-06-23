@@ -5,7 +5,6 @@ import com.hackathon.hackathon.model.dto.response.GithubOauthUrlResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.service.AuthService;
 import com.hackathon.hackathon.service.github.GithubOauthService;
-import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -24,8 +23,8 @@ public class GitHubOauthController {
 
   @GetMapping("/link-url")
   public ResponseEntity<GithubOauthUrlResponse> getGithubLinkUrl(
-      @RequestHeader("Authorization") String authHeader, HttpSession session) {
-    String authorizeUrl = githubOauthService.buildAuthorizeUrl(authHeader, session);
+      @RequestHeader("Authorization") String authHeader) {
+    String authorizeUrl = githubOauthService.buildAuthorizeUrl(authHeader);
     return ResponseEntity.ok(new GithubOauthUrlResponse(authorizeUrl));
   }
 
@@ -38,9 +37,8 @@ public class GitHubOauthController {
   @GetMapping(value = "/callback", produces = MediaType.TEXT_HTML_VALUE)
   public ResponseEntity<Void> githubCallback(
       @RequestParam(value = "code", required = false) String code,
-      @RequestParam(value = "state", required = false) String state,
-      HttpSession session) {
-    String redirectUrl = githubOauthService.processCallback(code, state, session);
+      @RequestParam(value = "state", required = false) String state) {
+    String redirectUrl = githubOauthService.processCallback(code, state);
     return ResponseEntity.status(HttpStatus.FOUND)
         .header(HttpHeaders.LOCATION, redirectUrl)
         .build();
