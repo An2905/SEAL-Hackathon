@@ -2,8 +2,9 @@ package com.hackathon.hackathon.controller.github;
 
 import com.hackathon.hackathon.model.dto.response.GithubLinkStatusResponse;
 import com.hackathon.hackathon.model.dto.response.GithubOauthUrlResponse;
+import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.service.AuthService;
-import com.hackathon.hackathon.service.GithubOauthService;
+import com.hackathon.hackathon.service.github.GithubOauthService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -43,5 +44,12 @@ public class GitHubOauthController {
     return ResponseEntity.status(HttpStatus.FOUND)
         .header(HttpHeaders.LOCATION, redirectUrl)
         .build();
+  }
+
+  @PostMapping("/unlink")
+  public ResponseEntity<MessageResponse> unlinkGithub(
+      @RequestHeader("Authorization") String authHeader) {
+    authService.unlinkGithub(authHeader);
+    return ResponseEntity.ok(new MessageResponse("Hủy liên kết tài khoản GitHub thành công."));
   }
 }

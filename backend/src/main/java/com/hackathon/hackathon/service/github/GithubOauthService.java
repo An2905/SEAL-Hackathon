@@ -1,10 +1,11 @@
-package com.hackathon.hackathon.service;
+package com.hackathon.hackathon.service.github;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.repository.UserRepository;
+import com.hackathon.hackathon.service.AuthService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpSession;
 import java.net.URI;

@@ -208,6 +208,13 @@ public class GitHubProvisioningListener {
         try {
           gitHubTeamService.addMemberToTeamInternal(org, githubTeamSlug, username, "member");
           log.info("Added user {} to team {}", username, githubTeamSlug);
+          try {
+            Thread.sleep(500);
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            log.error("GitHub provisioning thread interrupted during rate limit delay", ie);
+            throw new RuntimeException("Provisioning interrupted", ie);
+          }
         } catch (RestClientResponseException e) {
           if (e.getStatusCode().value() == 404) {
             // Validate if the 404 is truly because the user does not exist on GitHub
