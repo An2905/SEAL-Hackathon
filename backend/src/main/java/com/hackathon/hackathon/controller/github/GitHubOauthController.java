@@ -1,0 +1,47 @@
+package com.hackathon.hackathon.controller.github;
+
+import com.hackathon.hackathon.model.dto.response.GithubLinkStatusResponse;
+import com.hackathon.hackathon.model.dto.response.GithubOauthUrlResponse;
+import com.hackathon.hackathon.service.AuthService;
+import com.hackathon.hackathon.service.GithubOauthService;
+import jakarta.servlet.http.HttpSession;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping(
+    value = "/api/auth/github",
+    produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
+public class GitHubOauthController {
+
+  @Autowired private GithubOauthService githubOauthService;
+  @Autowired private AuthService authService;
+
+  @GetMapping("/link-url")
+  public ResponseEntity<GithubOauthUrlResponse> getGithubLinkUrl(
+      @RequestHeader("Authorization") String authHeader, HttpSession session) {
+    String authorizeUrl = githubOauthService.buildAuthorizeUrl(authHeader, session);
+    return ResponseEntity.ok(new GithubOauthUrlResponse(authorizeUrl));
+  }
+
+  @GetMapping("/status")
+  public ResponseEntity<GithubLinkStatusResponse> getGithubLinkStatus(
+      @RequestHeader("Authorization") String authHeader) {
+    return ResponseEntity.ok(authService.getGithubLinkStatus(authHeader));
+  }
+
+  @GetMapping(value = "/callback", produces = MediaType.TEXT_HTML_VALUE)
+  public ResponseEntity<Void> githubCallback(
+      @RequestParam(value = "code", required = false) String code,
+      @RequestParam(value = "state", required = false) String state,
+      HttpSession session) {
+    String redirectUrl = githubOauthService.processCallback(code, state, session);
+    return ResponseEntity.status(HttpStatus.FOUND)
+        .header(HttpHeaders.LOCATION, redirectUrl)
+        .build();
+  }
+}
