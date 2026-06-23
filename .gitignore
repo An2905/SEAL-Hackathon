@@ -42,7 +42,3 @@ secret/
 Thumbs.db
 *.tmp
 *.temp
-
-# AI Agent Caches
-.agents/
-.antigravitycli/
