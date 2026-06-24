@@ -20,6 +20,7 @@ import ChatPopup, { ChatOpenButton } from '../../components/chat/ChatPopup'
 import Pagination from '../../components/common/Pagination'
 import LoadingState from '../../components/common/LoadingState'
 import { getGithubLinkStatus, getGithubLinkUrl } from '../../api/auth'
+import Modal from '../../components/common/Modal'
 
 const PAGE_SIZE = 5
 
@@ -805,6 +806,7 @@ export default function StudentDashboard() {
   const [githubStatus, setGithubStatus] = useState({ loading: true, linked: false, username: '' })
   const [oauthLoading, setOauthLoading] = useState(false)
   const handledOauthSearchRef = useRef('')
+  const [oauthConflictError, setOauthConflictError] = useState(null)
 
   const loadGithubStatus = useCallback(async () => {
     setGithubStatus((prev) => ({ ...prev, loading: true }))
@@ -853,9 +855,10 @@ export default function StudentDashboard() {
 
     if (status === 'success') {
       const username = params.get('github_username')
-      showToast(username ? `Đã liên kết GitHub: ${username}` : 'Đã liên kết GitHub thành công.', 'success')
+      showToast(username ? `Đã liên kết GitHub: @${username}` : 'Đã liên kết GitHub thành công.', 'success')
       loadGithubStatus()
     } else {
+      const errorCode = params.get('code')
       const rawMessage = params.get('message') || 'Liên kết GitHub thất bại.'
       let message = rawMessage
       try {
@@ -863,16 +866,21 @@ export default function StudentDashboard() {
       } catch {
         message = rawMessage
       }
-      showToast(localizeError(message), 'error')
+
+      if (errorCode === 'ALREADY_LINKED' || message.includes('already linked to another user')) {
+        setOauthConflictError(message)
+      } else {
+        showToast(localizeError(message), 'error')
+      }
     }
 
     navigate('/student', { replace: true })
   }, [location.search, navigate, showToast, loadGithubStatus])
 
-  const handleConnectGithub = async () => {
+  const handleConnectGithub = async (prompt) => {
     setOauthLoading(true)
     try {
-      const authorizeUrl = await getGithubLinkUrl()
+      const authorizeUrl = await getGithubLinkUrl(prompt)
       window.location.href = authorizeUrl
     } catch (err) {
       showToast(localizeError(err.message), 'error')
@@ -904,7 +912,11 @@ export default function StudentDashboard() {
       className='dashboard-shell--student-zone'
     >
       {!githubStatus.loading && (!githubStatus.linked || !githubStatus.username) ? (
-        <GithubRequiredBanner onConnect={handleConnectGithub} loading={oauthLoading} isWarning={true} />
+        <GithubRequiredBanner
+          onConnect={handleConnectGithub}
+          loading={oauthLoading}
+          isWarning={teamState === 'has-team'}
+        />
       ) : null}
       {teamState === 'has-team' && (
         <DashboardSection title='Sự kiện' hint='Các hackathon đội đã đăng ký — bảng và mentor sau khi BTC duyệt'>
@@ -959,6 +971,46 @@ export default function StudentDashboard() {
           mentorName={chatTarget.mentorName}
           teamName={chatTarget.teamName}
         />
+      )}
+
+      {oauthConflictError && (
+        <Modal isOpen={true} onClose={() => setOauthConflictError(null)} title='Liên kết GitHub thất bại'>
+          <div className='oauth-conflict-modal' style={{ padding: '0.5rem' }}>
+            <div
+              className='oauth-conflict-modal__icon'
+              style={{ color: '#ef4444', fontSize: '2.5rem', marginBottom: '1rem', textAlign: 'center' }}
+            >
+              ⚠️
+            </div>
+            <p
+              style={{
+                marginBottom: '1.5rem',
+                lineHeight: '1.6',
+                fontSize: '1rem',
+                color: 'var(--text-color, #1f2937)',
+                textAlign: 'center'
+              }}
+            >
+              <strong>Mỗi tài khoản GitHub chỉ có thể liên kết với một tài khoản SEAL Hackathon duy nhất.</strong>
+            </p>
+            <div
+              className='form-actions'
+              style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1.5rem' }}
+            >
+              <button
+                type='button'
+                className='btn btn-primary'
+                onClick={() => {
+                  setOauthConflictError(null)
+                  handleConnectGithub('select_account')
+                }}
+                disabled={oauthLoading}
+              >
+                {oauthLoading ? 'Đang chuyển hướng...' : 'Chọn tài khoản liên kết khác'}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </DashboardLayout>
   )

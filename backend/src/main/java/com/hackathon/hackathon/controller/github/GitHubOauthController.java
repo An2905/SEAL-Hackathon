@@ -23,8 +23,9 @@ public class GitHubOauthController {
 
   @GetMapping("/link-url")
   public ResponseEntity<GithubOauthUrlResponse> getGithubLinkUrl(
-      @RequestHeader("Authorization") String authHeader) {
-    String authorizeUrl = githubOauthService.buildAuthorizeUrl(authHeader);
+      @RequestHeader("Authorization") String authHeader,
+      @RequestParam(value = "prompt", required = false) String prompt) {
+    String authorizeUrl = githubOauthService.buildAuthorizeUrl(authHeader, prompt);
     return ResponseEntity.ok(new GithubOauthUrlResponse(authorizeUrl));
   }
 

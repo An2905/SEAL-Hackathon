@@ -43,7 +43,7 @@ public class GithubOauthService {
   private final HttpClient httpClient = HttpClient.newHttpClient();
   private final ObjectMapper objectMapper = new ObjectMapper();
 
-  public String buildAuthorizeUrl(String authHeader) {
+  public String buildAuthorizeUrl(String authHeader, String prompt) {
     validateGithubConfig();
     Claims claims =
         authService.validateRole(
@@ -64,15 +64,21 @@ public class GithubOauthService {
 
     String state = generateStateToken(userId);
 
-    return "https://github.com/login/oauth/authorize"
-        + "?client_id="
-        + urlEncode(githubClientId)
-        + "&redirect_uri="
-        + urlEncode(githubRedirectUri)
-        + "&scope="
-        + urlEncode("read:user")
-        + "&state="
-        + urlEncode(state);
+    String url =
+        "https://github.com/login/oauth/authorize"
+            + "?client_id="
+            + urlEncode(githubClientId)
+            + "&redirect_uri="
+            + urlEncode(githubRedirectUri)
+            + "&scope="
+            + urlEncode("read:user")
+            + "&state="
+            + urlEncode(state);
+
+    if (prompt != null && !prompt.isBlank()) {
+      url += "&prompt=" + urlEncode(prompt);
+    }
+    return url;
   }
 
   public String processCallback(String code, String state) {
@@ -128,9 +134,27 @@ public class GithubOauthService {
       } catch (Exception ignored) {
       }
 
+      String errorCode = "SERVER_ERROR";
+      int status = 500;
+
+      if (ex instanceof ConflictException) {
+        errorCode = "ALREADY_LINKED";
+        status = 409;
+      } else if (ex instanceof BadRequestException) {
+        errorCode = "BAD_REQUEST";
+        status = 400;
+      }
+
       String frontendRedirect =
           userId != null ? buildFrontendRedirectForUser(userId) : resolveFrontendOrigin();
-      return frontendRedirect + "?github_oauth=error&message=" + urlEncode(ex.getMessage());
+      return frontendRedirect
+          + "?github_oauth=error"
+          + "&status="
+          + status
+          + "&code="
+          + errorCode
+          + "&message="
+          + urlEncode(ex.getMessage());
     }
   }
 
@@ -140,9 +164,17 @@ public class GithubOauthService {
   }
 
   private String resolveFrontendOrigin() {
+    if (githubFrontendRedirect == null || githubFrontendRedirect.isBlank()) {
+      return "http://localhost:5173";
+    }
     try {
-      URI uri = URI.create(githubFrontendRedirect);
-      return uri.getScheme() + "://" + uri.getAuthority();
+      URI uri = URI.create(githubFrontendRedirect.trim());
+      String scheme = uri.getScheme();
+      String authority = uri.getAuthority();
+      if (scheme == null || authority == null) {
+        return "http://localhost:5173";
+      }
+      return scheme + "://" + authority;
     } catch (Exception e) {
       return "http://localhost:5173";
     }
