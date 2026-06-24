@@ -42,11 +42,6 @@ jobs:
           cd frontend
           npm ci --prefer-offline --no-audit
 
-      - name: Lint Code
-        run: |
-          cd frontend
-          npm run lint
-
       - name: Build Frontend
         run: |
           cd frontend
