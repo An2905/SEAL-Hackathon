@@ -83,7 +83,6 @@ public class StaffController {
   public ResponseEntity<MessageResponse> changeTeamRegistrationStatus(
       @RequestHeader("Authorization") String authHeader,
       @RequestBody ChangeTeamRegistrationStatusRequest request) {
-    System.out.println("[DEBUG] Controller: PUT /api/staff/team-registration/status API hit.");
     return ResponseEntity.ok(staffService.changeTeamRegistrationStatus(authHeader, request));
   }
 

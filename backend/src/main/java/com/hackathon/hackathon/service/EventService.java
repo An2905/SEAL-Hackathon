@@ -1,6 +1,7 @@
 package com.hackathon.hackathon.service;
 
 import com.hackathon.hackathon.config.GitHubAppConfig;
+import com.hackathon.hackathon.event.TeamApprovedEvent;
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.model.dto.request.AssignGroupTeamRequest;
@@ -37,6 +38,7 @@ import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.EventSetupRepository;
 import com.hackathon.hackathon.repository.EventSetupRepository.EventRoundSetupRow;
 import com.hackathon.hackathon.repository.EventSetupRepository.EventSetupRow;
+import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.service.github.GitHubRepoService;
 import io.jsonwebtoken.Claims;
 import java.io.ByteArrayOutputStream;
@@ -52,6 +54,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -75,6 +78,10 @@ public class EventService {
   @Autowired private GitHubRepoService gitHubRepoService;
 
   @Autowired private GitHubAppConfig gitHubAppConfig;
+
+  @Autowired private TeamRegistrationRepository teamRegistrationRepository;
+
+  @Autowired private ApplicationEventPublisher eventPublisher;
 
   // region CREATE EVENT
 
@@ -1011,7 +1018,25 @@ public class EventService {
     requireCheckInEventExists(eventId);
     requireCheckInRegistration(eventId, teamId);
 
-    return checkInRepository.applyTeamCheckIn(eventId, teamId, staffUserId, request.isChecked());
+    String oldStatus =
+        teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse("PENDING");
+
+    CheckInTeamResponse response =
+        checkInRepository.applyTeamCheckIn(eventId, teamId, staffUserId, request.isChecked());
+
+    String newStatus =
+        teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse("PENDING");
+
+    if ("PENDING".equals(oldStatus) && "APPROVED".equals(newStatus)) {
+      try {
+        eventPublisher.publishEvent(
+            new TeamApprovedEvent(this, response.getRegistrationId(), eventId, teamId));
+      } catch (Exception e) {
+        teamRegistrationRepository.updateGithubStatus(response.getRegistrationId(), "FAILED");
+      }
+    }
+
+    return response;
   }
 
   public CheckInTeamResponse setMemberCheckIn(String authHeader, CheckInMemberRequest request) {
@@ -1028,8 +1053,26 @@ public class EventService {
     requireCheckInEventExists(eventId);
     requireCheckInRegistration(eventId, teamId);
 
-    return checkInRepository.applyMemberCheckIn(
-        eventId, teamId, userId, staffUserId, request.isChecked());
+    String oldStatus =
+        teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse("PENDING");
+
+    CheckInTeamResponse response =
+        checkInRepository.applyMemberCheckIn(
+            eventId, teamId, userId, staffUserId, request.isChecked());
+
+    String newStatus =
+        teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse("PENDING");
+
+    if ("PENDING".equals(oldStatus) && "APPROVED".equals(newStatus)) {
+      try {
+        eventPublisher.publishEvent(
+            new TeamApprovedEvent(this, response.getRegistrationId(), eventId, teamId));
+      } catch (Exception e) {
+        teamRegistrationRepository.updateGithubStatus(response.getRegistrationId(), "FAILED");
+      }
+    }
+
+    return response;
   }
 
   private String requireCheckInEventId(String eventId) {

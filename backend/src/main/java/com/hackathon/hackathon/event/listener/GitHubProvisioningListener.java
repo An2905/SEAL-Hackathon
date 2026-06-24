@@ -16,6 +16,7 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientResponseException;
 
@@ -31,18 +32,12 @@ public class GitHubProvisioningListener {
   @Autowired private EventRepository eventRepository;
   @Autowired private GitHubAppConfig gitHubAppConfig;
 
+  @Async("githubExecutor")
   @EventListener
   public void handleTeamApproved(TeamApprovedEvent event) {
     String registrationId = event.getRegistrationId();
     String teamId = event.getTeamId();
     String eventId = event.getEventId();
-    System.out.println(
-        "[DEBUG] GitHubProvisioningListener: Received TeamApprovedEvent for registrationId: "
-            + registrationId
-            + ", teamId: "
-            + teamId
-            + ", eventId: "
-            + eventId);
     log.info(
         "Starting GitHub provisioning process for registrationId: {}, teamId: {}",
         registrationId,
