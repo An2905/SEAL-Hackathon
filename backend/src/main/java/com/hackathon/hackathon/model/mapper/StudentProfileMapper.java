@@ -10,7 +10,6 @@ public class StudentProfileMapper {
 
   public StudentProfile fromResultSet(ResultSet rs) throws SQLException {
     StudentProfile profile = new StudentProfile();
-    profile.setProfileId(rs.getString("profile_id"));
     profile.setUserId(rs.getString("user_id"));
     profile.setStudentCode(rs.getString("student_code"));
     profile.setUniversityName(rs.getString("university_name"));
