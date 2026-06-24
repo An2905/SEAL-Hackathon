@@ -13,4 +13,5 @@ public class EventUpdateResponse {
   private Integer maxTeams;
   private Integer numRounds;
   private String createdAt;
+  private String githubTemplateRepo;
 }

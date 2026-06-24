@@ -332,12 +332,23 @@ function mapEventUpdateResponse(data, fallback = {}) {
     status: data.status ?? fallback.status ?? '',
     maxTeams: mapOptionalInt(data.maxTeams ?? data.max_teams ?? fallback.maxTeams),
     numRounds: mapOptionalInt(data.numRounds ?? data.num_rounds ?? fallback.numRounds) ?? 1,
-    createdAt: data.createdAt ?? data.created_at ?? fallback.createdAt ?? ''
+    createdAt: data.createdAt ?? data.created_at ?? fallback.createdAt ?? '',
+    githubTemplateRepo: data.githubTemplateRepo ?? data.github_template_repo ?? fallback.githubTemplateRepo ?? ''
   }
 }
 
 // PUT /api/staff/events
-export async function updateEvent({ eventId, title, description, startDate, endDate, status, maxTeams, numRounds }) {
+export async function updateEvent({
+  eventId,
+  title,
+  description,
+  startDate,
+  endDate,
+  status,
+  maxTeams,
+  numRounds,
+  githubTemplateRepo
+}) {
   const id = normalizeEventId(eventId)
   if (!id) throw new Error('Sự kiện không hợp lệ')
 
@@ -355,7 +366,9 @@ export async function updateEvent({ eventId, title, description, startDate, endD
     eventId: id,
     title: t,
     description: String(description ?? '').trim() || null,
-    status: nextStatus
+    status: nextStatus,
+    githubTemplateRepo:
+      githubTemplateRepo == null || String(githubTemplateRepo).trim() === '' ? null : String(githubTemplateRepo).trim()
   }
   if (startDate) body.startDate = startDate
   if (endDate) body.endDate = endDate
@@ -385,7 +398,8 @@ export async function updateEvent({ eventId, title, description, startDate, endD
     endDate: endDate ?? '',
     status: nextStatus,
     maxTeams: max,
-    numRounds: rounds
+    numRounds: rounds,
+    githubTemplateRepo: githubTemplateRepo ?? ''
   })
 }
 

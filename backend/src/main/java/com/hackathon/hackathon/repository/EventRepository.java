@@ -151,7 +151,7 @@ public class EventRepository {
     String sql =
         "SELECT "
             + "e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at, "
-            + "e.max_teams, e.num_rounds, "
+            + "e.max_teams, e.num_rounds, e.github_template_repo, "
             + "COUNT(DISTINCT tr.team_id) AS total_teams, "
             + "COUNT(DISTINCT CASE WHEN tr.status = 'PENDING' THEN tr.team_id END) AS pending_teams, "
             + "(SELECT COUNT(*) FROM round_groups rg "
@@ -164,7 +164,7 @@ public class EventRepository {
             + "LEFT JOIN awards a ON e.event_id = a.event_id "
             + "WHERE e.event_id = ? "
             + "GROUP BY e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at, "
-            + "e.max_teams, e.num_rounds";
+            + "e.max_teams, e.num_rounds, e.github_template_repo";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, eventId);

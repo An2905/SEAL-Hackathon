@@ -43,6 +43,7 @@ public class EventMapper {
     event.setTotalGroups(rs.getString("total_groups"));
     event.setTotalRounds(rs.getString("total_rounds"));
     event.setTotalAwards(rs.getString("total_awards"));
+    event.setGithubTemplateRepo(rs.getString("github_template_repo"));
     return event;
   }
 
@@ -149,6 +150,7 @@ public class EventMapper {
     response.setTotalGroups(event.getTotalGroups());
     response.setTotalRounds(event.getTotalRounds());
     response.setTotalAwards(event.getTotalAwards());
+    response.setGithubTemplateRepo(event.getGithubTemplateRepo());
     response.setGroups(groups);
     response.setRounds(rounds.stream().map(this::toRoundResponse).toList());
     response.setTeams(teams.stream().map(this::toTeamResponse).toList());

@@ -15,10 +15,8 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.web.client.RestClientResponseException;
 
 @Component
@@ -33,12 +31,18 @@ public class GitHubProvisioningListener {
   @Autowired private EventRepository eventRepository;
   @Autowired private GitHubAppConfig gitHubAppConfig;
 
-  @Async("githubExecutor")
-  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+  @EventListener
   public void handleTeamApproved(TeamApprovedEvent event) {
     String registrationId = event.getRegistrationId();
     String teamId = event.getTeamId();
     String eventId = event.getEventId();
+    System.out.println(
+        "[DEBUG] GitHubProvisioningListener: Received TeamApprovedEvent for registrationId: "
+            + registrationId
+            + ", teamId: "
+            + teamId
+            + ", eventId: "
+            + eventId);
     log.info(
         "Starting GitHub provisioning process for registrationId: {}, teamId: {}",
         registrationId,
@@ -147,6 +151,15 @@ public class GitHubProvisioningListener {
         log.info("GitHub repository already registered in DB: {}", githubRepoUrl);
       }
 
+      // Extract the actual repo name slug from githubRepoUrl in case it was slugified/modified by
+      // GitHub
+      if (githubRepoUrl != null && !githubRepoUrl.isBlank()) {
+        int lastSlash = githubRepoUrl.lastIndexOf('/');
+        if (lastSlash != -1) {
+          repoName = githubRepoUrl.substring(lastSlash + 1);
+        }
+      }
+
       // 2. Create Team (Double-Check)
       if (githubTeamId == null) {
         log.info("Creating GitHub team for team: {} under org: {}", teamName, org);
@@ -247,6 +260,9 @@ public class GitHubProvisioningListener {
       log.info("Successfully completed GitHub provisioning for registrationId: {}", registrationId);
 
     } catch (Exception e) {
+      System.err.println(
+          "[DEBUG] GitHubProvisioningListener: Exception during provisioning: " + e.getMessage());
+      e.printStackTrace();
       log.error(
           "Failed to complete GitHub provisioning for registrationId: {}. Error: {}",
           registrationId,

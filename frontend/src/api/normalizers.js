@@ -292,6 +292,7 @@ export function mapEventDetailRow(row) {
     totalGroups: mapCount(r.totalGroups ?? r.total_groups),
     totalRounds: mapCount(r.totalRounds ?? r.total_rounds),
     totalAwards: mapCount(r.totalAwards ?? r.total_awards),
+    githubTemplateRepo: r.githubTemplateRepo ?? r.github_template_repo ?? '',
     teams: mapList(r.teams, mapTeamRow),
     groups: mapList(r.groups, mapGroupRow),
     rounds: mapList(r.rounds, mapRoundRow),

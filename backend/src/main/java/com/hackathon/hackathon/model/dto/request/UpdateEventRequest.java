@@ -12,4 +12,5 @@ public class UpdateEventRequest {
   private String status;
   private Integer maxTeams;
   private Integer numRounds;
+  private String githubTemplateRepo;
 }

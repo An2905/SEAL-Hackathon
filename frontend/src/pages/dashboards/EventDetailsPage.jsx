@@ -2313,7 +2313,8 @@ function buildEventInfoForm(event) {
     endDate: toDatetimeLocalValue(event.endDate),
     status: (event.status || 'BUILDING').toUpperCase(),
     maxTeams: event.maxTeams == null ? '' : String(event.maxTeams),
-    numRounds: event.numRounds == null ? '1' : String(event.numRounds)
+    numRounds: event.numRounds == null ? '1' : String(event.numRounds),
+    githubTemplateRepo: event.githubTemplateRepo || ''
   }
 }
 
@@ -2354,7 +2355,8 @@ function EventDetailInfoPanel({ event, onUpdated }) {
         endDate: form.endDate || null,
         status: form.status,
         maxTeams: form.maxTeams,
-        numRounds: form.numRounds
+        numRounds: form.numRounds,
+        githubTemplateRepo: form.githubTemplateRepo || null
       })
       onUpdated?.(updated)
       showToast('Đã cập nhật sự kiện', 'success')
@@ -2403,6 +2405,10 @@ function EventDetailInfoPanel({ event, onUpdated }) {
       <div className='kv'>
         <span>Đội đã đăng ký</span>
         <span>{event.totalTeams ?? '0'}</span>
+      </div>
+      <div className='kv'>
+        <span>GitHub Repository mẫu</span>
+        <span>{event.githubTemplateRepo || '—'}</span>
       </div>
       <div className='kv'>
         <span>Ngày tạo</span>
@@ -2470,6 +2476,15 @@ function EventDetailInfoPanel({ event, onUpdated }) {
             Sự kiện COMPLETED — không đổi trạng thái (theo ràng buộc DB).
           </p>
         ) : null}
+      </FormField>
+      <FormField label='GitHub Repository mẫu'>
+        <input
+          name='githubTemplateRepo'
+          value={form.githubTemplateRepo}
+          onChange={handleChange}
+          disabled={saving}
+          placeholder='ví dụ: <chủ sở hữu>/repo hoặc repo'
+        />
       </FormField>
     </form>
   )

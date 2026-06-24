@@ -207,6 +207,7 @@ public class StaffService {
 
   public MessageResponse changeTeamRegistrationStatus(
       String authHeader, ChangeTeamRegistrationStatusRequest request) {
+    System.out.println("[DEBUG] StaffService: Entering changeTeamRegistrationStatus...");
     authService.validateRole(authHeader, "COORDINATOR");
 
     String registrationId = request.getRegistrationId();
@@ -240,11 +241,17 @@ public class StaffService {
     }
 
     if (status.equals("APPROVED")) {
+      System.out.println(
+          "[DEBUG] Status is APPROVED. Publishing TeamApprovedEvent for registrationId: "
+              + registrationId);
       try {
         eventPublisher.publishEvent(
             new TeamApprovedEvent(
                 this, registrationId, registration.getEventId(), registration.getTeamId()));
+        System.out.println("[DEBUG] TeamApprovedEvent published successfully.");
       } catch (Exception e) {
+        System.out.println("[DEBUG] Exception while publishing event: " + e.getMessage());
+        e.printStackTrace();
         teamRegistrationRepository.updateGithubStatus(registrationId, "FAILED");
         throw e;
       }
