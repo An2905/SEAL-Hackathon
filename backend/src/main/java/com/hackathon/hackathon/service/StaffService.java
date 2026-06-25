@@ -1,5 +1,6 @@
 package com.hackathon.hackathon.service;
 
+import com.hackathon.hackathon.config.GitHubAppConfig;
 import com.hackathon.hackathon.event.TeamApprovedEvent;
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
@@ -42,8 +43,10 @@ import com.hackathon.hackathon.repository.StaffAssignmentRepository;
 import com.hackathon.hackathon.repository.StaffEmailRepository;
 import com.hackathon.hackathon.repository.StudentProfileRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
+import com.hackathon.hackathon.repository.TeamRepository;
 import com.hackathon.hackathon.repository.UniversityRepository;
 import com.hackathon.hackathon.repository.UserRepository;
+import com.hackathon.hackathon.service.github.GitHubRepoService;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -81,6 +84,12 @@ public class StaffService {
   @Autowired private AssignmentRepository assignmentRepository;
 
   @Autowired private AuthService authService;
+
+  @Autowired private TeamRepository teamRepository;
+
+  @Autowired private GitHubRepoService gitHubRepoService;
+
+  @Autowired private GitHubAppConfig gitHubAppConfig;
 
   @Autowired private StaffAssignmentRepository staffAssignmentRepository;
 
@@ -283,6 +292,83 @@ public class StaffService {
     }
 
     return new MessageResponse("Đã kích hoạt lại tiến trình cấp phát GitHub thành công.");
+  }
+
+  public MessageResponse updateTeamRepoAccess(
+      String authHeader, String registrationId, boolean grantAccess) {
+    authService.validateRole(authHeader, "COORDINATOR");
+
+    TeamRegistration tr =
+        teamRegistrationRepository
+            .findDetailsByRegistrationId(registrationId)
+            .orElseThrow(() -> new BadRequestException("Không tìm thấy thông tin đăng ký."));
+
+    if (!"APPROVED".equals(tr.getStatus())) {
+      throw new BadRequestException(
+          "Không thể cấp/khóa quyền: Đăng ký của đội không ở trạng thái APPROVED.");
+    }
+
+    if (!"SUCCESS".equals(tr.getGithubStatus())) {
+      throw new BadRequestException(
+          "Không thể cấp/khóa quyền: Repository chưa được tạo thành công.");
+    }
+
+    String repoUrl = tr.getGithubRepoUrl();
+    if (repoUrl == null || repoUrl.isBlank()) {
+      throw new BadRequestException("Không tìm thấy URL repository.");
+    }
+
+    String owner = gitHubAppConfig.getOrganization();
+    String repoName = "";
+    int lastSlash = repoUrl.lastIndexOf('/');
+    if (lastSlash != -1) {
+      repoName = repoUrl.substring(lastSlash + 1);
+    } else {
+      throw new BadRequestException("URL repository không hợp lệ: " + repoUrl);
+    }
+
+    if (owner == null || owner.isBlank()) {
+      String temp = repoUrl.replace("https://github.com/", "");
+      String[] parts = temp.split("/");
+      if (parts.length >= 2) {
+        owner = parts[0];
+      } else {
+        throw new BadRequestException("Không thể xác định Owner/Org từ URL repository.");
+      }
+    }
+
+    List<User> members = teamRepository.findTeamMembersByTeamId(tr.getTeamId());
+    int successCount = 0;
+    int skipCount = 0;
+
+    for (User member : members) {
+      String username = member.getGithubUsername();
+      if (username == null || username.isBlank()) {
+        skipCount++;
+        continue;
+      }
+
+      try {
+        if (grantAccess) {
+          gitHubRepoService.addCollaboratorInternal(owner, repoName, username);
+        } else {
+          gitHubRepoService.removeCollaboratorInternal(owner, repoName, username);
+        }
+        successCount++;
+      } catch (Exception e) {
+        System.err.println(
+            "[DEBUG] Failed to update access for user " + username + ": " + e.getMessage());
+      }
+    }
+
+    String action = grantAccess ? "Cấp quyền" : "Khóa quyền";
+    return new MessageResponse(
+        action
+            + " làm bài thành công cho "
+            + successCount
+            + " thành viên. (Bỏ qua "
+            + skipCount
+            + " thành viên chưa liên kết GitHub).");
   }
 
   // endregion

@@ -11,8 +11,6 @@ public class TeamRegistration {
   private String status;
   private String registeredAt;
   private String githubStatus;
-  private Long githubTeamId;
-  private String githubTeamSlug;
   private Long githubRepoId;
   private String githubRepoUrl;
 }

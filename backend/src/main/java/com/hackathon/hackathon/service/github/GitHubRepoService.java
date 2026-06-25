@@ -60,4 +60,42 @@ public class GitHubRepoService {
     authService.validateRole(authHeader, "COORDINATOR");
     return createOrgRepoInternal(templateOwner, templateRepo, owner, repoName, isPrivate);
   }
+
+  public Map<String, Object> addCollaboratorInternal(String owner, String repo, String username) {
+    Map<String, String> body = Map.of("permission", "push");
+    return restClient
+        .put()
+        .uri(config.getApiBaseUrl() + "/repos/" + owner + "/" + repo + "/collaborators/" + username)
+        .header("Authorization", "Bearer " + tokenService.getInstallationToken())
+        .header("Accept", "application/vnd.github+json")
+        .header("X-GitHub-Api-Version", "2026-03-10")
+        .body(body)
+        .retrieve()
+        .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+  }
+
+  public void removeCollaboratorInternal(String owner, String repo, String username) {
+    restClient
+        .delete()
+        .uri(config.getApiBaseUrl() + "/repos/" + owner + "/" + repo + "/collaborators/" + username)
+        .header("Authorization", "Bearer " + tokenService.getInstallationToken())
+        .header("Accept", "application/vnd.github+json")
+        .header("X-GitHub-Api-Version", "2026-03-10")
+        .retrieve()
+        .toBodilessEntity();
+  }
+
+  public Map<String, Object> updateRepoVisibilityInternal(
+      String owner, String repo, boolean isPrivate) {
+    Map<String, Object> body = Map.of("private", isPrivate);
+    return restClient
+        .patch()
+        .uri(config.getApiBaseUrl() + "/repos/" + owner + "/" + repo)
+        .header("Authorization", "Bearer " + tokenService.getInstallationToken())
+        .header("Accept", "application/vnd.github+json")
+        .header("X-GitHub-Api-Version", "2026-03-10")
+        .body(body)
+        .retrieve()
+        .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+  }
 }

@@ -90,7 +90,7 @@ public class TeamRegistrationRepository {
   public Optional<TeamRegistration> findDetailsByRegistrationId(String registrationId) {
     String sql =
         "SELECT registration_id, event_id, team_id, status, registered_at, github_status, "
-            + "github_team_id, github_team_slug, github_repo_id, github_repo_url FROM team_registrations WHERE registration_id = ?";
+            + "github_repo_id, github_repo_url FROM team_registrations WHERE registration_id = ?";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, registrationId);
@@ -103,9 +103,6 @@ public class TeamRegistrationRepository {
           tr.setStatus(rs.getString("status"));
           tr.setRegisteredAt(rs.getString("registered_at"));
           tr.setGithubStatus(rs.getString("github_status"));
-          tr.setGithubTeamId(
-              rs.getObject("github_team_id") != null ? rs.getLong("github_team_id") : null);
-          tr.setGithubTeamSlug(rs.getString("github_team_slug"));
           tr.setGithubRepoId(
               rs.getObject("github_repo_id") != null ? rs.getLong("github_repo_id") : null);
           tr.setGithubRepoUrl(rs.getString("github_repo_url"));
@@ -119,30 +116,19 @@ public class TeamRegistrationRepository {
   }
 
   public boolean updateGithubDetails(
-      String registrationId,
-      String githubStatus,
-      Long githubTeamId,
-      String githubTeamSlug,
-      Long githubRepoId,
-      String githubRepoUrl) {
+      String registrationId, String githubStatus, Long githubRepoId, String githubRepoUrl) {
     String sql =
-        "UPDATE team_registrations SET github_status = ?, github_team_id = ?, github_team_slug = ?, github_repo_id = ?, github_repo_url = ? WHERE registration_id = ?";
+        "UPDATE team_registrations SET github_status = ?, github_repo_id = ?, github_repo_url = ? WHERE registration_id = ?";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, githubStatus);
-      if (githubTeamId != null) {
-        ps.setLong(2, githubTeamId);
+      if (githubRepoId != null) {
+        ps.setLong(2, githubRepoId);
       } else {
         ps.setNull(2, java.sql.Types.BIGINT);
       }
-      ps.setString(3, githubTeamSlug);
-      if (githubRepoId != null) {
-        ps.setLong(4, githubRepoId);
-      } else {
-        ps.setNull(4, java.sql.Types.BIGINT);
-      }
-      ps.setString(5, githubRepoUrl);
-      ps.setString(6, registrationId);
+      ps.setString(3, githubRepoUrl);
+      ps.setString(4, registrationId);
       return ps.executeUpdate() > 0;
     } catch (SQLException e) {
       throw new RuntimeException(sql, e);

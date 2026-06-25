@@ -17,4 +17,12 @@ public class GitHubProvisioningController {
       @RequestHeader("Authorization") String authHeader, @PathVariable String registrationId) {
     return ResponseEntity.ok(staffService.retryGitHubProvisioning(authHeader, registrationId));
   }
+
+  @PutMapping("/{registrationId}/access")
+  public ResponseEntity<MessageResponse> updateTeamRepoAccess(
+      @RequestHeader("Authorization") String authHeader,
+      @PathVariable String registrationId,
+      @RequestParam("grant") boolean grant) {
+    return ResponseEntity.ok(staffService.updateTeamRepoAccess(authHeader, registrationId, grant));
+  }
 }
