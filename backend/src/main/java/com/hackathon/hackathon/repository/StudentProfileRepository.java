@@ -4,7 +4,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.Optional;
-import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
@@ -48,16 +47,13 @@ public class StudentProfileRepository {
   }
 
   public boolean insert(String userId, String studentCode, String universityName) {
-    String profileId = UUID.randomUUID().toString();
     String sql =
-        "INSERT INTO studentprofile (profile_id, user_id, student_code, university_name)"
-            + " VALUES (?, ?, ?, ?)";
+        "INSERT INTO studentprofile (user_id, student_code, university_name)" + " VALUES (?, ?, ?)";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, profileId);
-      ps.setString(2, userId);
-      ps.setString(3, studentCode);
-      ps.setString(4, universityName);
+      ps.setString(1, userId);
+      ps.setString(2, studentCode);
+      ps.setString(3, universityName);
       return ps.executeUpdate() > 0;
     } catch (Exception e) {
       return false;

@@ -3,7 +3,6 @@ package com.hackathon.hackathon.repository;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.Optional;
-import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
@@ -14,16 +13,12 @@ public class ParticipantsProfileRepository {
   @Autowired private DataSource dataSource;
 
   public boolean insert(String userId, String participantType) {
-    String profileId = UUID.randomUUID().toString();
     String type = "EXTERNAL".equalsIgnoreCase(participantType) ? "EXTERNAL" : "INTERNAL";
-    String sql =
-        "INSERT INTO participants_profile (profile_id, user_id, participant_type)"
-            + " VALUES (?, ?, ?)";
+    String sql = "INSERT INTO participants_profile (user_id, participant_type)" + " VALUES (?, ?)";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, profileId);
-      ps.setString(2, userId);
-      ps.setString(3, type);
+      ps.setString(1, userId);
+      ps.setString(2, type);
       return ps.executeUpdate() > 0;
     } catch (Exception e) {
       return false;
