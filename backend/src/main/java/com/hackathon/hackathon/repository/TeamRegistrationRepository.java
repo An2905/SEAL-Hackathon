@@ -230,12 +230,13 @@ public class TeamRegistrationRepository {
   public List<TeamEventRegistrationResponse> findAllByTeamId(String teamId) {
     String sql =
         """
-            SELECT tr.registration_id, tr.event_id, tr.status AS registration_status, tr.registered_at,
-                   e.title AS event_title, e.description AS event_description,
-                   e.start_date AS event_start_date, e.end_date AS event_end_date, e.status AS event_status,
-                   g.group_id, g.group_name
-            FROM team_registrations tr
-            JOIN events e ON tr.event_id = e.event_id
+             SELECT tr.registration_id, tr.event_id, tr.status AS registration_status, tr.registered_at,
+                    tr.github_status, tr.github_repo_url,
+                    e.title AS event_title, e.description AS event_description,
+                    e.start_date AS event_start_date, e.end_date AS event_end_date, e.status AS event_status,
+                    g.group_id, g.group_name
+             FROM team_registrations tr
+             JOIN events e ON tr.event_id = e.event_id
             LEFT JOIN (
             """
             + GROUP_ASSIGNMENT_SUBQUERY

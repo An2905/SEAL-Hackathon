@@ -371,6 +371,80 @@ public class StaffService {
             + " thành viên chưa liên kết GitHub).");
   }
 
+  public MessageResponse updateEventRepoAccess(
+      String authHeader, String eventId, boolean grantAccess) {
+    authService.validateRole(authHeader, "COORDINATOR");
+
+    List<TeamRegistration> registrations = eventRepository.findTeamRegistrationsByEventId(eventId);
+    int successCount = 0;
+    int skipCount = 0;
+
+    for (TeamRegistration tr : registrations) {
+      if (!"APPROVED".equals(tr.getStatus()) || !"SUCCESS".equals(tr.getGithubStatus())) {
+        continue;
+      }
+
+      String repoUrl = tr.getGithubRepoUrl();
+      if (repoUrl == null || repoUrl.isBlank()) {
+        continue;
+      }
+
+      String owner = gitHubAppConfig.getOrganization();
+      String repoName = "";
+      int lastSlash = repoUrl.lastIndexOf('/');
+      if (lastSlash != -1) {
+        repoName = repoUrl.substring(lastSlash + 1);
+      } else {
+        continue;
+      }
+
+      if (owner == null || owner.isBlank()) {
+        String temp = repoUrl.replace("https://github.com/", "");
+        String[] parts = temp.split("/");
+        if (parts.length >= 2) {
+          owner = parts[0];
+        } else {
+          continue;
+        }
+      }
+
+      List<User> members = teamRepository.findTeamMembersByTeamId(tr.getTeamId());
+      for (User member : members) {
+        String username = member.getGithubUsername();
+        if (username == null || username.isBlank()) {
+          skipCount++;
+          continue;
+        }
+
+        try {
+          if (grantAccess) {
+            gitHubRepoService.addCollaboratorInternal(owner, repoName, username);
+          } else {
+            gitHubRepoService.removeCollaboratorInternal(owner, repoName, username);
+          }
+          successCount++;
+        } catch (Exception e) {
+          System.err.println(
+              "[DEBUG] Bulk update: Failed to update access for user "
+                  + username
+                  + " in repo "
+                  + repoName
+                  + ": "
+                  + e.getMessage());
+        }
+      }
+    }
+
+    String action = grantAccess ? "Cấp quyền" : "Khóa quyền";
+    return new MessageResponse(
+        action
+            + " làm bài hàng loạt thành công cho "
+            + successCount
+            + " thành viên. (Hiện có "
+            + skipCount
+            + " thành viên chưa liên kết GitHub).");
+  }
+
   // endregion
 
   // region ASSIGN JUDGE / MENTOR

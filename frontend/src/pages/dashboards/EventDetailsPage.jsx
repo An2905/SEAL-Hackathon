@@ -7,7 +7,12 @@ import Modal from '../../components/common/Modal'
 import ConfirmModal from '../../components/common/ConfirmModal'
 import LoadingState from '../../components/common/LoadingState'
 import { getEventDetail } from '../../api/event'
-import { changeTeamRegistrationStatus, getAllAccounts, retryGitHubProvisioning } from '../../api/staff'
+import {
+  changeTeamRegistrationStatus,
+  getAllAccounts,
+  retryGitHubProvisioning,
+  updateEventRepoAccess
+} from '../../api/staff'
 import {
   deleteJudgeAssignment,
   deleteMentorAssignment,
@@ -1331,7 +1336,7 @@ function GitHubStatusBadge({ team, onGitHubUpdated }) {
             rel='noopener noreferrer'
             className='btn btn-ghost btn-sm'
             style={{ fontSize: 11, padding: '2px 6px', textDecoration: 'underline' }}
-            title={team.githubTeamSlug || 'Repo URL'}
+            title='Repo URL'
           >
             Repo
           </a>
@@ -2743,6 +2748,20 @@ export default function EventDetailsPage() {
   const [event, setEvent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [bulkAccessModal, setBulkAccessModal] = useState({ isOpen: false, grant: false, loading: false })
+
+  const handleBulkAccessConfirm = async () => {
+    setBulkAccessModal((prev) => ({ ...prev, loading: true }))
+    try {
+      const res = await updateEventRepoAccess({ eventId, grant: bulkAccessModal.grant })
+      showToast(res.message || 'Cập nhật quyền truy cập thành công!', 'success')
+      setBulkAccessModal({ isOpen: false, grant: false, loading: false })
+      await loadEvent()
+    } catch (err) {
+      showToast(localizeError(err.message), 'error')
+      setBulkAccessModal((prev) => ({ ...prev, loading: false }))
+    }
+  }
 
   const loadEvent = useCallback(async () => {
     setLoading(true)
@@ -3075,9 +3094,41 @@ export default function EventDetailsPage() {
             className='event-registrations-section'
             style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid var(--border)' }}
           >
-            <h3 className='section-title' style={{ marginBottom: 12 }}>
-              Đăng ký và tích hợp GitHub
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 className='section-title' style={{ margin: 0 }}>
+                Đăng ký và tích hợp GitHub
+              </h3>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type='button'
+                  className='btn btn-outline btn-sm'
+                  style={{
+                    borderColor: '#22c55e',
+                    color: '#16a34a',
+                    padding: '6px 12px',
+                    height: 'auto',
+                    minHeight: 0
+                  }}
+                  onClick={() => setBulkAccessModal({ isOpen: true, grant: true, loading: false })}
+                >
+                  Mở quyền làm bài (Tất cả)
+                </button>
+                <button
+                  type='button'
+                  className='btn btn-outline btn-sm'
+                  style={{
+                    borderColor: '#ef4444',
+                    color: '#dc2626',
+                    padding: '6px 12px',
+                    height: 'auto',
+                    minHeight: 0
+                  }}
+                  onClick={() => setBulkAccessModal({ isOpen: true, grant: false, loading: false })}
+                >
+                  Khóa quyền làm bài (Tất cả)
+                </button>
+              </div>
+            </div>
             <div
               className='card'
               style={{
@@ -3098,6 +3149,21 @@ export default function EventDetailsPage() {
           <div style={{ marginTop: 24 }}>
             <CriteriaManager rounds={event.rounds ?? []} />
           </div>
+
+          <ConfirmModal
+            isOpen={bulkAccessModal.isOpen}
+            onClose={() => setBulkAccessModal((prev) => ({ ...prev, isOpen: false }))}
+            onConfirm={handleBulkAccessConfirm}
+            title={bulkAccessModal.grant ? 'Mở quyền làm bài' : 'Khóa quyền làm bài'}
+            message={
+              bulkAccessModal.grant
+                ? 'Hành động này sẽ thêm tất cả các thành viên của các đội đã duyệt của sự kiện làm Collaborator trực tiếp trên GitHub. Các thí sinh sẽ có quyền clone/push code làm bài. Bạn có chắc chắn muốn tiếp tục?'
+                : 'Hành động này sẽ xóa tất cả các thành viên khỏi Collaborator của repository trên GitHub. Thí sinh sẽ mất quyền truy cập code ngay lập tức. Bạn có chắc chắn muốn tiếp tục?'
+            }
+            confirmLabel={bulkAccessModal.grant ? 'Mở quyền' : 'Khóa quyền'}
+            loading={bulkAccessModal.loading}
+            danger={!bulkAccessModal.grant}
+          />
         </div>
       )}
     </DashboardShell>

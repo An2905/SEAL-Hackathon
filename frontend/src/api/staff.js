@@ -221,3 +221,15 @@ export async function retryGitHubProvisioning(registrationId) {
   })
   return parseStaffJson(text)
 }
+
+// PUT /api/staff/events/{eventId}/github-access?grant=true/false
+export async function updateEventRepoAccess({ eventId, grant }) {
+  const id = normalizeEventId(eventId)
+  if (!id) {
+    throw new Error('Không xác định được sự kiện — vui lòng tải lại trang')
+  }
+  const text = await apiFetch(`/api/staff/events/${id}/github-access?grant=${grant}`, {
+    method: 'PUT'
+  })
+  return parseStaffJson(text)
+}

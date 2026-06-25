@@ -650,6 +650,55 @@ function TeamEventsList({ list, mentorsByEvent, onOpenChat }) {
                     status={registrationStatusLabel(reg.registrationStatus)}
                     className={registrationStatusPillClass(reg.registrationStatus)}
                   />
+                  {reg.registrationStatus === 'APPROVED' && reg.githubStatus === 'SUCCESS' && reg.githubRepoUrl && (
+                    <div style={{ marginTop: 8 }}>
+                      {reg.repoAccessGranted ? (
+                        <a
+                          href={reg.githubRepoUrl}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='btn btn-success btn-sm'
+                          style={{
+                            fontSize: 10,
+                            padding: '4px 8px',
+                            height: 'auto',
+                            minHeight: 0,
+                            textDecoration: 'none',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4
+                          }}
+                          title='Đi tới GitHub Repository'
+                        >
+                          <IconGithub size={12} />
+                          Repo làm bài
+                        </a>
+                      ) : (
+                        <button
+                          type='button'
+                          className='btn btn-sm'
+                          disabled
+                          style={{
+                            fontSize: 10,
+                            padding: '4px 8px',
+                            height: 'auto',
+                            minHeight: 0,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            background: '#e5e7eb',
+                            color: '#9ca3af',
+                            borderColor: '#d1d5db',
+                            cursor: 'not-allowed'
+                          }}
+                          title='Quyền truy cập repository chưa được Coordinator kích hoạt'
+                        >
+                          <IconGithub size={12} />
+                          Repo (Khóa)
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </StatusStack>
               </div>
             </div>

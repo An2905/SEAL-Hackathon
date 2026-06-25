@@ -128,7 +128,9 @@ public class GitHubProvisioningListener {
                   githubRepoId);
             } catch (Exception ex) {
               log.error("Failed to fetch existing repository details: {}", ex.getMessage());
-              githubRepoUrl = "https://github.com/" + org + "/" + repoName;
+              throw new RuntimeException(
+                  "Không thể lấy thông tin repository hiện tại trên GitHub: " + ex.getMessage(),
+                  ex);
             }
           } else {
             throw e;

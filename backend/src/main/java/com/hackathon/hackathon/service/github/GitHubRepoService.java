@@ -19,8 +19,6 @@ public class GitHubRepoService {
 
   private final RestClient restClient = RestClient.create();
 
-  // ── Create repo from template ──────────────────────────────────────────
-
   public Map<String, Object> getOrgRepoInternal(String owner, String repoName) {
     return restClient
         .get()
@@ -31,6 +29,8 @@ public class GitHubRepoService {
         .retrieve()
         .body(new ParameterizedTypeReference<Map<String, Object>>() {});
   }
+  
+  // ── Create repo from template ──────────────────────────────────────────
 
   public Map<String, Object> createOrgRepoInternal(
       String templateOwner, String templateRepo, String owner, String repoName, boolean isPrivate) {
@@ -85,17 +85,26 @@ public class GitHubRepoService {
         .toBodilessEntity();
   }
 
-  public Map<String, Object> updateRepoVisibilityInternal(
-      String owner, String repo, boolean isPrivate) {
-    Map<String, Object> body = Map.of("private", isPrivate);
-    return restClient
-        .patch()
-        .uri(config.getApiBaseUrl() + "/repos/" + owner + "/" + repo)
-        .header("Authorization", "Bearer " + tokenService.getInstallationToken())
-        .header("Accept", "application/vnd.github+json")
-        .header("X-GitHub-Api-Version", "2026-03-10")
-        .body(body)
-        .retrieve()
-        .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+  public boolean isCollaboratorInternal(String owner, String repo, String username) {
+    try {
+      restClient
+          .get()
+          .uri(
+              config.getApiBaseUrl()
+                  + "/repos/"
+                  + owner
+                  + "/"
+                  + repo
+                  + "/collaborators/"
+                  + username)
+          .header("Authorization", "Bearer " + tokenService.getInstallationToken())
+          .header("Accept", "application/vnd.github+json")
+          .header("X-GitHub-Api-Version", "2026-03-10")
+          .retrieve()
+          .toBodilessEntity();
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
   }
 }

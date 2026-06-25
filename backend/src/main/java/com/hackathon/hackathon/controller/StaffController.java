@@ -86,6 +86,14 @@ public class StaffController {
     return ResponseEntity.ok(staffService.changeTeamRegistrationStatus(authHeader, request));
   }
 
+  @PutMapping("/events/{eventId}/github-access")
+  public ResponseEntity<MessageResponse> updateEventRepoAccess(
+      @RequestHeader("Authorization") String authHeader,
+      @PathVariable String eventId,
+      @RequestParam("grant") boolean grant) {
+    return ResponseEntity.ok(staffService.updateEventRepoAccess(authHeader, eventId, grant));
+  }
+
   @GetMapping("/events/export")
   public ResponseEntity<byte[]> exportEventsExcel(
       @RequestHeader("Authorization") String authHeader) {
