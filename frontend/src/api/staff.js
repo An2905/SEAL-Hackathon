@@ -31,7 +31,7 @@ function parseStaffJson(text) {
 }
 
 // POST /api/staff/events — status mặc định BUILDING (server set)
-export async function createEvent({ title, description, startDate, endDate, maxTeams, numRounds }) {
+export async function createEvent({ title, description, startDate, endDate, maxTeams, numRounds, githubTemplateRepo }) {
   const t = String(title ?? '').trim()
   if (!t) throw new Error('Tên sự kiện không được để trống')
 
@@ -42,6 +42,8 @@ export async function createEvent({ title, description, startDate, endDate, maxT
   if (endDate) body.endDate = endDate
   if (maxTeams != null && maxTeams !== '') body.maxTeams = Number(maxTeams)
   if (numRounds != null && numRounds !== '') body.numRounds = Number(numRounds)
+  const repo = String(githubTemplateRepo ?? '').trim()
+  if (repo) body.githubTemplateRepo = repo
 
   const data = parseStaffJson(
     await apiFetch('/api/staff/events', {

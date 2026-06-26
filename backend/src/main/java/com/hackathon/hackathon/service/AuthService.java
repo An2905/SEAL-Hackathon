@@ -11,6 +11,7 @@ import com.hackathon.hackathon.model.dto.request.StudentRegisterRequest;
 import com.hackathon.hackathon.model.dto.request.UpdatePasswordRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateProfileRequest;
 import com.hackathon.hackathon.model.dto.request.VerifyStudentRegisterRequest;
+import com.hackathon.hackathon.model.dto.response.GetProfileResponse;
 import com.hackathon.hackathon.model.dto.response.GithubLinkStatusResponse;
 import com.hackathon.hackathon.model.dto.response.LoginResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
@@ -290,6 +291,11 @@ public class AuthService {
       if (!participantsProfileRepository.updateExpertProfile(userId, newPhone.trim(), avatarUrl)) {
         throw new BadRequestException("Failed to update expert profile.");
       }
+    } else {
+      // COORDINATOR: lưu phone nếu có
+      if (newPhone != null && !newPhone.trim().isEmpty()) {
+        participantsProfileRepository.upsertPhone(userId, newPhone.trim());
+      }
     }
 
     String token = JwtUtil.generateToken(resolvedEmail, role, userId, newFullName);
@@ -312,6 +318,41 @@ public class AuthService {
     if (!avatarUrl.matches(urlRegex)) {
       throw new BadRequestException("Avatar URL must start with http:// or https://");
     }
+  }
+
+  // #endregion
+  // #region GET PROFILE
+
+  public GetProfileResponse getProfile(String authHeader) {
+    String email = extractEmailFromToken(authHeader);
+    User user =
+        userRepository
+            .findByEmail(email)
+            .orElseThrow(() -> new UnauthorizedException("User not found."));
+    String role = user.getRole();
+
+    String university = null;
+    String studentId = null;
+    String phone = null;
+    String avatarUrl = null;
+
+    if (isStudentRole(role)) {
+      String[] studentData =
+          studentProfileRepository.findProfileByEmail(email).orElse(new String[] {null, null});
+      studentId = studentData[0];
+      university = studentData[1];
+    } else {
+      // EXPERT và COORDINATOR đều có thể lưu phone trong participants_profile
+      String[] profileData =
+          participantsProfileRepository
+              .findPhoneAndAvatarByUserId(user.getUserId())
+              .orElse(new String[] {null, null});
+      phone = profileData[0];
+      avatarUrl = profileData[1];
+    }
+
+    return new GetProfileResponse(
+        user.getFullName(), email, role, university, studentId, phone, avatarUrl);
   }
 
   // #endregion

@@ -60,6 +60,15 @@ export async function verifyAndResetPassword({ email, otp, newPassword }) {
   return true
 }
 
+export async function getProfile() {
+  const text = await apiFetch('/api/auth/profile')
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw new Error('Không đọc được thông tin hồ sơ từ máy chủ.')
+  }
+}
+
 export async function updateProfile({ fullName, email, university, studentId, phone, avatarUrl }) {
   const body = { fullName, university, studentId, phone }
   const trimmedEmail = (email ?? '').trim()
@@ -75,11 +84,16 @@ export async function updateProfile({ fullName, email, university, studentId, ph
     method: 'PUT',
     body
   })
-  if (!/profile updated successfully/i.test(text)) throw new Error(text)
 
-  const tokenMatch = text.match(/New Token:\s*([^\s]+)/i)
-  const newToken = tokenMatch ? tokenMatch[1].trim() : null
+  // Backend trả JSON: {"message":"Profile updated successfully.","newToken":"eyJ..."}
+  let parsed
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    parsed = null
+  }
 
+  const newToken = parsed?.newToken?.trim() || null
   if (!newToken) {
     throw new Error('Cập nhật thành công nhưng không nhận được token mới — vui lòng đăng nhập lại.')
   }

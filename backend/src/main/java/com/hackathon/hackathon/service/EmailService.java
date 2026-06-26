@@ -23,21 +23,29 @@ public class EmailService {
   @Value("${brevo.api.key}")
   private String brevoApiKey;
 
+  @Value("${email.dev-bypass:false}")
+  private boolean devBypass;
+
   private final RestTemplate restTemplate = new RestTemplate();
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   public boolean sendResetPasswordOtpEmail(String toEmail, String otp) {
     return sendEmail(
-        toEmail, "Reset Password OTP", "<h2>Your OTP is: " + escapeHtml(otp) + "</h2>");
+        toEmail, "Reset Password OTP", "<h2>Your OTP is: " + escapeHtml(otp) + "</h2>", otp);
   }
 
   public boolean sendRegisterOtpEmail(String toEmail, String otp) {
-    return sendEmail(toEmail, "Register OTP", "<h2>Your OTP is: " + escapeHtml(otp) + "</h2>");
+    return sendEmail(toEmail, "Register OTP", "<h2>Your OTP is: " + escapeHtml(otp) + "</h2>", otp);
   }
 
-  private boolean sendEmail(String toEmail, String subject, String htmlContent) {
+  private boolean sendEmail(String toEmail, String subject, String htmlContent, String otp) {
+    if (devBypass) {
+      System.out.println("=== [DEV BYPASS] OTP for " + toEmail + ": " + otp + " ===");
+      return true;
+    }
     if (brevoApiKey == null || brevoApiKey.isBlank()) {
-      System.err.println("BREVO_API_KEY is not configured in backend/.env.properties");
+      System.err.println(
+          "BREVO_API_KEY is not configured — bật email.dev-bypass=true trong .env.properties để test local");
       return false;
     }
     try {
@@ -61,7 +69,7 @@ public class EmailService {
       }
       return true;
     } catch (Exception e) {
-      e.printStackTrace();
+      System.err.println("Brevo exception: " + e.getMessage());
       return false;
     }
   }

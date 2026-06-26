@@ -4,6 +4,8 @@
 
 Ứng dụng React (Vite) quản lý toàn bộ luồng tổ chức Hackathon với **4 role người dùng**, mỗi role có dashboard riêng biệt. Auth dùng JWT lưu trong `localStorage`, routing được bảo vệ bởi `RequireRole` — đăng nhập sai role sẽ bị redirect về `/`.
 
+**Lưu ý quan trọng về JWT:** Token chỉ chứa `email`, `role`, `userId`, `fullName`. Các trường DB như `university`, `studentId`, `phone`, `avatarUrl` **không có trong JWT** — phải gọi `GET /api/auth/profile` để lấy.
+
 ---
 
 ## Cấu trúc thư mục
@@ -184,7 +186,7 @@ Mentor (EXPERT_INTERNAL / EXPERT_EXTERNAL) theo dõi các đội được gán v
 
 **File:** `pages/dashboards/staff/StaffLayout.jsx`
 
-Dashboard Staff có **4 tab** được render bởi `DashboardLayout`.
+Dashboard Staff có **5 tab** được render bởi `DashboardLayout`.
 
 ---
 
@@ -193,7 +195,9 @@ Dashboard Staff có **4 tab** được render bởi `DashboardLayout`.
 **File:** `pages/dashboards/staff/StaffEventsPage.jsx`
 
 - Tải toàn bộ sự kiện, kèm số đội đang chờ duyệt (`pendingTeams`).
-- **Tạo sự kiện mới** qua modal (`CreateEventForm`).
+- **Tạo sự kiện mới** qua modal (`CreateEventForm`):
+  - Nhập tiêu đề, mô tả, ngày bắt đầu/kết thúc, số đội tối đa, số vòng.
+  - **GitHub Template Repository** (tùy chọn): URL kho GitHub template; khi registration được duyệt, hệ thống tự tạo repo cho đội từ template này. Lưu vào cột `github_template_repo` của bảng `events`.
 - **Lọc theo trạng thái**: ALL / BUILDING / UPCOMING / ONGOING / COMPLETED.
 - Mỗi sự kiện trong accordion hiển thị: mô tả, ngày bắt đầu/kết thúc, số đội chờ duyệt (nếu > 0).
 - **Thay đổi trạng thái** inline qua `<select>` (BUILDING → UPCOMING → ONGOING → COMPLETED).
@@ -242,7 +246,8 @@ Trang đầy đủ nhất, quản lý mọi khía cạnh của một sự kiện
 | **Vòng thi (Rounds)** | Thêm/sửa/xóa vòng thi, mỗi vòng có tên, thứ tự, thời gian |
 | **Bảng thi (Groups)** | Thêm/sửa/xóa bảng, gán đội vào bảng, xóa đội khỏi bảng |
 | **Criteria** | Quản lý tiêu chí chấm điểm cho từng vòng (`CriteriaManager`) |
-| **Đăng ký đội** | Duyệt đăng ký: PENDING → APPROVED / REJECTED |
+| **Đăng ký đội** | Duyệt đăng ký: PENDING → APPROVED / REJECTED. Không hiển thị ID nội bộ |
+| **GitHub** | Retry provisioning repo cho đội; bật/tắt quyền truy cập repo toàn sự kiện |
 | **Giải thưởng** | Thêm/sửa/xóa giải thưởng của sự kiện |
 | **Judge/Mentor** | Xem danh sách được gán, sửa/xóa phân công |
 
@@ -260,7 +265,35 @@ Trang đầy đủ nhất, quản lý mọi khía cạnh của một sự kiện
 
 ---
 
-### Trang Thông báo
+### Trang Hồ sơ — `/profile`
+
+**File:** `pages/dashboards/staff/StaffProfilePage.jsx`
+
+Trang dành cho **mọi role đã đăng nhập** (RequireAuth, không phân biệt role).
+
+#### Luồng lấy dữ liệu
+1. Component mount → gọi `getProfile()` → `GET /api/auth/profile`.
+2. Response `{ fullName, email, role, university, studentId, phone, avatarUrl }` được lưu vào state `profileData`.
+3. UI hiển thị dữ liệu từ `profileData` (không lấy từ JWT vì JWT không chứa các trường này).
+
+#### Hiển thị theo role
+- **Mọi role**: Email.
+- **Sinh viên** (`STUDENT_FPT`, `STUDENT_EXTERNAL`): Trường (university), Mã sinh viên (studentId).
+- **Không phải sinh viên** (Expert, Coordinator): Số điện thoại (phone). Không có trường "Khoa / Phòng".
+
+#### Cập nhật hồ sơ (`ProfileModal`)
+- Modal nhận `profileData` và `onProfileUpdated` từ parent.
+- Khi mở (`isOpen`), `useEffect` pre-fill form từ `profileData`:
+  - `fullName`, `email` từ `auth`.
+  - `university`, `studentId`, `phone` từ `profileData`.
+- Khi submit: gọi `updateProfile(form)` → `PUT /api/auth/profile`.
+- Backend trả JSON `{message, newToken}`.
+- Frontend `JSON.parse()` response, đọc `parsed.newToken`, gọi `saveAuth({ token: newToken, fullName })`.
+- Gọi `onProfileUpdated` để cập nhật `profileData` ở parent ngay lập tức (không cần reload trang).
+
+---
+
+### Trang Thông báo (chưa hoạt động)
 
 **File:** `pages/dashboards/staff/StaffAnnouncementsPage.jsx`
 
@@ -269,6 +302,8 @@ Trang đầy đủ nhất, quản lý mọi khía cạnh của một sự kiện
 | **Gửi toàn hệ thống** | Tất cả người dùng | `sendAnnouncementToAll` |
 | **Gửi nhắm đối tượng** | Chọn nhóm (FPT Student / Student / Mentor đã phân công / Judge đã phân công) trong một sự kiện cụ thể | `sendAnnouncementToParticipants` |
 
+⚠️ Trang này chưa được thêm vào `TABS` của `StaffLayout` và `api/staff.js` chưa export các hàm trên — trang này chưa hoạt động.
+
 ---
 
 ## Luồng nghiệp vụ end-to-end
@@ -276,6 +311,7 @@ Trang đầy đủ nhất, quản lý mọi khía cạnh của một sự kiện
 ```
 [Staff] Tạo sự kiện (BUILDING)
     → Tạo vòng thi, bảng thi, tiêu chí chấm điểm
+    → (Tùy chọn) Thiết lập GitHub Template Repository cho sự kiện
     → Tạo tài khoản Judge/Mentor
     → Gán Judge/Mentor vào bảng theo vòng
     → Chuyển sang UPCOMING
@@ -285,6 +321,7 @@ Trang đầy đủ nhất, quản lý mọi khía cạnh của một sự kiện
 
 [Staff] Sự kiện → ONGOING
     → Duyệt đăng ký đội (APPROVED)
+    → (Tự động) Hệ thống tạo repo GitHub từ template cho đội được duyệt
     → Phân đội vào bảng
 
 [Sinh viên] Thấy mentor → Chat trực tiếp
@@ -308,7 +345,7 @@ Trang đầy đủ nhất, quản lý mọi khía cạnh của một sự kiện
 - Kết nối STOMP over WebSocket.
 - Sinh viên chat với mentor theo từng cặp `(eventId, mentorId)`.
 - Mentor chat với đội qua mode `'mentor'`.
-- `ChatPopup` là floating popup; `TeamChatPanel` là panel nhúng trong layout.
+- `ChatPopup` là floating popup đang được dùng; `TeamChatPanel` là panel nhúng — chưa được import vào đâu (dead code tiềm năng).
 
 ---
 
@@ -316,8 +353,44 @@ Trang đầy đủ nhất, quản lý mọi khía cạnh của một sự kiện
 
 **File:** `context/AuthContext.jsx`
 
-- JWT decode tại client để lấy `fullName`, `email`.
-- `saveAuth`: lưu token + thông tin vào `localStorage`.
+- JWT decode tại client để lấy `fullName`, `email`, `role`, `userId`.
+- `saveAuth`: lưu token + thông tin vào `localStorage`; được gọi sau login, đăng ký, và cập nhật hồ sơ (khi BE cấp token mới).
 - `clearAuth`: xóa toàn bộ, dùng khi logout.
 - `pathForRole(role)`: trả về path dashboard tương ứng với role.
 - Google reCAPTCHA tích hợp ở form đăng ký (`RegisterModal`, `useRecaptcha`).
+
+---
+
+## Email OTP
+
+**File:** `backend/.../service/EmailService.java`
+
+- Môi trường production: gửi OTP qua Brevo API (cần `BREVO_API_KEY`).
+- Môi trường dev: bật `EMAIL_DEV_BYPASS=true` trong `.env.properties` → OTP được in ra console (`=== [DEV BYPASS] OTP for ...: ... ===`) thay vì gửi email, giúp test luồng đăng ký/đặt lại mật khẩu mà không cần Brevo.
+
+---
+
+## GitHub Integration
+
+**Files:** `api/staff.js`, `pages/dashboards/EventDetailsPage.jsx`
+
+- **`createEvent({ ..., githubTemplateRepo })`**: tạo sự kiện với URL GitHub template (tùy chọn). Backend lưu vào `events.github_template_repo`.
+- **`retryGitHubProvisioning(registrationId)`**: thử lại tạo repo GitHub cho một đội cụ thể khi quá trình tự động thất bại.
+- **`updateEventRepoAccess({ eventId, grant })`**: cấp (`grant=true`) hoặc thu hồi (`grant=false`) quyền truy cập repo cho toàn bộ thành viên của sự kiện.
+- **GitHub Link Status**: `getGithubLinkUrl()` và `getGithubLinkStatus()` trong `api/auth.js` cho phép người dùng liên kết tài khoản GitHub cá nhân với tài khoản hệ thống (OAuth flow).
+
+---
+
+## Lưu ý kỹ thuật
+
+### `updateProfile` — phân tích JSON response
+Backend `PUT /api/auth/profile` trả về JSON: `{"message": "...", "newToken": "eyJ..."}`.
+Frontend dùng `JSON.parse()` để đọc `parsed.newToken` — **không dùng regex** (regex sẽ thất bại với JSON body).
+
+### `getProfile` — tách biệt với JWT
+`GET /api/auth/profile` trả về toàn bộ thông tin từ DB theo role:
+- Sinh viên: `university`, `studentId` từ bảng `studentprofile`.
+- Expert/Coordinator: `phone`, `avatarUrl` từ bảng `participants_profile`.
+
+### Coordinator — lưu phone
+Coordinator không có row sẵn trong `participants_profile`. `upsertPhone()` dùng `INSERT ... ON DUPLICATE KEY UPDATE` để tạo hoặc cập nhật phone cho Coordinator.

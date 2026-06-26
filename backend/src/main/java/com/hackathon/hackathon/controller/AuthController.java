@@ -7,6 +7,7 @@ import com.hackathon.hackathon.model.dto.request.StudentRegisterRequest;
 import com.hackathon.hackathon.model.dto.request.UpdatePasswordRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateProfileRequest;
 import com.hackathon.hackathon.model.dto.request.VerifyStudentRegisterRequest;
+import com.hackathon.hackathon.model.dto.response.GetProfileResponse;
 import com.hackathon.hackathon.model.dto.response.LoginResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.dto.response.ProfileUpdateResponse;
@@ -34,6 +35,12 @@ public class AuthController {
       @RequestHeader("Authorization") String authHeader,
       @Valid @RequestBody UpdatePasswordRequest request) {
     return ResponseEntity.ok(authService.updatePassword(authHeader, request));
+  }
+
+  @GetMapping("/profile")
+  public ResponseEntity<GetProfileResponse> getProfile(
+      @RequestHeader("Authorization") String authHeader) {
+    return ResponseEntity.ok(authService.getProfile(authHeader));
   }
 
   @PutMapping("/profile")

@@ -1439,7 +1439,6 @@ function TeamsDropdownContent({ teams, onUpdated, onGitHubUpdated }) {
           <div className='kv' key={team.registrationId || team.teamId} style={{ gap: 12, alignItems: 'center' }}>
             <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
               <div style={{ fontWeight: 600 }}>{team.teamName || '—'}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-mute)' }}>ID Đăng ký: {team.registrationId || '—'}</div>
             </span>
             <GitHubStatusBadge team={team} onGitHubUpdated={onGitHubUpdated} />
             <TeamRegistrationStatusPicker team={team} onUpdated={onUpdated} />

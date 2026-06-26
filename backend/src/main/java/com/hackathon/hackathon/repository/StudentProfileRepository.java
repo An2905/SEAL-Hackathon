@@ -31,6 +31,26 @@ public class StudentProfileRepository {
     return Optional.empty();
   }
 
+  /** Returns [studentCode, universityName] or empty if not found. */
+  public Optional<String[]> findProfileByEmail(String email) {
+    String sql =
+        "SELECT sp.student_code, sp.university_name FROM users u "
+            + "LEFT JOIN studentprofile sp ON u.user_id = sp.user_id WHERE u.email = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, email);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return Optional.of(
+              new String[] {rs.getString("student_code"), rs.getString("university_name")});
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
+    }
+    return Optional.empty();
+  }
+
   public boolean existsByStudentCodeAndUniversity(String studentCode, String university) {
     String sql =
         "SELECT 1 FROM studentprofile WHERE student_code = ? AND university_name = ? LIMIT 1";

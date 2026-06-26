@@ -120,9 +120,15 @@ public class EventService {
       throw new BadRequestException("Number of rounds must be at least 1.");
     }
 
+    String githubTemplateRepo = request.getGithubTemplateRepo();
+    if (githubTemplateRepo != null) {
+      githubTemplateRepo = githubTemplateRepo.trim();
+      if (githubTemplateRepo.isEmpty()) githubTemplateRepo = null;
+    }
+
     String eventId =
         eventSetupRepository.insertEvent(
-            title, description, startDate, endDate, maxTeams, numRounds);
+            title, description, startDate, endDate, maxTeams, numRounds, githubTemplateRepo);
     if (eventId == null || eventId.isBlank()) {
       throw new BadRequestException("Failed to create event.");
     }

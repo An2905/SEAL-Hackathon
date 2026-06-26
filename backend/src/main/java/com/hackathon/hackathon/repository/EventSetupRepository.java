@@ -147,11 +147,12 @@ public class EventSetupRepository {
       Timestamp startDate,
       Timestamp endDate,
       Integer maxTeams,
-      int numRounds) {
+      int numRounds,
+      String githubTemplateRepo) {
     String eventId = UUID.randomUUID().toString();
     String sql =
-        "INSERT INTO events (event_id, title, description, start_date, end_date, status, max_teams, num_rounds) "
-            + "VALUES (?, ?, ?, ?, ?, 'BUILDING', ?, ?)";
+        "INSERT INTO events (event_id, title, description, start_date, end_date, status, max_teams, num_rounds, github_template_repo) "
+            + "VALUES (?, ?, ?, ?, ?, 'BUILDING', ?, ?, ?)";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, eventId);
@@ -165,6 +166,7 @@ public class EventSetupRepository {
         ps.setNull(6, java.sql.Types.INTEGER);
       }
       ps.setInt(7, numRounds);
+      ps.setString(8, githubTemplateRepo);
       if (ps.executeUpdate() > 0) {
         return eventId;
       }

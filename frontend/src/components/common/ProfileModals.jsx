@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Modal from './Modal'
 import FormField from './FormField'
 import FormMessage from './FormMessage'
@@ -8,18 +8,31 @@ import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 
-export function ProfileModal({ isOpen, onClose, showStudentFields = false, showStaffFields = false }) {
+export function ProfileModal({ isOpen, onClose, showStudentFields = false, showStaffFields = false, profileData = null, onProfileUpdated }) {
   const { auth, saveAuth } = useAuth()
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
   const [form, setForm] = useState({
     fullName: auth.fullName || '',
-    email: auth.email,
+    email: auth.email || '',
     university: '',
     studentId: '',
     phone: ''
   })
+
+  useEffect(() => {
+    if (isOpen) {
+      setMessage(null)
+      setForm({
+        fullName: auth.fullName || '',
+        email: auth.email || '',
+        university: profileData?.university || '',
+        studentId: profileData?.studentId || '',
+        phone: profileData?.phone || ''
+      })
+    }
+  }, [isOpen, profileData, auth.fullName, auth.email])
 
   const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
 
@@ -29,11 +42,19 @@ export function ProfileModal({ isOpen, onClose, showStudentFields = false, showS
     setLoading(true)
     try {
       const { newToken } = await updateProfile(form)
-      // saveAuth auto-decodes fullName/email from new token; pass email/fullName as fallbacks
       saveAuth({
         ...(newToken ? { token: newToken } : {}),
         fullName: form.fullName
       })
+      if (onProfileUpdated) {
+        onProfileUpdated((prev) => ({
+          ...prev,
+          fullName: form.fullName,
+          university: form.university,
+          studentId: form.studentId,
+          phone: form.phone
+        }))
+      }
       setMessage({ text: 'Cập nhật hồ sơ thành công!', type: 'success' })
       showToast('Đã cập nhật hồ sơ', 'success')
       setTimeout(onClose, 600)

@@ -1,14 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import Avatar from '../../../components/common/Avatar'
 import { ProfileModal, PasswordModal } from '../../../components/common/ProfileModals'
 import { vietnameseRoleLabel, STUDENT_ROLES } from '../../../utils/roleLabels'
+import { getProfile } from '../../../api/auth'
 
 export default function StaffProfilePage() {
   const { auth } = useAuth()
   const [profileOpen, setProfileOpen] = useState(false)
   const [passwordOpen, setPasswordOpen] = useState(false)
+  const [profileData, setProfileData] = useState(null)
+
+  useEffect(() => {
+    getProfile().then(setProfileData).catch(() => {})
+  }, [])
 
   const isStudent = STUDENT_ROLES.includes(auth.role)
   const roleLabel = vietnameseRoleLabel(auth.role)
@@ -51,18 +57,14 @@ export default function StaffProfilePage() {
             </button>
           </div>
           <div style={{ padding: '4px 0' }}>
-            <KvRow label='Email' value={auth.email || '—'} />
+            <KvRow label='Email' value={profileData?.email || auth.email || '—'} />
             {isStudent ? (
               <>
-                <KvRow label='Trường' value={auth.university || '—'} />
-                <KvRow label='Mã sinh viên' value={auth.studentId || '—'} last />
+                <KvRow label='Trường' value={profileData?.university || '—'} />
+                <KvRow label='Mã sinh viên' value={profileData?.studentId || '—'} last />
               </>
             ) : (
-              <>
-                <KvRow label='Số điện thoại' value={auth.phone || '—'} />
-                <KvRow label='Trường' value={auth.university || '—'} />
-                <KvRow label='Khoa / Phòng' value={auth.department || '—'} last />
-              </>
+              <KvRow label='Số điện thoại' value={profileData?.phone || '—'} last />
             )}
           </div>
         </div>
@@ -95,6 +97,8 @@ export default function StaffProfilePage() {
         onClose={() => setProfileOpen(false)}
         showStudentFields={isStudent}
         showStaffFields={!isStudent}
+        profileData={profileData}
+        onProfileUpdated={setProfileData}
       />
       <PasswordModal isOpen={passwordOpen} onClose={() => setPasswordOpen(false)} />
     </DashboardLayout>

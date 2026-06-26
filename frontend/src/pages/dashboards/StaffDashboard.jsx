@@ -215,7 +215,8 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
     startDate: '',
     endDate: '',
     maxTeams: '',
-    numRounds: '1'
+    numRounds: '1',
+    githubTemplateRepo: ''
   })
 
   const handle = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
@@ -252,7 +253,8 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
         startDate: form.startDate || null,
         endDate: form.endDate || null,
         maxTeams,
-        numRounds
+        numRounds,
+        githubTemplateRepo: form.githubTemplateRepo
       })
       setLastCreated(created)
       setMessage({
@@ -266,7 +268,8 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
         startDate: '',
         endDate: '',
         maxTeams: '',
-        numRounds: '1'
+        numRounds: '1',
+        githubTemplateRepo: ''
       })
       onSuccess?.(created)
       onClose?.()
@@ -325,6 +328,15 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
         </FormField>
         <FormField label='Số vòng thi dự kiến'>
           <input type='number' name='numRounds' value={form.numRounds} onChange={handle} min={1} disabled={loading} />
+        </FormField>
+        <FormField label='GitHub Template Repository'>
+          <input
+            name='githubTemplateRepo'
+            value={form.githubTemplateRepo}
+            onChange={handle}
+            disabled={loading}
+            placeholder='owner/repo hoặc tên repo (tuỳ chọn)'
+          />
         </FormField>
         <LoadingButton loading={loading} type='submit'>
           Tạo sự kiện

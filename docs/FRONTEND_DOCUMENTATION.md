@@ -1,6 +1,6 @@
 # SEAL Hackathon — Frontend Flow & Architecture Documentation
 
-**Updated:** 2026-06-14
+**Updated:** 2026-06-26
 **Source:** `frontend/` (React 18 + Vite SPA)
 
 ---
@@ -19,7 +19,7 @@
 - **Status:** Accepted
 - **Context:** The backend issues a JWT on login (`POST /api/auth/login`). The SPA needs to persist the session across reloads and read the user's role to drive routing.
 - **Decision:** Store `hh_token`, `hh_email`, `hh_role`, `hh_full_name` in `localStorage` (see `AuthContext.jsx`). The JWT payload is decoded purely client-side via `utils/jwt.js#parseJwt` (base64url → JSON) to recover/refresh the `role` claim when needed.
-- **Consequences:** No httpOnly cookie for the main session — vulnerable to XSS token theft in principle, mitigated by the app being a controlled internal tool. Separately, the OTP-based register/reset-password flows rely on a server-side `HttpSession` (JSESSIONID cookie), so `apiFetch` always sets `credentials: 'include'` in addition to the Bearer header.
+- **Consequences:** The JWT carries only `email`, `role`, `userId`, and `fullName`. Fields like `university`, `studentId`, `phone`, and `avatarUrl` are **not** in the JWT — they require a separate `GET /api/auth/profile` fetch. The OTP-based register/reset-password flows rely on a server-side `HttpSession` (JSESSIONID cookie), so `apiFetch` always sets `credentials: 'include'` in addition to the Bearer header.
 
 ### ADR-003: Centralized `apiFetch` wrapper + response normalizers
 
@@ -49,6 +49,13 @@
 - **Decision:** REST endpoints (`api/chat.js`) fetch room metadata and the last 200 messages. `hooks/useChatStomp.js` opens a SockJS connection to `${API_BASE}/ws`, authenticates via STOMP CONNECT headers (Bearer token), subscribes to `/topic/chat/{roomId}`, and publishes new messages to `/app/chat.send`.
 - **Consequences:** Two parallel code paths must stay in sync (initial REST load + STOMP append); a disconnected socket silently falls back to "no live updates" with no reconnect UI beyond the library defaults.
 
+### ADR-007: Profile data fetched separately from JWT
+
+- **Status:** Accepted
+- **Context:** The JWT payload intentionally carries only identity claims (`email`, `role`, `userId`, `fullName`). DB-stored profile fields (`university`, `studentId` for students; `phone`, `avatarUrl` for experts/coordinators) are not encoded in the token to avoid stale data and token bloat.
+- **Decision:** `StaffProfilePage` (and any page needing full profile) calls `getProfile()` → `GET /api/auth/profile` on mount. The response is stored in local `profileData` state and passed as a prop to `ProfileModal`.
+- **Consequences:** Profile display always reflects DB state, not the cached JWT. A network error on mount silently leaves `profileData` as `null`; the UI falls back to `auth.email` for the email field and shows `'—'` for DB-only fields.
+
 ---
 
 ## 2. Application Structure & Tech Stack
@@ -74,7 +81,7 @@ server: {
 }
 ```
 
-In dev, `VITE_API_BASE` is typically empty so `apiFetch` calls hit relative `/api/...` paths, proxied to the Spring Boot backend on `:8080`. In production, `VITE_API_BASE` (loaded from `.env.properties` or `VITE_*` env vars) points at the deployed API origin.
+In dev, `VITE_API_BASE` is typically empty so `apiFetch` calls hit relative `/api/...` paths, proxied to the Spring Boot backend on `:8080`. In production, `VITE_API_BASE` points at the deployed API origin.
 
 ### Folder layout (`frontend/src/`)
 
@@ -136,7 +143,7 @@ const ROLE_ALIASES = {
 ```
 
 1. If not logged in → redirect to `/`.
-2. If `auth.role` is not in `ROLE_ALIASES[role]` → redirect to `pathForRole(auth.role)` (i.e. bounce the user to _their own_ dashboard rather than showing a 403 page).
+2. If `auth.role` is not in `ROLE_ALIASES[role]` → redirect to `pathForRole(auth.role)` (bounce the user to their own dashboard).
 3. Otherwise render the protected element.
 
 ---
@@ -165,9 +172,13 @@ const ROLE_ALIASES = {
   | `STUDENT_FPT`, `STUDENT_EXTERNAL` | `/student` |
 - `labelForRole(role)` / `pillLabelForRole(role)` — display labels, backed by `utils/roleLabels.js` (`ROLE_UI_LABELS`, `ROLE_VI_LABELS`, `vietnameseRoleLabel`)
 
+### What the JWT does NOT carry
+
+`university`, `studentId`, `phone`, and `avatarUrl` are **not** JWT claims. They must be fetched from the backend via `GET /api/auth/profile` (see `api/auth.js#getProfile`). Components that need these fields should call `getProfile()` on mount and store the result in local state.
+
 ### JWT decoding (`utils/jwt.js#parseJwt`)
 
-Pure client-side base64url decode of the JWT payload (no signature verification — the FE never trusts the JWT for authorization, only for _display_; all real authorization happens server-side per request).
+Pure client-side base64url decode of the JWT payload (no signature verification — the FE never trusts the JWT for authorization, only for display; all real authorization happens server-side per request).
 
 ### Error localization (`utils/errors.js#localizeError`)
 
@@ -185,9 +196,9 @@ Pure client-side base64url decode of the JWT payload (no signature verification 
 
 ### Registration flow (`components/common/RegisterModal.jsx`) — 2-step, session-based OTP
 
-1. **Info step:** full name, email, student ID, university (populated via `getAllUniversities()`), password + reCAPTCHA → `sendRegisterOtp(...)` → `POST /api/auth/register/otp`. Backend stores the pending registration in `HttpSession` and emails an OTP.
+1. **Info step:** full name, email, student ID, university (populated via `getAllUniversities()`), password + reCAPTCHA → `sendRegisterOtp(...)` → `POST /api/auth/register/otp`. Backend stores the pending registration in `HttpSession` and either emails an OTP (production) or prints it to the server console (when `email.dev-bypass=true`).
 2. **OTP step:** user enters the 6-digit code → `verifyAndRegister({ email, otp })` → `POST /api/auth/register`. Backend validates the session OTP, inserts `users` (+`studentprofile`), assigning `STUDENT_FPT` or `STUDENT_EXTERNAL` based on email/university pattern.
-3. A separate `useRecaptcha()` instance powers the "resend OTP" action (so the original token isn't reused).
+3. A separate `useRecaptcha()` instance powers the "resend OTP" action.
 
 ### Password reset flow (`components/common/ResetPasswordModal.jsx`) — 2-step, session-based OTP
 
@@ -228,8 +239,11 @@ Shared helpers used across multiple API modules:
 |                                                | `verifyAndRegister`                                            | `POST /api/auth/register`                                                                                                                               |
 |                                                | `sendResetPasswordOtp`                                         | `POST /api/auth/password/reset-otp`                                                                                                                     |
 |                                                | `verifyAndResetPassword`                                       | `POST /api/auth/password/reset`                                                                                                                         |
-|                                                | `updateProfile`                                                | `PUT /api/auth/profile`                                                                                                                                 |
+|                                                | `getProfile`                                                   | `GET /api/auth/profile` — returns `{fullName, email, role, university, studentId, phone, avatarUrl}`                                                   |
+|                                                | `updateProfile`                                                | `PUT /api/auth/profile` — returns JSON `{message, newToken}`                                                                                            |
 |                                                | `updatePassword`                                               | `PUT /api/auth/password`                                                                                                                                |
+|                                                | `getGithubLinkUrl`                                             | `GET /api/auth/github/link-url` — returns `{authorizeUrl}`                                                                                              |
+|                                                | `getGithubLinkStatus`                                          | `GET /api/auth/github/status` — returns `{githubLinked, githubUsername}`                                                                                |
 | `team.js`                                      | `getMyTeam`                                                    | `GET /api/team/me`                                                                                                                                      |
 |                                                | `createTeam`                                                   | `PUT /api/team/create`                                                                                                                                  |
 |                                                | `joinTeam`                                                     | `PUT /api/team/join`                                                                                                                                    |
@@ -285,7 +299,7 @@ Shared helpers used across multiple API modules:
 |                                                | `getAssignedTeams`                                             | `GET /api/mentor/teams`                                                                                                                                 |
 | `publicEvent.js`                               | `getPublicEvents`                                              | `GET /api/events` (`auth: false`)                                                                                                                       |
 | `staff.js`                                     | `createStaffAccount`                                           | `POST /api/staff/register`                                                                                                                              |
-|                                                | `createEvent`                                                  | `POST /api/staff/events`                                                                                                                                |
+|                                                | `createEvent`                                                  | `POST /api/staff/events` — accepts optional `githubTemplateRepo`                                                                                        |
 |                                                | `changeEventStatus`                                            | `PUT /api/staff/events/status`                                                                                                                          |
 |                                                | `getAllAccounts`                                               | `GET /api/staff/accounts`                                                                                                                               |
 |                                                | `changeAccountStatus`                                          | `PUT /api/staff/change-status`                                                                                                                          |
@@ -293,6 +307,8 @@ Shared helpers used across multiple API modules:
 |                                                | `assignJudge`                                                  | `POST /api/staff/assign/judge`                                                                                                                          |
 |                                                | `assignMentor`                                                 | `POST /api/staff/assign/mentor`                                                                                                                         |
 |                                                | `exportEventsExcel`                                            | `GET /api/staff/events/export` (raw `fetch`, returns `Blob`)                                                                                            |
+|                                                | `retryGitHubProvisioning`                                      | `POST /api/github/registrations/{id}/retry`                                                                                                             |
+|                                                | `updateEventRepoAccess`                                        | `PUT /api/staff/events/{id}/github-access?grant=true\|false`                                                                                            |
 |                                                | _(none)_                                                       | ⚠️ `sendAnnouncementToAll`, `sendAnnouncementToParticipants` — **imported by `StaffAnnouncementsPage.jsx` but not exported from this module** (see §10) |
 | `staffAssignment.js`                           | `deleteMentorAssignment` / `updateMentorAssignment`            | `DELETE` / `PUT /api/staff/assign/mentor`                                                                                                               |
 |                                                | `deleteJudgeAssignment` / `updateJudgeAssignment`              | `DELETE` / `PUT /api/staff/assign/judge`                                                                                                                |
@@ -332,8 +348,20 @@ Unified avatar + name + role-pill trigger, used in both `TopBar` (dashboards) an
 
 ### `components/common/ProfileModals.jsx`
 
-- `ProfileModal` — edits `fullName`, `email` (read-only display), and conditionally `university`/`studentId` (student) or `phone` (expert/staff, via `showStudentFields`/`showStaffFields`); calls `updateProfile`, then `saveAuth` with the refreshed token/claims.
-- `PasswordModal` — `oldPassword` / `newPassword` / `confirmPassword` → `updatePassword`.
+#### `ProfileModal`
+
+Props: `isOpen`, `onClose`, `showStudentFields`, `showStaffFields`, `profileData`, `onProfileUpdated`.
+
+- **Pre-fill:** a `useEffect` on `[isOpen, profileData, auth.fullName, auth.email]` resets the form when the modal opens, pulling `university`/`studentId`/`phone` from `profileData` (the object returned by `getProfile()`).
+- **Fields shown:**
+  - All roles: `fullName` (editable), `email` (editable — leave blank to keep current).
+  - Students (`showStudentFields`): `university` + `studentId` editable inputs.
+  - Experts/Coordinators (`showStaffFields`): `phone` editable input.
+- **Submit:** calls `updateProfile(form)` → `PUT /api/auth/profile`. The backend returns JSON `{message, newToken}`. The frontend JSON-parses the response and reads `parsed.newToken`. On success, calls `saveAuth({ token: newToken, fullName })` and fires `onProfileUpdated` with the updated local profile state.
+
+#### `PasswordModal`
+
+`oldPassword` / `newPassword` / `confirmPassword` → `updatePassword` → `PUT /api/auth/password`. Client-side confirm-match check before submit.
 
 ### `context/ToastContext.jsx`
 
@@ -379,7 +407,7 @@ Covered in detail in §4 (Login / Register / Reset Password flows).
     - `TeamEventsPanel` / `TeamEventsList` — `getTeamRegistrations()` → `GET /api/team/registrations`; shows each event's registration status (PENDING/APPROVED/REJECTED).
       - `EventMentorsBlock` — for `APPROVED` registrations, calls `getTeamTrackMentors(eventId)` → `GET /api/team/mentors` to show assigned mentors for that event/round/group.
     - `JoinEventForm` → `joinEvent({ eventId })` → `PUT /api/team/join-event` (registers the team, status `PENDING`).
-    - `ActivityLog` — client-side-only running log of the actions the user performed in this session (not persisted server-side).
+    - `ActivityLog` — client-side-only running log of actions performed in this session (not persisted server-side).
 - **Chat:** Floating `ChatPopup` (`mode='student'`) — for a chosen event/mentor pair, `openChatRoom({eventId, mentorId})` → `POST /api/chat/rooms/open`, then loads history via `getChatMessages` and live-updates via `useChatStomp`.
 - **⚠️ Not present:** No UI calls `PUT /api/team/submit-project` or `GET /api/team/submissions` — see §10.
 
@@ -427,7 +455,7 @@ Covered in detail in §4 (Login / Register / Reset Password flows).
 
 - `getAllEvents(status)` → `GET /api/staff/events` (status filter: `ALL`/`BUILDING`/`UPCOMING`/`ONGOING`/`COMPLETED`).
 - `attachPendingTeamsToEvents(events)` — enriches each event with a pending-registration count (via `countPendingTeams`) shown by `PendingTeamsBadge`.
-- `createEvent({...})` → `POST /api/staff/events` (new events start as `BUILDING`).
+- `createEvent({title, description, startDate, endDate, maxTeams, numRounds, githubTemplateRepo})` → `POST /api/staff/events` (new events start as `BUILDING`). `githubTemplateRepo` is an optional GitHub URL stored in `github_template_repo` column; used to provision team repositories when a registration is approved.
 - `changeEventStatus({eventId, newStatus})` → `PUT /api/staff/events/status` — lifecycle `BUILDING → UPCOMING → ONGOING → COMPLETED`.
 - `exportEventsExcel()` → `GET /api/staff/events/export` — downloads an `.xlsx` via `Blob`.
 - Per-event navigation: "Chi tiết" → `/staff/events/:eventId`; "Check-in" → `/staff/events/:eventId/check-in`.
@@ -459,7 +487,8 @@ The most complex page in the app. Combines:
   - `createEventRound` / `updateEventRound` / `deleteEventRound` / `getEventRoundDetail` → `/api/staff/events/rounds*`.
   - `createEventGroup` / `updateEventGroup` / `deleteEventGroup` → `/api/staff/events/groups*`.
 - **Team ↔ group assignment:** `getEventGroupTeams` → `GET /api/staff/events/groups/teams`; `assignTeamToGroup` / `removeTeamFromGroup` → `POST`/`DELETE /api/staff/events/groups/teams` (only `APPROVED` registrations are eligible).
-- **Registration approvals:** `changeTeamRegistrationStatus({registrationId, status})` → `PUT /api/staff/team-registration/status`.
+- **Registration approvals:** `changeTeamRegistrationStatus({registrationId, status})` → `PUT /api/staff/team-registration/status`. The registration list does not expose internal registration/team IDs to the UI.
+- **GitHub provisioning:** `retryGitHubProvisioning(registrationId)` → `POST /api/github/registrations/{id}/retry`; `updateEventRepoAccess({eventId, grant})` → `PUT /api/staff/events/{id}/github-access`.
 - **Mentor/judge assignment editing:** reuses `staffAssignment.js` functions (same as `StaffAssignPage`), scoped to this event's rounds/groups.
 - **Awards CRUD:** `createEventAward` / `updateEventAward` / `deleteEventAward` → `/api/staff/events/awards*`.
 - **Criteria management:** embeds `CriteriaManager` (see below) per round.
@@ -478,7 +507,15 @@ The most complex page in the app. Combines:
 
 #### `StaffProfilePage` — `/profile` (lazy-loaded as `ProfilePage`)
 
-Generic profile page available to **any authenticated role** (`RequireAuth`, not `RequireRole`). Hosts `ProfileModal` (`updateProfile`) and `PasswordModal` (`updatePassword`), with conditional fields based on role (`showStudentFields` for students, `showStaffFields` for staff/experts).
+Available to **any authenticated role** (`RequireAuth`, not `RequireRole`).
+
+- **On mount:** calls `getProfile()` → `GET /api/auth/profile`. Stores the result as `profileData` state (`{ fullName, email, role, university, studentId, phone, avatarUrl }`).
+- **Display logic (read-only section):**
+  - All roles: email from `profileData?.email` (falls back to `auth.email`).
+  - Students (`STUDENT_FPT`/`STUDENT_EXTERNAL`): `profileData?.university` (Trường) and `profileData?.studentId` (Mã sinh viên).
+  - Non-students (Experts, Coordinator): `profileData?.phone` (Số điện thoại). No "Khoa / Phòng" field exists.
+- **Edit:** "Chỉnh sửa hồ sơ" button opens `ProfileModal` with `profileData` prop and `onProfileUpdated={setProfileData}` — so the display refreshes immediately after a successful save without another network round-trip.
+- **Password change:** "Đổi mật khẩu" button opens `PasswordModal`.
 
 #### ⚠️ `StaffAnnouncementsPage` — defined but **not wired up**
 
@@ -497,7 +534,7 @@ Implements two forms — "Gửi toàn hệ thống" (broadcast) and "Gửi theo 
 - **Realtime (`hooks/useChatStomp.js`):** SockJS connection to `getWebSocketUrl()` (`${API_BASE}/ws`), STOMP CONNECT with `Authorization: Bearer <token>` header, subscribes to `/topic/chat/{roomId}`, `sendMessage(content)` publishes to `/app/chat.send`.
 - **UI surfaces:**
   - `components/chat/ChatPopup.jsx` — the **active** floating chat widget, used by both `StudentDashboard` (`mode='student'`) and `MentorDashboard`/`JudgeDashboard` (`mode='mentor'`). Renders message bubbles with auto-linkified URLs; input is disabled if the room status is `CLOSED`.
-  - `components/chat/TeamChatPanel.jsx` — an alternate, fully-built team-side chat panel (team leader picks event/round/mentor via `getTeamRegistrations`/`getTeamRounds`/`getTeamTrackMentors`, then `createChatRoom`). **Not imported anywhere** — see §10.
+  - `components/chat/TeamChatPanel.jsx` — an alternate, fully-built team-side chat panel. **Not imported anywhere** — see §10.
 
 ---
 
@@ -515,7 +552,7 @@ Implements two forms — "Gửi toàn hệ thống" (broadcast) and "Gửi theo 
 
 ### B. Coordinator Event Setup Journey
 
-1. `StaffEventsPage` → `createEvent` (status `BUILDING`).
+1. `StaffEventsPage` → `createEvent` (status `BUILDING`). Optional: enter a GitHub Template Repository URL to auto-provision team repos on approval.
 2. Navigate to `EventDetailsPage` (`/staff/events/:eventId`) → `createEventRound`, `createEventGroup`.
 3. `CriteriaManager` → `createCriteria` per round (weights summing to ≤ 100%).
 4. `StaffAssignPage` or `EventDetailsPage` → `assignMentor` / `assignJudge` per round/group.
@@ -538,6 +575,16 @@ Implements two forms — "Gửi toàn hệ thống" (broadcast) and "Gửi theo 
 3. Open `ChatPopup` (`mode='mentor'`) → `listChatRooms` → select a room → respond to student messages in real time.
 4. Optionally cross-link to `/judge` if also assigned as a judge.
 
+### E. Profile Update Journey (any role)
+
+1. Any authenticated user → navigate to `/profile` (or click "Hồ sơ của tôi" in `AccountDropdown`).
+2. `StaffProfilePage` mounts → `getProfile()` fires → `profileData` state populated with DB values.
+3. Display shows email, and role-specific fields (university/studentId for students; phone for others).
+4. Click "Chỉnh sửa hồ sơ" → `ProfileModal` opens, pre-filled from `profileData` via `useEffect`.
+5. User edits fields, submits → `updateProfile(form)` → `PUT /api/auth/profile`.
+6. Backend re-issues a JWT with updated claims and returns `{message, newToken}`.
+7. Frontend JSON-parses the response, calls `saveAuth({ token: newToken, fullName })`, fires `onProfileUpdated` to update `profileData` in the parent, closes modal.
+
 ---
 
 ## 10. Gap Analysis & Known Issues (Frontend)
@@ -549,7 +596,6 @@ Implements two forms — "Gửi toàn hệ thống" (broadcast) and "Gửi theo 
 | **P2**   | `components/chat/TeamChatPanel.jsx` is a complete alternate chat UI (room creation by team leader via event/round/mentor pickers) but is **never imported** — `StudentDashboard` uses `ChatPopup` instead. Likely superseded/dead code, or a pending integration.                                                                                                                                                                                                      |
 | **P2**   | `api/criteriaApi.js` bypasses the shared `apiFetch` wrapper with its own `request()` helper, and re-implements `getCriteriaForJudge`/`getCriteriaByEvent` as `@deprecated` duplicates of functions already in `api/judge.js` (which is what the judge UI actually uses). Candidate for cleanup/consolidation.                                                                                                                                                          |
 | **P3**   | The "Thông báo" (Notifications) item in `AccountDropdown` is permanently disabled with a "Sắp ra mắt" (Coming Soon) badge — no notification feature exists yet on either side.                                                                                                                                                                                                                                                                                         |
-| **P3**   | Awards CRUD (`createEventAward`/`updateEventAward`/`deleteEventAward`) and full criteria CRUD are implemented in the FE (`EventDetailsPage`/`CriteriaManager`) against existing backend endpoints — this appears to resolve the "Awards administration screens (read-only)" item listed in `SYSTEM_DOCUMENTATION.md` §8, which may now be stale.                                                                                                                       |
 
 ---
 
