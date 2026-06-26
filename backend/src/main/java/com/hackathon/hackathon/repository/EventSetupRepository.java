@@ -223,10 +223,11 @@ public class EventSetupRepository {
       Timestamp endDate,
       String status,
       Integer maxTeams,
-      int numRounds) {
+      int numRounds,
+      String githubTemplateRepo) {
     String sql =
         "UPDATE events SET title = ?, description = ?, start_date = ?, end_date = ?, status = ?, "
-            + "max_teams = ?, num_rounds = ? WHERE event_id = ?";
+            + "max_teams = ?, num_rounds = ?, github_template_repo = ? WHERE event_id = ?";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, title);
@@ -240,7 +241,8 @@ public class EventSetupRepository {
         ps.setNull(6, java.sql.Types.INTEGER);
       }
       ps.setInt(7, numRounds);
-      ps.setString(8, eventId);
+      ps.setString(8, githubTemplateRepo);
+      ps.setString(9, eventId);
       return ps.executeUpdate() > 0;
     } catch (Exception e) {
       return false;
@@ -249,7 +251,7 @@ public class EventSetupRepository {
 
   public Optional<EventSetupRow> findEventById(String eventId) {
     String sql =
-        "SELECT event_id, title, description, start_date, end_date, status, max_teams, num_rounds, created_at "
+        "SELECT event_id, title, description, start_date, end_date, status, max_teams, num_rounds, created_at, github_template_repo "
             + "FROM events WHERE event_id = ?";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -267,6 +269,7 @@ public class EventSetupRepository {
           row.maxTeams = rs.wasNull() ? null : maxTeams;
           row.numRounds = rs.getInt("num_rounds");
           row.createdAt = rs.getTimestamp("created_at");
+          row.githubTemplateRepo = rs.getString("github_template_repo");
           return Optional.of(row);
         }
       }
@@ -350,6 +353,7 @@ public class EventSetupRepository {
     public Integer maxTeams;
     public Integer numRounds;
     public Timestamp createdAt;
+    public String githubTemplateRepo;
   }
 
   public static class EventRoundSetupRow {

@@ -1,5 +1,7 @@
 package com.hackathon.hackathon.service;
 
+import com.hackathon.hackathon.config.GitHubAppConfig;
+import com.hackathon.hackathon.event.TeamApprovedEvent;
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.model.dto.request.AssignGroupTeamRequest;
@@ -36,6 +38,8 @@ import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.EventSetupRepository;
 import com.hackathon.hackathon.repository.EventSetupRepository.EventRoundSetupRow;
 import com.hackathon.hackathon.repository.EventSetupRepository.EventSetupRow;
+import com.hackathon.hackathon.repository.TeamRegistrationRepository;
+import com.hackathon.hackathon.service.github.GitHubRepoService;
 import io.jsonwebtoken.Claims;
 import java.io.ByteArrayOutputStream;
 import java.sql.Timestamp;
@@ -50,9 +54,11 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientResponseException;
 
 @Service
 public class EventService {
@@ -68,6 +74,14 @@ public class EventService {
   @Autowired private EventMapper eventMapper;
 
   @Autowired private CheckInRepository checkInRepository;
+
+  @Autowired private GitHubRepoService gitHubRepoService;
+
+  @Autowired private GitHubAppConfig gitHubAppConfig;
+
+  @Autowired private TeamRegistrationRepository teamRegistrationRepository;
+
+  @Autowired private ApplicationEventPublisher eventPublisher;
 
   // region CREATE EVENT
 
@@ -203,8 +217,54 @@ public class EventService {
               }
             });
 
+    String githubTemplateRepo =
+        request.getGithubTemplateRepo() == null ? null : request.getGithubTemplateRepo().trim();
+    if (githubTemplateRepo != null && githubTemplateRepo.isEmpty()) {
+      githubTemplateRepo = null;
+    }
+
+    if (githubTemplateRepo != null) {
+      String templateOwner = gitHubAppConfig.getOrganization();
+      String templateRepoName = githubTemplateRepo;
+      if (githubTemplateRepo.contains("/")) {
+        String[] parts = githubTemplateRepo.split("/", 2);
+        templateOwner = parts[0].trim();
+        templateRepoName = parts[1].trim();
+      }
+      if (templateOwner == null || templateOwner.isEmpty() || templateRepoName.isEmpty()) {
+        throw new BadRequestException(
+            "Định dạng kho lưu trữ mẫu không hợp lệ. Phải là 'owner/repo' hoặc 'repo'.");
+      }
+      try {
+        gitHubRepoService.getOrgRepoInternal(templateOwner, templateRepoName);
+      } catch (RestClientResponseException e) {
+        if (e.getStatusCode().value() == 404) {
+          throw new BadRequestException(
+              "Kho lưu trữ mẫu GitHub '"
+                  + templateOwner
+                  + "/"
+                  + templateRepoName
+                  + "' không tồn tại hoặc GitHub App không được cài đặt/cấp quyền.");
+        } else {
+          throw new BadRequestException(
+              "Lỗi khi kiểm tra kho lưu trữ mẫu GitHub: " + e.getResponseBodyAsString());
+        }
+      } catch (Exception e) {
+        throw new BadRequestException(
+            "Không thể kết nối để kiểm tra kho lưu trữ mẫu GitHub: " + e.getMessage());
+      }
+    }
+
     if (!eventSetupRepository.updateEvent(
-        eventId, title, description, startDate, endDate, status, maxTeams, numRounds)) {
+        eventId,
+        title,
+        description,
+        startDate,
+        endDate,
+        status,
+        maxTeams,
+        numRounds,
+        githubTemplateRepo)) {
       throw new BadRequestException("Failed to update event.");
     }
 
@@ -223,6 +283,7 @@ public class EventService {
     response.setMaxTeams(row.maxTeams);
     response.setNumRounds(row.numRounds);
     response.setCreatedAt(timestampToIso(row.createdAt));
+    response.setGithubTemplateRepo(row.githubTemplateRepo);
     return response;
   }
 
@@ -957,7 +1018,25 @@ public class EventService {
     requireCheckInEventExists(eventId);
     requireCheckInRegistration(eventId, teamId);
 
-    return checkInRepository.applyTeamCheckIn(eventId, teamId, staffUserId, request.isChecked());
+    String oldStatus =
+        teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse("PENDING");
+
+    CheckInTeamResponse response =
+        checkInRepository.applyTeamCheckIn(eventId, teamId, staffUserId, request.isChecked());
+
+    String newStatus =
+        teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse("PENDING");
+
+    if ("PENDING".equals(oldStatus) && "APPROVED".equals(newStatus)) {
+      try {
+        eventPublisher.publishEvent(
+            new TeamApprovedEvent(this, response.getRegistrationId(), eventId, teamId));
+      } catch (Exception e) {
+        teamRegistrationRepository.updateGithubStatus(response.getRegistrationId(), "FAILED");
+      }
+    }
+
+    return response;
   }
 
   public CheckInTeamResponse setMemberCheckIn(String authHeader, CheckInMemberRequest request) {
@@ -974,8 +1053,26 @@ public class EventService {
     requireCheckInEventExists(eventId);
     requireCheckInRegistration(eventId, teamId);
 
-    return checkInRepository.applyMemberCheckIn(
-        eventId, teamId, userId, staffUserId, request.isChecked());
+    String oldStatus =
+        teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse("PENDING");
+
+    CheckInTeamResponse response =
+        checkInRepository.applyMemberCheckIn(
+            eventId, teamId, userId, staffUserId, request.isChecked());
+
+    String newStatus =
+        teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse("PENDING");
+
+    if ("PENDING".equals(oldStatus) && "APPROVED".equals(newStatus)) {
+      try {
+        eventPublisher.publishEvent(
+            new TeamApprovedEvent(this, response.getRegistrationId(), eventId, teamId));
+      } catch (Exception e) {
+        teamRegistrationRepository.updateGithubStatus(response.getRegistrationId(), "FAILED");
+      }
+    }
+
+    return response;
   }
 
   private String requireCheckInEventId(String eventId) {

@@ -144,7 +144,10 @@ function mapTeamRegistrationRow(row) {
     groupId: String(r.groupId ?? r.group_id ?? ''),
     groupName: r.groupName ?? r.group_name ?? '',
     registrationStatus: r.registrationStatus ?? r.registration_status ?? '',
-    registeredAt: r.registeredAt ?? r.registered_at ?? ''
+    registeredAt: r.registeredAt ?? r.registered_at ?? '',
+    githubStatus: r.githubStatus ?? r.github_status ?? '',
+    githubRepoUrl: r.githubRepoUrl ?? r.github_repo_url ?? '',
+    repoAccessGranted: Boolean(r.repoAccessGranted ?? r.repo_access_granted)
   }
 }
 

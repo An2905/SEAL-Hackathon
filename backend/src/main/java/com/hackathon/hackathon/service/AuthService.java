@@ -131,6 +131,21 @@ public class AuthService {
     return new GithubLinkStatusResponse(linked, githubUsername);
   }
 
+  // #region GITHUB
+  public void unlinkGithub(String authHeader) {
+    Claims claims = validateRole(authHeader, AUTHENTICATED_ROLES);
+    String userId = claims.get("userId", String.class);
+    if (userId == null || userId.isBlank()) {
+      throw new BadRequestException("Invalid user token.");
+    }
+    boolean success = userRepository.unlinkGithub(userId.trim());
+    if (!success) {
+      throw new BadRequestException("Không thể hủy liên kết hoặc tài khoản chưa liên kết GitHub.");
+    }
+  }
+
+  // #endregion
+
   @Autowired private EmailService emailService;
 
   @Autowired private UserRepository userRepository;

@@ -96,8 +96,9 @@ export async function updatePassword({ oldPassword, newPassword, confirmPassword
   return true
 }
 
-export async function getGithubLinkUrl() {
-  const text = await apiFetch('/api/auth/github/link-url')
+export async function getGithubLinkUrl(prompt) {
+  const url = prompt ? `/api/auth/github/link-url?prompt=${encodeURIComponent(prompt)}` : '/api/auth/github/link-url'
+  const text = await apiFetch(url)
   let parsed
   try {
     parsed = JSON.parse(text)

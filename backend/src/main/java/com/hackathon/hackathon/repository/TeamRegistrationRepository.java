@@ -2,6 +2,7 @@ package com.hackathon.hackathon.repository;
 
 import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
+import com.hackathon.hackathon.model.entity.TeamRegistration;
 import com.hackathon.hackathon.model.mapper.TeamMapper;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -83,6 +84,66 @@ public class TeamRegistrationRepository {
       return ps.executeUpdate() > 0;
     } catch (Exception e) {
       return false;
+    }
+  }
+
+  public Optional<TeamRegistration> findDetailsByRegistrationId(String registrationId) {
+    String sql =
+        "SELECT registration_id, event_id, team_id, status, registered_at, github_status, "
+            + "github_repo_id, github_repo_url FROM team_registrations WHERE registration_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, registrationId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          TeamRegistration tr = new TeamRegistration();
+          tr.setRegistrationId(rs.getString("registration_id"));
+          tr.setEventId(rs.getString("event_id"));
+          tr.setTeamId(rs.getString("team_id"));
+          tr.setStatus(rs.getString("status"));
+          tr.setRegisteredAt(rs.getString("registered_at"));
+          tr.setGithubStatus(rs.getString("github_status"));
+          tr.setGithubRepoId(
+              rs.getObject("github_repo_id") != null ? rs.getLong("github_repo_id") : null);
+          tr.setGithubRepoUrl(rs.getString("github_repo_url"));
+          return Optional.of(tr);
+        }
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+    return Optional.empty();
+  }
+
+  public boolean updateGithubDetails(
+      String registrationId, String githubStatus, Long githubRepoId, String githubRepoUrl) {
+    String sql =
+        "UPDATE team_registrations SET github_status = ?, github_repo_id = ?, github_repo_url = ? WHERE registration_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, githubStatus);
+      if (githubRepoId != null) {
+        ps.setLong(2, githubRepoId);
+      } else {
+        ps.setNull(2, java.sql.Types.BIGINT);
+      }
+      ps.setString(3, githubRepoUrl);
+      ps.setString(4, registrationId);
+      return ps.executeUpdate() > 0;
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+  }
+
+  public boolean updateGithubStatus(String registrationId, String githubStatus) {
+    String sql = "UPDATE team_registrations SET github_status = ? WHERE registration_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, githubStatus);
+      ps.setString(2, registrationId);
+      return ps.executeUpdate() > 0;
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
     }
   }
 
@@ -169,12 +230,13 @@ public class TeamRegistrationRepository {
   public List<TeamEventRegistrationResponse> findAllByTeamId(String teamId) {
     String sql =
         """
-            SELECT tr.registration_id, tr.event_id, tr.status AS registration_status, tr.registered_at,
-                   e.title AS event_title, e.description AS event_description,
-                   e.start_date AS event_start_date, e.end_date AS event_end_date, e.status AS event_status,
-                   g.group_id, g.group_name
-            FROM team_registrations tr
-            JOIN events e ON tr.event_id = e.event_id
+             SELECT tr.registration_id, tr.event_id, tr.status AS registration_status, tr.registered_at,
+                    tr.github_status, tr.github_repo_url,
+                    e.title AS event_title, e.description AS event_description,
+                    e.start_date AS event_start_date, e.end_date AS event_end_date, e.status AS event_status,
+                    g.group_id, g.group_name
+             FROM team_registrations tr
+             JOIN events e ON tr.event_id = e.event_id
             LEFT JOIN (
             """
             + GROUP_ASSIGNMENT_SUBQUERY

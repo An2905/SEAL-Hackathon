@@ -19,6 +19,8 @@ function mapTeam(row) {
     teamName: row.teamName ?? row.team_name ?? '',
     registrationStatus: row.registrationStatus ?? row.registration_status ?? '',
     registeredAt: row.registeredAt ?? row.registered_at ?? null,
+    githubStatus: row.githubStatus ?? row.github_status ?? null,
+    githubRepoUrl: row.githubRepoUrl ?? row.github_repo_url ?? '',
     memberCount: row.memberCount ?? row.member_count ?? membersRaw.length,
     members: Array.isArray(membersRaw) ? membersRaw.map(mapMember) : []
   }

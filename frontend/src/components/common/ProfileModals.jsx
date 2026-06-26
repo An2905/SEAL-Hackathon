@@ -9,20 +9,19 @@ import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 
 export function ProfileModal({ isOpen, onClose, showStudentFields = false, showStaffFields = false }) {
-	const { auth, saveAuth } = useAuth();
-	const { showToast } = useToast();
-	const [loading, setLoading] = useState(false);
-	const [message, setMessage] = useState(null);
-	const [form, setForm] = useState({
-		fullName: auth.fullName || "",
-		email: auth.email,
-		university: "",
-		studentId: "",
-		phone: "",
-	});
+  const { auth, saveAuth } = useAuth()
+  const { showToast } = useToast()
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState(null)
+  const [form, setForm] = useState({
+    fullName: auth.fullName || '',
+    email: auth.email,
+    university: '',
+    studentId: '',
+    phone: ''
+  })
 
-	const handleChange = (e) =>
-		setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -45,75 +44,56 @@ export function ProfileModal({ isOpen, onClose, showStudentFields = false, showS
     }
   }
 
-	return (
-		<Modal
-			isOpen={isOpen}
-			onClose={onClose}
-			title="Chỉnh sửa hồ sơ"
-			subtitle="Cập nhật thông tin cá nhân của bạn."
-		>
-			<form className="form" onSubmit={handleSubmit}>
-				<FormField label="Họ và tên">
-					<input
-						name="fullName"
-						value={form.fullName}
-						onChange={handleChange}
-						required
-						placeholder="Nguyễn Văn A"
-					/>
-				</FormField>
-				<FormField label="Email — để trống nếu giữ nguyên">
-					<input
-						name="email"
-						type="email"
-						value={form.email}
-						onChange={handleChange}
-						placeholder={auth.email || "email@example.com"}
-					/>
-				</FormField>
-				{showStudentFields && (
-					<div className="field-row">
-						<FormField label="Trường">
-							<input
-								name="university"
-								value={form.university}
-								onChange={handleChange}
-							/>
-						</FormField>
-						<FormField label="Mã sinh viên">
-							<input
-								name="studentId"
-								value={form.studentId}
-								onChange={handleChange}
-							/>
-						</FormField>
-					</div>
-				)}
-				{showStaffFields && (
-					<FormField label="Số điện thoại">
-						<input
-							name="phone"
-							type="tel"
-							value={form.phone}
-							onChange={handleChange}
-							required
-							placeholder="09xxxxxxxx"
-							autoComplete="tel"
-						/>
-					</FormField>
-				)}
-				<div className="form-actions">
-					<button type="button" className="btn btn-outline" onClick={onClose}>
-						Hủy
-					</button>
-					<LoadingButton loading={loading} type="submit" className="btn btn-primary">
-						Cập nhật
-					</LoadingButton>
-				</div>
-				<FormMessage message={message?.text} type={message?.type} />
-			</form>
-		</Modal>
-	);
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title='Chỉnh sửa hồ sơ' subtitle='Cập nhật thông tin cá nhân của bạn.'>
+      <form className='form' onSubmit={handleSubmit}>
+        <FormField label='Họ và tên'>
+          <input name='fullName' value={form.fullName} onChange={handleChange} required placeholder='Nguyễn Văn A' />
+        </FormField>
+        <FormField label='Email — để trống nếu giữ nguyên'>
+          <input
+            name='email'
+            type='email'
+            value={form.email}
+            onChange={handleChange}
+            placeholder={auth.email || 'email@example.com'}
+          />
+        </FormField>
+        {showStudentFields && (
+          <div className='field-row'>
+            <FormField label='Trường'>
+              <input name='university' value={form.university} onChange={handleChange} />
+            </FormField>
+            <FormField label='Mã sinh viên'>
+              <input name='studentId' value={form.studentId} onChange={handleChange} />
+            </FormField>
+          </div>
+        )}
+        {showStaffFields && (
+          <FormField label='Số điện thoại'>
+            <input
+              name='phone'
+              type='tel'
+              value={form.phone}
+              onChange={handleChange}
+              required
+              placeholder='09xxxxxxxx'
+              autoComplete='tel'
+            />
+          </FormField>
+        )}
+        <div className='form-actions'>
+          <button type='button' className='btn btn-outline' onClick={onClose}>
+            Hủy
+          </button>
+          <LoadingButton loading={loading} type='submit' className='btn btn-primary'>
+            Cập nhật
+          </LoadingButton>
+        </div>
+        <FormMessage message={message?.text} type={message?.type} />
+      </form>
+    </Modal>
+  )
 }
 
 export function PasswordModal({ isOpen, onClose }) {

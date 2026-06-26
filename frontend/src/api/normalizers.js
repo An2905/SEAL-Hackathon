@@ -111,7 +111,10 @@ function mapTeamRow(row) {
     registrationId: normalizeId(row.registrationId ?? row.registration_id),
     teamId: normalizeId(row.teamId ?? row.team_id),
     teamName: row.teamName ?? row.team_name ?? '',
-    status: row.status ?? ''
+    status: row.status ?? '',
+    githubStatus: row.githubStatus ?? row.github_status ?? '',
+    githubRepoUrl: row.githubRepoUrl ?? row.github_repo_url ?? '',
+    githubTeamSlug: row.githubTeamSlug ?? row.github_team_slug ?? ''
   }
 }
 
@@ -289,6 +292,7 @@ export function mapEventDetailRow(row) {
     totalGroups: mapCount(r.totalGroups ?? r.total_groups),
     totalRounds: mapCount(r.totalRounds ?? r.total_rounds),
     totalAwards: mapCount(r.totalAwards ?? r.total_awards),
+    githubTemplateRepo: r.githubTemplateRepo ?? r.github_template_repo ?? '',
     teams: mapList(r.teams, mapTeamRow),
     groups: mapList(r.groups, mapGroupRow),
     rounds: mapList(r.rounds, mapRoundRow),

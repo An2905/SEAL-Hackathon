@@ -23,7 +23,7 @@ module.exports = {
         semi: false,
         trailingComma: 'none',
         tabWidth: 2,
-        endOfLine: 'auto',
+        endOfLine: 'lf',
         useTabs: false,
         singleQuote: true,
         printWidth: 120,

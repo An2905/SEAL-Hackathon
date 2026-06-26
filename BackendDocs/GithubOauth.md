@@ -41,7 +41,7 @@ FE đọc query string trên URL, hiện toast
 | Kết quả cuối về FE | JSON trong `fetch` | **Redirect URL** + query string (`?github_oauth=...`) |
 | Secret GitHub | Không liên quan | `client_secret` chỉ BE dùng, **không** gửi ra FE |
 
-**Mục đích trong project:** Sinh viên bấm "Liên kết GitHub" → xác nhận trên GitHub → BE lưu `github_username` + `github_id` vào bảng `studentprofile` (không phải đăng nhập bằng GitHub).
+**Mục đích trong project:** Sinh viên bấm "Liên kết GitHub" → xác nhận trên GitHub → BE lưu `github_username` + `github_id` vào bảng `users` (không phải đăng nhập bằng GitHub).
 
 ---
 
@@ -85,37 +85,39 @@ Trên GitHub OAuth App settings, **Authorization callback URL** phải khớp `g
 File chính:
 
 - FE: `frontend/src/api/auth.js` → `getGithubLinkUrl()`, `StudentDashboard.jsx`
-- BE: `GithubOauthService.java`, `AuthController.java`, `StudentProfileRepository.java`
+- BE: `GitHubOauthController.java`, `GithubOauthService.java`, `UserRepository.java`
 
 ---
 
 ## 3) Dữ liệu lưu ở đâu?
 
-### Vào DB (lâu dài) — bảng `studentprofile`
+### Vào DB (lâu dài) — bảng `users`
 
 | Cột | Nguồn | Ví dụ |
 |-----|-------|-------|
 | `github_username` | GitHub API field `login` | `"nguyenvana"` |
 | `github_id` | GitHub API field `id` | `12345678` |
 
-SQL thực tế (`StudentProfileRepository.updateGithubProfile`):
+SQL thực tế (`UserRepository.updateGithubProfileIfNotLinked`):
 
 ```sql
-UPDATE studentprofile
+UPDATE users
 SET github_username = ?, github_id = ?
 WHERE user_id = ?
 ```
 
-`user_id` lấy từ JWT lúc bắt đầu flow (lưu tạm trong session, xem bước 4 Flow 1).
+`user_id` lấy từ JWT lúc bắt đầu flow (mã hóa bên trong mã thông báo `state` dạng JWT, xem bước 4 Flow 1).
 
-### Vào session (tạm, ~5 phút) — `HttpSession`
+### Mã hóa phi trạng thái (tạm, ~5 phút) — Signed JWT State
 
-| Key session | Giá trị | Mục đích |
+Mã thông báo `state` gửi sang GitHub là một chuỗi JWT ngắn hạn được ký bằng thuật toán HMAC-SHA256 với khóa `JWT_SECRET_KEY` của ứng dụng.
+
+| Claims trong State JWT | Loại dữ liệu | Mục đích |
 |-------------|---------|----------|
-| `GITHUB_OAUTH_STATE_{state}` | timestamp hết hạn | Chống giả mạo callback |
-| `GITHUB_OAUTH_USER_{state}` | `userId` sinh viên | Biết OAuth này của ai |
+| `userId` | `String` | Xác định user thực hiện liên kết tài khoản khi nhận callback |
+| `exp` | `Long` (Timestamp) | Đảm bảo mã thông báo tự động hết hạn sau 5 phút |
 
-Sau callback xong → **xóa** các key state (không lưu DB).
+Sau khi nhận được callback từ GitHub, Backend giải mã và xác thực chữ ký JWT để lấy lại `userId` trực tiếp từ tham số `state` mà không cần lưu giữ trạng thái session trên server.
 
 ### Không lưu
 
@@ -123,7 +125,7 @@ Sau callback xong → **xóa** các key state (không lưu DB).
 |---------|--------|
 | `code` từ GitHub | Dùng 1 lần đổi token, xong bỏ |
 | `access_token` GitHub | Chỉ gọi `GET api.github.com/user`, không persist |
-| `state` | Chỉ chống CSRF trong lúc redirect |
+| `state` | Chỉ chống CSRF và lưu `userId` phi trạng thái trong lúc redirect |
 
 ---
 
@@ -140,7 +142,7 @@ So sánh nhanh từng chặng:
 | 3c | GitHub API (BE gọi ngầm) | `GET api.github.com/user` | JSON `{ "login": "...", "id": 123, ... }` |
 | 4 | FE | Load URL redirect | Query: `?github_oauth=success&github_username=...` hoặc `?github_oauth=error&message=...` |
 
-**Lưu ý session cookie:** Bước 1 FE gọi `apiFetch` với `credentials: 'include'` → BE set `JSESSIONID`. Khi GitHub redirect về callback (bước 3), trình duyệt gửi cookie đó lên BE để đọc lại `state` + `userId`. Nếu mất cookie → callback fail "Invalid OAuth session".
+**Lưu ý bảo mật phi trạng thái (Stateless):** Vì cơ chế `state` hiện tại sử dụng JWT ký số chứa sẵn `userId`, Backend không cần đọc hoặc ghi session. Điều này giải quyết triệt để lỗi mất session khi redirect chéo tên miền hoặc khi scale ứng dụng trên các cloud server phân tán.
 
 ---
 
@@ -151,12 +153,11 @@ So sánh nhanh từng chặng:
 **UI:** `StudentDashboard.jsx` → `handleConnectGithub()`
 
 1. **`StudentDashboard.jsx`** — User bấm nút. Gọi `getGithubLinkUrl()`.
-2. **`auth.js` → `getGithubLinkUrl()`** — `GET /api/auth/github/link-url` kèm `Authorization: Bearer <JWT>` và cookie session (`credentials: 'include'`).
-3. **`AuthController.getGithubLinkUrl(...)`** — Nhận request REST bình thường, chuyển xuống `GithubOauthService`.
-4. **`GithubOauthService.buildAuthorizeUrl(...)`** — Kiểm tra role sinh viên (`STUDENT_FPT` / `STUDENT_EXTERNAL`). Tạo `state` random (UUID). Lưu session:
-   - `GITHUB_OAUTH_STATE_{state}` = thời điểm hết hạn (5 phút)
-   - `GITHUB_OAUTH_USER_{state}` = `userId` từ JWT  
-   Ghép URL GitHub: `client_id`, `redirect_uri`, `scope=read:user`, `state`.
+2. **`auth.js` → `getGithubLinkUrl()`** — `GET /api/auth/github/link-url` kèm `Authorization: Bearer <JWT>`.
+3. **`GitHubOauthController.getGithubLinkUrl(...)`** — Nhận request REST, chuyển xuống `GithubOauthService`.
+4. **`GithubOauthService.buildAuthorizeUrl(...)`** — Kiểm tra role sinh viên (`STUDENT_FPT` / `STUDENT_EXTERNAL`).
+   - Tạo `state` bằng cách đóng gói `userId` vào JWT ký bằng `JWT_SECRET_KEY`, hết hạn sau 5 phút.
+   - Ghép URL GitHub: `client_id`, `redirect_uri`, `scope=read:user`, `state`.
 5. **Response về FE** — JSON:
 
    ```json
@@ -165,7 +166,7 @@ So sánh nhanh từng chặng:
 
 6. **`StudentDashboard.jsx`** — `window.location.href = authorizeUrl` → **rời app**, sang trang GitHub.
 
-**Chưa ghi DB** ở bước này. Chỉ lưu tạm session.
+**Chưa ghi DB** ở bước này. Không lưu thông tin tạm nào trên bộ nhớ server.
 
 ---
 
@@ -191,13 +192,13 @@ So sánh nhanh từng chặng:
 
 **Endpoint:** `GET /api/auth/github/callback`
 
-1. **`AuthController.githubCallback(...)`** — Nhận `code`, `state` từ query string (giống GET REST, nhưng caller là **trình duyệt** sau redirect GitHub, không phải `fetch` từ FE).
-2. **`GithubOauthService.processCallback(code, state, session)`** — Xử lý tuần tự:
+1. **`GitHubOauthController.githubCallback(...)`** — Nhận `code`, `state` từ query string (caller là **trình duyệt** sau redirect GitHub).
+2. **`GithubOauthService.processCallback(code, state)`** — Xử lý tuần tự:
 
-   **3a. Validate `state`**
-   - Đọc `GITHUB_OAUTH_STATE_{state}` từ session.
-   - Không có / hết hạn → lỗi.
-   - Lấy `userId` từ `GITHUB_OAUTH_USER_{state}`.
+   **3a. Validate và giải mã `state`**
+   - Đọc và verify chữ ký JWT của tham số `state` bằng `JWT_SECRET_KEY`.
+   - Nếu chữ ký không đúng hoặc đã quá hạn 5 phút → Báo lỗi (Nếu lỗi do hết hạn, vẫn cố gắng đọc `userId` từ token hết hạn để tìm đúng origin redirect của Dashboard).
+   - Lấy `userId` trực tiếp từ claim `"userId"` của `state`.
 
    **3b. Đổi `code` lấy token** (`exchangeCodeForAccessToken`)
    - BE → GitHub: `POST https://github.com/login/oauth/access_token`
@@ -221,11 +222,9 @@ So sánh nhanh từng chặng:
    - BE map thành `GithubUser(username, githubId)`.
 
    **3d. Ghi DB**
-   - `StudentProfileRepository.updateGithubProfile(userId, username, githubId)`
-   - UPDATE `studentprofile` set `github_username`, `github_id` cho đúng `user_id`.
+   - `UserRepository.updateGithubProfileIfNotLinked(userId, username, githubId)`
+   - UPDATE `users` set `github_username`, `github_id` cho đúng `user_id`.
    - Không có row / update fail → lỗi.
-
-   **3e. Dọn session** — Xóa `GITHUB_OAUTH_STATE_*` và `GITHUB_OAUTH_USER_*` của `state` đó.
 
 3. **Response về trình duyệt** — **Không phải JSON**. BE trả **HTTP 302** + header `Location`:
 
@@ -262,20 +261,20 @@ So với REST: thay vì `{ "success": true }`, OAuth redirect dùng **query stri
 ```
 [StudentDashboard]
        │
-       │ ① GET /api/auth/github/link-url  (JWT + JSESSIONID)
+       │ ① GET /api/auth/github/link-url  (JWT)
        ▼
-[AuthController] → [GithubOauthService] → lưu state+userId vào session
+[GitHubOauthController] → [GithubOauthService] → Sinh state = JWT(userId)
        │
        │ ② JSON { authorizeUrl }
        ▼
 [Trình duyệt] ──redirect──► [GitHub] user Authorize
        │
-       │ ③ GET /callback?code&state  (JSESSIONID)
+       │ ③ GET /callback?code&state
        ▼
-[GithubOauthService]
+[GithubOauthService] → Giải mã state JWT để lấy userId
        ├── POST GitHub /access_token  → access_token (tạm)
        ├── GET GitHub /user           → login, id
-       ├── UPDATE studentprofile      → github_username, github_id
+       ├── UPDATE users      → github_username, github_id
        └── 302 → FE ?github_oauth=...
        │
        ▼
@@ -300,11 +299,10 @@ So với REST: thay vì `{ "success": true }`, OAuth redirect dùng **query stri
 - `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` đã set trên BE.
 - Callback URL trên GitHub App khớp `github.redirect.uri`.
 - `github.frontend.redirect` trỏ đúng trang FE (dev: `http://localhost:5173/student`).
-- FE gọi `link-url` với `credentials: 'include'` (đã có trong `apiFetch`).
+- FE gọi `link-url` kèm header `Authorization: Bearer <JWT>`.
 - User là sinh viên (`STUDENT_FPT` / `STUDENT_EXTERNAL`).
-- Đã có row `studentprofile` cho `user_id` (tạo lúc đăng ký).
-- Không mở callback trong tab ẩn danh khác session (mất `JSESSIONID`).
-- `state` hết 5 phút → phải bấm "Liên kết GitHub" lại từ đầu.
+- Đã có row `users` cho `user_id` (tạo lúc đăng ký).
+- `state` (JWT) hết hạn 5 phút → phải bấm "Liên kết GitHub" lại từ đầu.
 
 ---
 

@@ -11,6 +11,8 @@ public class CheckInTeamResponse {
   private String teamName;
   private String registrationStatus;
   private String registeredAt;
+  private String githubStatus;
+  private String githubRepoUrl;
   private int memberCount;
   private List<CheckInMemberResponse> members = new ArrayList<>();
 }

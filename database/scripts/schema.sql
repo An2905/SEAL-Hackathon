@@ -287,6 +287,7 @@ CREATE TABLE `events` (
   `status` varchar(20) NOT NULL DEFAULT 'BUILDING',
   `max_teams` int DEFAULT NULL,
   `num_rounds` int NOT NULL DEFAULT '1',
+  `github_template_repo` varchar(100) DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`event_id`),
   CONSTRAINT `chk_events_status` CHECK ((`status` in (_utf8mb3'BUILDING',_utf8mb3'UPCOMING',_utf8mb3'ONGOING',_utf8mb3'COMPLETED')))
@@ -391,16 +392,13 @@ DROP TABLE IF EXISTS `participants_profile`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `participants_profile` (
-  `profile_id` varchar(36) NOT NULL,
   `user_id` varchar(36) NOT NULL,
   `phone` varchar(20) DEFAULT NULL,
   `avatar_url` varchar(512) DEFAULT NULL,
   `organization` varchar(200) DEFAULT NULL,
-  `bio` longtext,
   `participant_type` varchar(20) NOT NULL DEFAULT 'INTERNAL',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`profile_id`),
-  UNIQUE KEY `uq_pp_user` (`user_id`),
+  PRIMARY KEY (`user_id`),
   CONSTRAINT `fk_pp_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`),
   CONSTRAINT `chk_pp_type` CHECK ((`participant_type` in (_utf8mb4'INTERNAL',_utf8mb4'EXTERNAL')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -532,13 +530,11 @@ DROP TABLE IF EXISTS `studentprofile`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `studentprofile` (
-  `profile_id` varchar(36) NOT NULL,
   `user_id` varchar(36) NOT NULL,
   `student_code` varchar(30) DEFAULT NULL,
   `university_name` varchar(150) DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`profile_id`),
-  UNIQUE KEY `uq_sp_user` (`user_id`),
+  PRIMARY KEY (`user_id`),
   CONSTRAINT `fk_sp_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -604,6 +600,9 @@ CREATE TABLE `team_registrations` (
   `team_id` varchar(36) NOT NULL,
   `status` varchar(20) NOT NULL DEFAULT 'PENDING',
   `registered_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `github_status` varchar(20) NOT NULL DEFAULT 'PENDING',
+  `github_repo_id` bigint DEFAULT NULL,
+  `github_repo_url` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`registration_id`),
   UNIQUE KEY `uq_tr_event_team` (`event_id`,`team_id`),
   KEY `idx_tr_team` (`team_id`),

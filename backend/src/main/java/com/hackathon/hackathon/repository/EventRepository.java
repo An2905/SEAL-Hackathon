@@ -151,7 +151,7 @@ public class EventRepository {
     String sql =
         "SELECT "
             + "e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at, "
-            + "e.max_teams, e.num_rounds, "
+            + "e.max_teams, e.num_rounds, e.github_template_repo, "
             + "COUNT(DISTINCT tr.team_id) AS total_teams, "
             + "COUNT(DISTINCT CASE WHEN tr.status = 'PENDING' THEN tr.team_id END) AS pending_teams, "
             + "(SELECT COUNT(*) FROM round_groups rg "
@@ -164,7 +164,7 @@ public class EventRepository {
             + "LEFT JOIN awards a ON e.event_id = a.event_id "
             + "WHERE e.event_id = ? "
             + "GROUP BY e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at, "
-            + "e.max_teams, e.num_rounds";
+            + "e.max_teams, e.num_rounds, e.github_template_repo";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, eventId);
@@ -229,7 +229,7 @@ public class EventRepository {
   public List<TeamRegistration> findTeamRegistrationsByEventId(String eventId) {
     List<TeamRegistration> registrations = new ArrayList<>();
     String sql =
-        "SELECT tr.registration_id, t.team_id, t.team_name, tr.status "
+        "SELECT tr.registration_id, t.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url "
             + "FROM team_registrations tr JOIN teams t ON tr.team_id = t.team_id WHERE tr.event_id = ?";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -248,7 +248,7 @@ public class EventRepository {
   public List<TeamRegistration> findAssignedTeamsInGroup(String groupId, String eventId) {
     List<TeamRegistration> registrations = new ArrayList<>();
     String sql =
-        "SELECT tr.registration_id, gt.team_id, t.team_name, tr.status "
+        "SELECT tr.registration_id, gt.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url "
             + "FROM group_teams gt "
             + "INNER JOIN teams t ON gt.team_id = t.team_id "
             + "INNER JOIN team_registrations tr ON tr.team_id = gt.team_id AND tr.event_id = ? "
@@ -272,7 +272,7 @@ public class EventRepository {
   public List<TeamRegistration> findAvailableTeamsForRound(String eventId, String roundId) {
     List<TeamRegistration> registrations = new ArrayList<>();
     String sql =
-        "SELECT tr.registration_id, tr.team_id, t.team_name, tr.status "
+        "SELECT tr.registration_id, tr.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url "
             + "FROM team_registrations tr "
             + "JOIN teams t ON tr.team_id = t.team_id "
             + "JOIN rounds curr ON curr.round_id = ? AND curr.event_id = ? "
@@ -740,5 +740,21 @@ public class EventRepository {
       throw new RuntimeException(sql, e);
     }
     return mentors;
+  }
+
+  public String findTemplateRepoByEventId(String eventId) {
+    String sql = "SELECT github_template_repo FROM events WHERE event_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return rs.getString("github_template_repo");
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
+    }
+    return null;
   }
 }

@@ -12,4 +12,5 @@ public class GitHubAppConfig {
   private String privateKeyPath;
   private String installationId;
   private String apiBaseUrl = "https://api.github.com";
+  private String organization;
 }

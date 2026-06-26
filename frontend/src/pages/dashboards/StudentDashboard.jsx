@@ -20,6 +20,7 @@ import ChatPopup, { ChatOpenButton } from '../../components/chat/ChatPopup'
 import Pagination from '../../components/common/Pagination'
 import LoadingState from '../../components/common/LoadingState'
 import { getGithubLinkStatus, getGithubLinkUrl } from '../../api/auth'
+import Modal from '../../components/common/Modal'
 
 const PAGE_SIZE = 5
 
@@ -184,9 +185,7 @@ function TeamInfoCard({ data, onRefresh, onMemberDeleted }) {
                 Mã đội: <code>{data.enrollCode}</code>
               </DetailMeta>
             )}
-            <DetailMeta>
-              Thành viên: {data.memberCount ?? members.length} / 5
-            </DetailMeta>
+            <DetailMeta>Thành viên: {data.memberCount ?? members.length} / 5</DetailMeta>
           </span>
           <StatusStack>
             <span className={`role-pill ${isLeader ? 'role-judge' : 'role-student'}`}>
@@ -225,7 +224,15 @@ function TeamInfoCard({ data, onRefresh, onMemberDeleted }) {
                       {isDeleting ? (
                         <span className='spinner spinner-dark spinner--sm' aria-hidden='true' />
                       ) : (
-                        <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' aria-hidden='true'>
+                        <svg
+                          width='14'
+                          height='14'
+                          viewBox='0 0 24 24'
+                          fill='none'
+                          stroke='currentColor'
+                          strokeWidth='2'
+                          aria-hidden='true'
+                        >
                           <path d='M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6' strokeLinecap='round' strokeLinejoin='round' />
                           <path d='M10 11v6M14 11v6' strokeLinecap='round' />
                         </svg>
@@ -262,16 +269,20 @@ function IconGithub({ size = 20 }) {
   )
 }
 
-function GithubRequiredBanner({ onConnect, loading }) {
+function GithubRequiredBanner({ onConnect, loading, isWarning }) {
   return (
-    <div className='github-required-banner' role='status'>
+    <div className={`github-required-banner${isWarning ? ' github-required-banner--warning' : ''}`} role='status'>
       <div className='github-required-banner__icon' aria-hidden='true'>
         <IconGithub size={22} />
       </div>
       <div className='github-required-banner__body'>
-        <p className='github-required-banner__title'>Liên kết GitHub để tham gia đội</p>
+        <p className='github-required-banner__title'>
+          {isWarning ? 'Yêu cầu liên kết lại GitHub' : 'Liên kết GitHub để tham gia đội'}
+        </p>
         <p className='github-required-banner__text'>
-          Tạo hoặc tham gia đội yêu cầu tài khoản GitHub đã xác thực. Liên kết một lần để tiếp tục.
+          {isWarning
+            ? 'Tài khoản GitHub của bạn chưa được liên kết hoặc đã bị hủy liên kết do thay đổi username. Vui lòng liên kết lại trước khi check-in.'
+            : 'Tạo hoặc tham gia đội yêu cầu tài khoản GitHub đã xác thực. Liên kết một lần để tiếp tục.'}
         </p>
       </div>
       <button
@@ -282,7 +293,7 @@ function GithubRequiredBanner({ onConnect, loading }) {
       >
         <span className='github-connect-btn-content'>
           <IconGithub size={16} />
-          {loading ? 'Đang chuyển hướng...' : 'Kết nối ngay'}
+          {loading ? 'Đang chuyển hướng...' : isWarning ? 'Liên kết GitHub' : 'Kết nối ngay'}
         </span>
       </button>
     </div>
@@ -361,7 +372,9 @@ function CreateTeamForm({ onSuccess, githubLinked }) {
             disabled={!githubLinked || loading}
           />
         </FormField>
-        <p className='student-team-form__hint'>Tên đội phải duy nhất trên toàn hệ thống (không phân biệt hoa thường).</p>
+        <p className='student-team-form__hint'>
+          Tên đội phải duy nhất trên toàn hệ thống (không phân biệt hoa thường).
+        </p>
         <LoadingButton
           loading={loading}
           type='submit'
@@ -449,11 +462,7 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
   const state = mentorState || {}
 
   if (status !== 'APPROVED') {
-    return (
-      <div className='student-inline-note'>
-        Mentor hiển thị sau khi đăng ký được duyệt.
-      </div>
-    )
+    return <div className='student-inline-note'>Mentor hiển thị sau khi đăng ký được duyệt.</div>
   }
 
   if (state.loading) {
@@ -635,10 +644,12 @@ function TeamEventsList({ list, mentorsByEvent, onOpenChat }) {
                   <DetailMeta muted>
                     {formatDateTime(reg.eventStartDate)} → {formatDateTime(reg.eventEndDate)}
                   </DetailMeta>
-                  <DetailMeta muted>
-                    Đăng ký: {formatDateTime(reg.registeredAt)}
-                  </DetailMeta>
-                  <EventMentorsBlock registration={reg} mentorState={mentorsByEvent[reg.eventId]} onOpenChat={onOpenChat} />
+                  <DetailMeta muted>Đăng ký: {formatDateTime(reg.registeredAt)}</DetailMeta>
+                  <EventMentorsBlock
+                    registration={reg}
+                    mentorState={mentorsByEvent[reg.eventId]}
+                    onOpenChat={onOpenChat}
+                  />
                 </span>
                 <StatusStack>
                   {!isOngoing && reg.eventStatus ? (
@@ -651,6 +662,55 @@ function TeamEventsList({ list, mentorsByEvent, onOpenChat }) {
                     status={registrationStatusLabel(reg.registrationStatus)}
                     className={registrationStatusPillClass(reg.registrationStatus)}
                   />
+                  {reg.registrationStatus === 'APPROVED' && reg.githubStatus === 'SUCCESS' && reg.githubRepoUrl && (
+                    <div style={{ marginTop: 8 }}>
+                      {reg.repoAccessGranted ? (
+                        <a
+                          href={reg.githubRepoUrl}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='btn btn-success btn-sm'
+                          style={{
+                            fontSize: 10,
+                            padding: '4px 8px',
+                            height: 'auto',
+                            minHeight: 0,
+                            textDecoration: 'none',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4
+                          }}
+                          title='Đi tới GitHub Repository'
+                        >
+                          <IconGithub size={12} />
+                          Repo làm bài
+                        </a>
+                      ) : (
+                        <button
+                          type='button'
+                          className='btn btn-sm'
+                          disabled
+                          style={{
+                            fontSize: 10,
+                            padding: '4px 8px',
+                            height: 'auto',
+                            minHeight: 0,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            background: '#e5e7eb',
+                            color: '#9ca3af',
+                            borderColor: '#d1d5db',
+                            cursor: 'not-allowed'
+                          }}
+                          title='Quyền truy cập repository chưa được Coordinator kích hoạt'
+                        >
+                          <IconGithub size={12} />
+                          Repo (Khóa)
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </StatusStack>
               </div>
             </div>
@@ -678,9 +738,7 @@ function JoinEventForm({ onSuccess, embedded = false }) {
       try {
         const [upcoming, registrations] = await Promise.all([getUpcomingEvents(), getTeamRegistrations()])
         if (cancelled) return
-        const registeredIds = new Set(
-          registrations.map((r) => String(r.eventId ?? '').trim()).filter(Boolean)
-        )
+        const registeredIds = new Set(registrations.map((r) => String(r.eventId ?? '').trim()).filter(Boolean))
         const available = upcoming.filter((ev) => !registeredIds.has(String(ev.eventId)))
         setEvents(available)
         if (available.length === 1) {
@@ -742,7 +800,13 @@ function JoinEventForm({ onSuccess, embedded = false }) {
             Hiện chưa có sự kiện UPCOMING hoặc đội đã đăng ký hết.
           </div>
         ) : (
-          <select name='eventId' value={eventId} onChange={(e) => setEventId(e.target.value)} required disabled={loading}>
+          <select
+            name='eventId'
+            value={eventId}
+            onChange={(e) => setEventId(e.target.value)}
+            required
+            disabled={loading}
+          >
             <option value=''>-- Chọn sự kiện --</option>
             {events.map((ev) => (
               <option key={ev.eventId} value={ev.eventId}>
@@ -803,6 +867,7 @@ export default function StudentDashboard() {
   const [githubStatus, setGithubStatus] = useState({ loading: true, linked: false, username: '' })
   const [oauthLoading, setOauthLoading] = useState(false)
   const handledOauthSearchRef = useRef('')
+  const [oauthConflictError, setOauthConflictError] = useState(null)
 
   const loadGithubStatus = useCallback(async () => {
     setGithubStatus((prev) => ({ ...prev, loading: true }))
@@ -834,7 +899,9 @@ export default function StudentDashboard() {
     }
   }, [showToast])
 
-  useEffect(() => { loadMyTeam() }, [loadMyTeam])
+  useEffect(() => {
+    loadMyTeam()
+  }, [loadMyTeam])
 
   useEffect(() => {
     loadGithubStatus()
@@ -849,12 +916,10 @@ export default function StudentDashboard() {
 
     if (status === 'success') {
       const username = params.get('github_username')
-      showToast(
-        username ? `Đã liên kết GitHub: ${username}` : 'Đã liên kết GitHub thành công.',
-        'success'
-      )
+      showToast(username ? `Đã liên kết GitHub: @${username}` : 'Đã liên kết GitHub thành công.', 'success')
       loadGithubStatus()
     } else {
+      const errorCode = params.get('code')
       const rawMessage = params.get('message') || 'Liên kết GitHub thất bại.'
       let message = rawMessage
       try {
@@ -862,16 +927,21 @@ export default function StudentDashboard() {
       } catch {
         message = rawMessage
       }
-      showToast(localizeError(message), 'error')
+
+      if (errorCode === 'ALREADY_LINKED' || message.includes('already linked to another user')) {
+        setOauthConflictError(message)
+      } else {
+        showToast(localizeError(message), 'error')
+      }
     }
 
     navigate('/student', { replace: true })
   }, [location.search, navigate, showToast, loadGithubStatus])
 
-  const handleConnectGithub = async () => {
+  const handleConnectGithub = async (prompt) => {
     setOauthLoading(true)
     try {
-      const authorizeUrl = await getGithubLinkUrl()
+      const authorizeUrl = await getGithubLinkUrl(prompt)
       window.location.href = authorizeUrl
     } catch (err) {
       showToast(localizeError(err.message), 'error')
@@ -902,11 +972,15 @@ export default function StudentDashboard() {
       showStudentFields
       className='dashboard-shell--student-zone'
     >
+      {!githubStatus.loading && (!githubStatus.linked || !githubStatus.username) ? (
+        <GithubRequiredBanner
+          onConnect={handleConnectGithub}
+          loading={oauthLoading}
+          isWarning={teamState === 'has-team'}
+        />
+      ) : null}
       {teamState === 'has-team' && (
-        <DashboardSection
-          title='Sự kiện'
-          hint='Các hackathon đội đã đăng ký — bảng và mentor sau khi BTC duyệt'
-        >
+        <DashboardSection title='Sự kiện' hint='Các hackathon đội đã đăng ký — bảng và mentor sau khi BTC duyệt'>
           <TeamEventsPanel
             refreshKey={registrationsRefreshKey}
             isLeader={Boolean(teamData?.isLeader)}
@@ -936,9 +1010,6 @@ export default function StudentDashboard() {
 
           {teamState === 'no-team' ? (
             <>
-              {!githubStatus.loading && !githubStatus.linked ? (
-                <GithubRequiredBanner onConnect={handleConnectGithub} loading={oauthLoading} />
-              ) : null}
               {!githubStatus.loading && githubStatus.linked ? (
                 <GithubLinkedBadge username={githubStatus.username} />
               ) : null}
@@ -963,6 +1034,45 @@ export default function StudentDashboard() {
         />
       )}
 
+      {oauthConflictError && (
+        <Modal isOpen={true} onClose={() => setOauthConflictError(null)} title='Liên kết GitHub thất bại'>
+          <div className='oauth-conflict-modal' style={{ padding: '0.5rem' }}>
+            <div
+              className='oauth-conflict-modal__icon'
+              style={{ color: '#ef4444', fontSize: '2.5rem', marginBottom: '1rem', textAlign: 'center' }}
+            >
+              ⚠️
+            </div>
+            <p
+              style={{
+                marginBottom: '1.5rem',
+                lineHeight: '1.6',
+                fontSize: '1rem',
+                color: 'var(--text-color, #1f2937)',
+                textAlign: 'center'
+              }}
+            >
+              <strong>Mỗi tài khoản GitHub chỉ có thể liên kết với một tài khoản SEAL Hackathon duy nhất.</strong>
+            </p>
+            <div
+              className='form-actions'
+              style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1.5rem' }}
+            >
+              <button
+                type='button'
+                className='btn btn-primary'
+                onClick={() => {
+                  setOauthConflictError(null)
+                  handleConnectGithub('select_account')
+                }}
+                disabled={oauthLoading}
+              >
+                {oauthLoading ? 'Đang chuyển hướng...' : 'Chọn tài khoản liên kết khác'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </DashboardLayout>
   )
 }

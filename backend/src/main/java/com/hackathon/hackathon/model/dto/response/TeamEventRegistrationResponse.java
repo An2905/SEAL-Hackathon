@@ -15,4 +15,7 @@ public class TeamEventRegistrationResponse {
   private String groupName;
   private String registrationStatus;
   private String registeredAt;
+  private String githubStatus;
+  private String githubRepoUrl;
+  private boolean repoAccessGranted;
 }
