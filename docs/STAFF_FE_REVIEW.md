@@ -43,6 +43,15 @@ Mỗi sự kiện (AccordionCard)
   → Đóng modal, refresh danh sách
 ```
 
+### Validate – Form tạo sự kiện
+
+| Trường | Quy tắc |
+|--------|---------|
+| Tên sự kiện | Bắt buộc, tối đa 200 ký tự |
+| Ngày bắt đầu / kết thúc | Nếu cả hai có giá trị: startDate ≤ endDate |
+| Số đội tối đa | Tuỳ chọn; nếu nhập phải là số nguyên ≥ 1 |
+| Số vòng thi | Mặc định 1, phải là số nguyên ≥ 1 |
+
 ### API sử dụng
 | Method | Endpoint | Mục đích |
 |--------|----------|----------|
@@ -72,6 +81,14 @@ AccountsListSection
   → Mỗi tài khoản: hiện email, tên, vai trò, trạng thái
   → [Duyệt / Từ chối] → PUT /api/staff/change-status
 ```
+
+### Validate – Form tạo tài khoản
+
+| Trường | Quy tắc |
+|--------|---------|
+| Họ và tên | Bắt buộc |
+| Email | Bắt buộc |
+| Loại khách | Bắt buộc (EXPERT_INTERNAL / EXPERT_EXTERNAL) |
 
 ### API sử dụng
 | Method | Endpoint | Mục đích |
@@ -106,9 +123,14 @@ Form phân công Mentor
   → POST /api/staff/assign/mentor { userId, roundId, groupId }
 ```
 
-### Lưu ý
-- Sự kiện BUILDING và COMPLETED bị loại khỏi dropdown.
-- Judge và Mentor dùng cùng một danh sách EXPERT (không phân biệt INTERNAL/EXTERNAL ở đây).
+### Validate – Form phân công
+
+| Trường | Quy tắc |
+|--------|---------|
+| Judge / Mentor | Bắt buộc chọn |
+| Vòng thi | Bắt buộc chọn |
+| Bảng thi | Bắt buộc chọn (dropdown chỉ hiện bảng thuộc vòng đã chọn) |
+| Sự kiện | Chỉ hiện UPCOMING / ONGOING — BUILDING & COMPLETED bị ẩn |
 
 ### API sử dụng
 | Method | Endpoint | Mục đích |
@@ -146,6 +168,14 @@ Khởi tạo → getStaffUniversities()
   → Bước 2: DELETE /api/staff/universities/:id { replacementUniversityName? }
 ```
 
+### Validate
+
+| Trường / Bước | Quy tắc |
+|---------------|---------|
+| Tên trường (thêm/sửa) | Bắt buộc, tối đa 255 ký tự |
+| Xóa — có SV liên kết | Phải chọn trường thay thế trước khi xác nhận xóa |
+| Xóa — không có SV | Cho phép xóa ngay |
+
 ### API sử dụng
 | Method | Endpoint | Mục đích |
 |--------|----------|----------|
@@ -177,6 +207,12 @@ Nhập bộ lọc (một hoặc cả hai, tối thiểu 2 ký tự tổng cộng
       ├── Nút [Copy danh sách] (copy copyText vào clipboard)
       └── Danh sách recipient: tên · email · vai trò
 ```
+
+### Validate
+
+| Điều kiện | Quy tắc |
+|-----------|---------|
+| Ít nhất một trong hai trường | Tổng ký tự (emailContains + nameContains) ≥ 2, hiện lỗi inline nếu không đủ |
 
 ### Lưu ý kỹ thuật
 - `audiences=ALL_IN_EVENT,EXPERT` tìm **toàn hệ thống** (không cần eventId).
@@ -233,6 +269,49 @@ Xem danh sách đội → PENDING / APPROVED / REJECTED
 [Gán đội vào bảng]   → POST /api/events/groups/:groupId/teams { teamId }
 [Bỏ đội khỏi bảng]  → DELETE /api/events/groups/:groupId/teams/:teamId
 ```
+
+### Validate – Thêm / sửa vòng thi
+
+| Trường | Quy tắc |
+|--------|---------|
+| Tên vòng | Bắt buộc, tối đa 100 ký tự |
+| Thứ tự vòng | Bắt buộc, số nguyên ≥ 1 |
+| Số đội thắng/vòng | Bắt buộc, số nguyên ≥ 1 |
+| Ngày bắt đầu | Bắt buộc |
+| Ngày kết thúc | Bắt buộc |
+| Deadline nộp bài | Bắt buộc |
+
+### Validate – Thêm / sửa bảng thi
+
+| Trường | Quy tắc |
+|--------|---------|
+| Vòng thi | Bắt buộc chọn (cần tạo vòng trước — hiện empty state nếu chưa có vòng) |
+| Tên bảng | Bắt buộc, tối đa 100 ký tự |
+| Số đội tối đa | Tuỳ chọn; nếu nhập phải ≥ 1 |
+
+### Validate – Sửa thông tin sự kiện
+
+| Trường | Quy tắc |
+|--------|---------|
+| Tên sự kiện | Bắt buộc, tối đa 200 ký tự |
+| Số vòng thi | Bắt buộc, ≥ 1 |
+| Số đội tối đa | Tuỳ chọn; nếu nhập phải ≥ 1 |
+| Trạng thái | Bắt buộc chọn |
+
+### Validate – Thêm / sửa giải thưởng
+
+| Trường | Quy tắc |
+|--------|---------|
+| Tên giải thưởng | Bắt buộc, tối đa 100 ký tự |
+| Số người thắng | Tuỳ chọn; nếu nhập phải ≥ 1 |
+
+### Validate – Phân công Judge/Mentor (trong sự kiện)
+
+| Trường | Quy tắc |
+|--------|---------|
+| Vòng thi | Bắt buộc chọn |
+| Bảng thi | Bắt buộc chọn (lọc theo vòng) |
+| Judge / Mentor | Bắt buộc chọn |
 
 ### Flow quản lý Judge/Mentor trong sự kiện
 
@@ -305,6 +384,21 @@ Khởi tạo → getProfile()
   → PUT /api/user/change-password
 ```
 
+### Validate – Chỉnh sửa hồ sơ
+
+| Trường | Quy tắc |
+|--------|---------|
+| Họ và tên | Bắt buộc |
+| Số điện thoại | Bắt buộc (với role staff/coordinator) |
+
+### Validate – Đổi mật khẩu
+
+| Trường | Quy tắc |
+|--------|---------|
+| Mật khẩu cũ | Bắt buộc |
+| Mật khẩu mới | Bắt buộc, tối thiểu 6 ký tự |
+| Xác nhận mật khẩu | Bắt buộc, phải khớp với mật khẩu mới (kiểm tra client-side) |
+
 ### API sử dụng
 | Method | Endpoint | Mục đích |
 |--------|----------|----------|
@@ -327,7 +421,6 @@ Chọn vòng thi (dropdown)
 
 [+ Thêm tiêu chí] → Form inline
   → Nhập: tên tiêu chí, trọng số (%), điểm tối đa, mô tả
-  → Validate: trọng số 0.01–100, tổng không vượt 100%
   → POST /api/criteria { roundId, criterionName, weight, maxScore, description }
 
 [Sửa] → Form inline (edit mode)
@@ -337,8 +430,17 @@ Chọn vòng thi (dropdown)
   → DELETE /api/criteria/:criteriaId
 ```
 
+### Validate – Thêm / sửa tiêu chí
+
+| Trường | Quy tắc |
+|--------|---------|
+| Tên tiêu chí | Bắt buộc |
+| Trọng số (%) | Bắt buộc, từ 0.01 đến 100 |
+| Điểm tối đa | Bắt buộc, > 0 |
+| Tổng trọng số | Cảnh báo nếu > 100% (vẫn cho lưu nhưng hiện ⚠️) |
+
 ### Trạng thái WeightBar
-- Tổng < 100% → màu xanh
+- Tổng < 80% → màu xanh
 - Tổng 80–99% → màu vàng (cảnh báo gần đủ)
 - Tổng = 100% → badge ✅
 - Tổng > 100% → màu đỏ + cảnh báo ⚠️
