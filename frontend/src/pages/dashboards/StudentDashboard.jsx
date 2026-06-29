@@ -12,7 +12,8 @@ import {
   joinEvent,
   deleteMember,
   getTeamRegistrations,
-  getTeamTrackMentors
+  getTeamTrackMentors,
+  dropEvent
 } from '../../api/team'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
@@ -513,13 +514,27 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
 }
 
 // ─── Sự kiện + mentor ─────────────────────────────────────────────────────────
-function TeamEventsPanel({ refreshKey, onOpenChat, isLeader, onRegisterSuccess }) {
+function TeamEventsPanel({ refreshKey, onOpenChat, isLeader, teamId, onRegisterSuccess }) {
   const { showToast } = useToast()
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [mentorsByEvent, setMentorsByEvent] = useState({})
   const [statusFilter, setStatusFilter] = useState('APPROVED')
+
+  const handleDropEvent = useCallback(
+    async (reg) => {
+      if (!teamId) return
+      try {
+        await dropEvent({ teamId, eventId: reg.eventId })
+        setList((prev) => prev.filter((r) => r.registrationId !== reg.registrationId))
+        showToast('Đã rút đăng ký khỏi sự kiện.', 'success')
+      } catch (err) {
+        showToast(localizeError(err.message), 'error')
+      }
+    },
+    [teamId, showToast]
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -606,13 +621,19 @@ function TeamEventsPanel({ refreshKey, onOpenChat, isLeader, onRegisterSuccess }
         <div className='empty-state'>Không có sự kiện nào khớp bộ lọc.</div>
       )}
       {!loading && filteredList.length > 0 && (
-        <TeamEventsList list={filteredList} mentorsByEvent={mentorsByEvent} onOpenChat={onOpenChat} />
+        <TeamEventsList
+          list={filteredList}
+          mentorsByEvent={mentorsByEvent}
+          onOpenChat={onOpenChat}
+          isLeader={isLeader}
+          onDropEvent={handleDropEvent}
+        />
       )}
     </div>
   )
 }
 
-function TeamEventsList({ list, mentorsByEvent, onOpenChat }) {
+function TeamEventsList({ list, mentorsByEvent, onOpenChat, isLeader, onDropEvent }) {
   const [page, setPage] = useState(1)
   const visibleItems = list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
@@ -710,6 +731,26 @@ function TeamEventsList({ list, mentorsByEvent, onOpenChat }) {
                         </button>
                       )}
                     </div>
+                  )}
+                  {isLeader && (reg.registrationStatus || '').toUpperCase() === 'PENDING' && (
+                    <button
+                      type='button'
+                      className='btn btn-sm'
+                      style={{
+                        marginTop: 6,
+                        fontSize: 10,
+                        padding: '3px 8px',
+                        height: 'auto',
+                        minHeight: 0,
+                        color: 'var(--danger, #ef4444)',
+                        borderColor: 'var(--danger, #ef4444)',
+                        background: 'transparent'
+                      }}
+                      onClick={() => onDropEvent?.(reg)}
+                      title='Rút đăng ký khỏi sự kiện này'
+                    >
+                      Rời sự kiện
+                    </button>
                   )}
                 </StatusStack>
               </div>
@@ -984,6 +1025,7 @@ export default function StudentDashboard() {
           <TeamEventsPanel
             refreshKey={registrationsRefreshKey}
             isLeader={Boolean(teamData?.isLeader)}
+            teamId={teamData?.teamId}
             onRegisterSuccess={() => refreshRegistrations()}
             onOpenChat={(target) => setChatTarget({ ...target, teamName: teamData?.teamName })}
           />

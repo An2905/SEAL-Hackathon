@@ -247,21 +247,16 @@ export default function StaffAssignPage() {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const [evResult, jsResult, msResult] = await Promise.allSettled([
-        getAllEvents('ALL'),
-        getAllAccounts('EXPERT'),
-        getAllAccounts('EXPERT')
-      ])
+      const [evResult, expertsResult] = await Promise.allSettled([getAllEvents('ALL'), getAllAccounts('EXPERT')])
       if (cancelled) return
 
       if (evResult.status === 'fulfilled') setEvents(evResult.value)
       else showToast('Không tải được danh sách sự kiện', 'error')
 
-      if (jsResult.status === 'fulfilled') setJudges(jsResult.value)
-      else showToast('Không tải được danh sách Judge (lỗi BE)', 'error')
-
-      if (msResult.status === 'fulfilled') setMentors(msResult.value)
-      else showToast('Không tải được danh sách Mentor (lỗi BE)', 'error')
+      if (expertsResult.status === 'fulfilled') {
+        setJudges(expertsResult.value)
+        setMentors(expertsResult.value)
+      } else showToast('Không tải được danh sách Judge/Mentor (lỗi BE)', 'error')
     })()
     return () => {
       cancelled = true

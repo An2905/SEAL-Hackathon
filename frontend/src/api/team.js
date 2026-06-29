@@ -213,6 +213,24 @@ function mapRoundRow(row) {
   }
 }
 
+// DELETE /api/team/drop-event
+// Body: { teamId, eventId }
+// Response: { message, teamId, eventId }
+export async function dropEvent({ teamId, eventId }) {
+  const tId = (teamId || '').trim()
+  const eId = normalizeEventId(eventId)
+  if (!tId) throw new Error('Không xác định được đội')
+  if (!eId) throw new Error('Không xác định được sự kiện')
+
+  const data = parseJson(
+    await apiFetch('/api/team/drop-event', {
+      method: 'DELETE',
+      body: { teamId: tId, eventId: eId }
+    })
+  )
+  return data
+}
+
 // GET /api/team/rounds?eventId=...
 export async function getTeamRounds(eventId) {
   const id = normalizeEventId(eventId)

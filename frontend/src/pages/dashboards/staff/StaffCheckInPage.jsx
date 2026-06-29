@@ -18,6 +18,7 @@ import { useToast } from '../../../context/ToastContext'
 import { localizeError } from '../../../utils/errors'
 
 const PAGE_SIZE = 5
+const GITHUB_POLL_INTERVAL_MS = 3000
 
 function formatDateTime(value) {
   if (!value) return '—'
@@ -436,7 +437,7 @@ export default function StaffCheckInPage() {
       } catch (err) {
         console.error('Error polling check-in page data:', err)
       }
-    }, 3000)
+    }, GITHUB_POLL_INTERVAL_MS)
 
     return () => clearInterval(interval)
   }, [eventId, page])

@@ -1,38 +1,18 @@
+import { apiFetch } from './client'
 import { mapCriteriaResponse } from './normalizers'
 
-const BASE = '/api'
-
-async function request(url, options = {}) {
-  const token = localStorage.getItem('hh_token')
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers
-    }
-  })
-
-  const text = await res.text()
-
-  let data
+function parseJson(text) {
+  if (!text || !String(text).trim()) return text
   try {
-    data = JSON.parse(text)
+    return JSON.parse(text)
   } catch {
-    if (!res.ok) throw new Error(text)
-    return text
+    throw new Error(text || 'Phản hồi không hợp lệ từ server')
   }
-
-  if (!res.ok) throw new Error(data.message || data || 'Lỗi server')
-  return data
 }
 
-/**
- * Lấy danh sách tiêu chí của round (có tổng weight & tổng maxScore)
- */
 export async function getCriteriaByRound(roundId) {
-  const data = await request(`${BASE}/staff/criteria?roundId=${encodeURIComponent(roundId)}`)
-  return mapCriteriaResponse(data)
+  const text = await apiFetch(`/api/staff/criteria?roundId=${encodeURIComponent(roundId)}`)
+  return mapCriteriaResponse(parseJson(text))
 }
 
 /** @deprecated dùng getCriteriaByRound */
@@ -41,35 +21,30 @@ export async function getCriteriaByEvent(roundId) {
 }
 
 export async function getCriteriaDetail(criteriaId) {
-  return await request(`${BASE}/staff/criteria/detail?criteriaId=${encodeURIComponent(criteriaId)}`)
+  return parseJson(await apiFetch(`/api/staff/criteria/detail?criteriaId=${encodeURIComponent(criteriaId)}`))
 }
 
-/**
- * Tạo tiêu chí mới cho round
- * @param {Object} payload - { roundId, criterionName, weight, maxScore, description }
- */
 export async function createCriteria(payload) {
-  return await request(`${BASE}/staff/criteria`, {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  })
+  return parseJson(await apiFetch('/api/staff/criteria', { method: 'POST', body: payload }))
 }
 
 export async function updateCriteria(criteriaId, payload) {
-  return await request(`${BASE}/staff/criteria?criteriaId=${encodeURIComponent(criteriaId)}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload)
-  })
+  return parseJson(
+    await apiFetch(`/api/staff/criteria?criteriaId=${encodeURIComponent(criteriaId)}`, {
+      method: 'PUT',
+      body: payload
+    })
+  )
 }
 
 export async function deleteCriteria(criteriaId) {
-  return await request(`${BASE}/staff/criteria?criteriaId=${encodeURIComponent(criteriaId)}`, {
-    method: 'DELETE'
-  })
+  return parseJson(
+    await apiFetch(`/api/staff/criteria?criteriaId=${encodeURIComponent(criteriaId)}`, { method: 'DELETE' })
+  )
 }
 
 /** @deprecated dùng getCriteriaForJudge từ api/judge.js */
 export async function getCriteriaForJudge(roundId) {
-  const data = await request(`${BASE}/judge/criteria?roundId=${encodeURIComponent(roundId)}`)
-  return mapCriteriaResponse(data)
+  const text = await apiFetch(`/api/judge/criteria?roundId=${encodeURIComponent(roundId)}`)
+  return mapCriteriaResponse(parseJson(text))
 }

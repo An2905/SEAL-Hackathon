@@ -224,6 +224,43 @@ export async function retryGitHubProvisioning(registrationId) {
   return parseStaffJson(text)
 }
 
+// GET /api/staff/emails/filter
+// Lọc danh sách email theo nhiều tiêu chí. Trả về danh sách recipients + copyText.
+export async function filterEmails({
+  audiences,
+  eventId,
+  roundId,
+  groupId,
+  teamId,
+  userRole,
+  registrationStatus,
+  emailContains,
+  nameContains,
+  teamNameContains,
+  accountStatus,
+  separator,
+  includeCopyText
+} = {}) {
+  const params = new URLSearchParams()
+  if (audiences) params.set('audiences', audiences)
+  if (eventId) params.set('eventId', eventId)
+  if (roundId) params.set('roundId', roundId)
+  if (groupId) params.set('groupId', groupId)
+  if (teamId) params.set('teamId', teamId)
+  if (userRole) params.set('userRole', userRole)
+  if (registrationStatus) params.set('registrationStatus', registrationStatus)
+  if (emailContains) params.set('emailContains', emailContains)
+  if (nameContains) params.set('nameContains', nameContains)
+  if (teamNameContains) params.set('teamNameContains', teamNameContains)
+  if (accountStatus) params.set('accountStatus', accountStatus)
+  if (separator) params.set('separator', separator)
+  if (includeCopyText != null) params.set('includeCopyText', String(includeCopyText))
+
+  const query = params.toString() ? `?${params.toString()}` : ''
+  const text = await apiFetch(`/api/staff/emails/filter${query}`)
+  return parseStaffJson(text)
+}
+
 // PUT /api/staff/events/{eventId}/github-access?grant=true/false
 export async function updateEventRepoAccess({ eventId, grant }) {
   const id = normalizeEventId(eventId)
