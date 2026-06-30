@@ -34,6 +34,7 @@ import com.hackathon.hackathon.model.entity.TeamRegistration;
 import com.hackathon.hackathon.model.mapper.EventMapper;
 import com.hackathon.hackathon.repository.AwardRepository;
 import com.hackathon.hackathon.repository.CheckInRepository;
+import com.hackathon.hackathon.repository.CriteriaRepository;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.EventSetupRepository;
 import com.hackathon.hackathon.repository.EventSetupRepository.EventRoundSetupRow;
@@ -47,6 +48,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -70,6 +72,8 @@ public class EventService {
   @Autowired private EventSetupRepository eventSetupRepository;
 
   @Autowired private AwardRepository awardRepository;
+
+  @Autowired private CriteriaRepository criteriaRepository;
 
   @Autowired private EventMapper eventMapper;
 
@@ -187,6 +191,17 @@ public class EventService {
     if (!eventRepository.existsById(eventId)) {
       throw new BadRequestException("Event not found.");
     }
+
+    syncAutoEventStatusForEvent(eventId);
+    EventSetupRow currentEvent =
+        eventSetupRepository
+            .findEventById(eventId)
+            .orElseThrow(() -> new BadRequestException("Event not found."));
+
+    if ("COMPLETED".equalsIgnoreCase(currentEvent.status)) {
+      throw new ConflictException("Sự kiện đã kết thúc — không thể chỉnh sửa.");
+    }
+
     if (eventSetupRepository.eventTitleExistsExcluding(title, eventId)) {
       throw new ConflictException("Event title already exists.");
     }
@@ -214,14 +229,20 @@ public class EventService {
       throw new BadRequestException("Number of rounds must be at least 1.");
     }
 
-    eventSetupRepository
-        .findEventStatus(eventId)
-        .ifPresent(
-            currentStatus -> {
-              if ("COMPLETED".equalsIgnoreCase(currentStatus) && !"COMPLETED".equals(status)) {
-                throw new ConflictException("Event is already COMPLETED — cannot change state.");
-              }
-            });
+    String currentStatus = currentEvent.status;
+    validateManualEventStatus(currentStatus, status);
+    validateEventStatusTransition(eventId, currentStatus, status);
+    validateEventUpdateMonotonic(eventId, currentEvent, startDate, endDate, maxTeams, numRounds);
+
+    if ("UPCOMING".equals(status) && "BUILDING".equalsIgnoreCase(currentStatus)) {
+      EventSetupRow pendingEvent = new EventSetupRow();
+      pendingEvent.title = title;
+      pendingEvent.startDate = startDate;
+      pendingEvent.endDate = endDate;
+      pendingEvent.numRounds = numRounds;
+      pendingEvent.maxTeams = maxTeams;
+      validateEventReadyForUpcoming(eventId, pendingEvent);
+    }
 
     String githubTemplateRepo =
         request.getGithubTemplateRepo() == null ? null : request.getGithubTemplateRepo().trim();
@@ -307,12 +328,31 @@ public class EventService {
     if (eventId.isEmpty()) {
       throw new BadRequestException("ID sự kiện là bắt buộc.");
     }
-    if (newStatus.isEmpty()
-        || (!newStatus.equals("BUILDING")
-            && !newStatus.equals("UPCOMING")
-            && !newStatus.equals("ONGOING")
-            && !newStatus.equals("COMPLETED"))) {
+    if (newStatus.isEmpty() || (!newStatus.equals("BUILDING") && !newStatus.equals("UPCOMING"))) {
       throw new BadRequestException("Trạng thái sự kiện không hợp lệ.");
+    }
+
+    syncAutoEventStatusForEvent(eventId);
+
+    String currentStatus =
+        eventSetupRepository
+            .findEventStatus(eventId)
+            .orElseThrow(() -> new BadRequestException("Không tìm thấy sự kiện."));
+
+    if ("ONGOING".equalsIgnoreCase(currentStatus) || "COMPLETED".equalsIgnoreCase(currentStatus)) {
+      throw new BadRequestException(
+          "Không thể thay đổi trạng thái thủ công khi sự kiện đang diễn ra hoặc đã kết thúc.");
+    }
+    if ("UPCOMING".equalsIgnoreCase(currentStatus)) {
+      throw new BadRequestException(
+          "Không thể thay đổi trạng thái thủ công khi sự kiện đã ở trạng thái sắp diễn ra.");
+    }
+
+    validateManualEventStatus(currentStatus, newStatus);
+    validateEventStatusTransition(eventId, currentStatus, newStatus);
+
+    if ("UPCOMING".equals(newStatus) && "BUILDING".equalsIgnoreCase(currentStatus)) {
+      validateEventReadyForUpcoming(eventId, null);
     }
 
     if (!eventRepository.updateStatus(eventId, newStatus)) {
@@ -329,6 +369,8 @@ public class EventService {
   public List<EventSummaryResponse> getAllEvents(String authHeader, String status) {
     authService.validateRole(authHeader, "COORDINATOR");
 
+    syncAutoEventStatuses();
+
     String statusFilter = (status == null) ? "" : status.trim().toUpperCase();
     List<EventSummaryResponse> events = new ArrayList<>();
     for (Event event : eventRepository.findAllByStatus(statusFilter)) {
@@ -338,6 +380,8 @@ public class EventService {
   }
 
   public List<EventSummaryResponse> getPublicEvents() {
+    syncAutoEventStatuses();
+
     List<EventSummaryResponse> events = new ArrayList<>();
     for (Event event : eventRepository.findPublicEvents()) {
       events.add(eventMapper.toSummaryResponse(event));
@@ -352,6 +396,8 @@ public class EventService {
       throw new BadRequestException("Event ID cannot be empty.");
     }
     eventId = eventId.trim();
+
+    syncAutoEventStatusForEvent(eventId);
 
     Event event =
         eventRepository
@@ -1127,6 +1173,243 @@ public class EventService {
   }
 
   // endregion
+
+  private void syncAutoEventStatuses() {
+    Timestamp now = Timestamp.from(Instant.now());
+    eventSetupRepository.promoteUpcomingToOngoing(now);
+    eventSetupRepository.promoteOngoingToCompleted(now);
+  }
+
+  private void syncAutoEventStatusForEvent(String eventId) {
+    eventSetupRepository.syncAutoStatusForEvent(eventId, Timestamp.from(Instant.now()));
+  }
+
+  private void validateManualEventStatus(String currentStatus, String requestedStatus) {
+    if (requestedStatus == null || requestedStatus.isBlank()) {
+      return;
+    }
+    String requested = requestedStatus.trim().toUpperCase();
+    String current = currentStatus == null ? "" : currentStatus.trim().toUpperCase();
+
+    if ("UPCOMING".equals(current) && "BUILDING".equals(requested)) {
+      throw new BadRequestException("Không thể hạ trạng thái sự kiện từ UPCOMING về BUILDING.");
+    }
+
+    if (!"ONGOING".equals(requested) && !"COMPLETED".equals(requested)) {
+      return;
+    }
+    if (!requested.equals(current)) {
+      throw new BadRequestException(
+          "Trạng thái ONGOING và COMPLETED được hệ thống tự động cập nhật theo thời gian sự kiện.");
+    }
+  }
+
+  private void validateEventUpdateMonotonic(
+      String eventId,
+      EventSetupRow current,
+      Timestamp newStart,
+      Timestamp newEnd,
+      Integer newMaxTeams,
+      int newNumRounds) {
+    Timestamp minAllowed = Timestamp.from(Instant.now().plus(24, ChronoUnit.HOURS));
+
+    if (newStart != null) {
+      if (current.startDate != null && newStart.before(current.startDate)) {
+        throw new BadRequestException("Ngày bắt đầu sự kiện chỉ được tăng, không được giảm.");
+      }
+      if (current.startDate == null || !newStart.equals(current.startDate)) {
+        if (newStart.before(minAllowed)) {
+          throw new BadRequestException(
+              "Ngày bắt đầu sự kiện phải cách thời điểm hiện tại ít nhất 24 giờ.");
+        }
+      }
+    } else if (current.startDate != null) {
+      throw new BadRequestException("Không được xóa ngày bắt đầu sự kiện.");
+    }
+
+    if (newEnd != null) {
+      if (current.endDate != null && newEnd.before(current.endDate)) {
+        throw new BadRequestException("Ngày kết thúc sự kiện chỉ được tăng, không được giảm.");
+      }
+      if (current.endDate == null || !newEnd.equals(current.endDate)) {
+        if (newEnd.before(minAllowed)) {
+          throw new BadRequestException(
+              "Ngày kết thúc sự kiện phải cách thời điểm hiện tại ít nhất 24 giờ.");
+        }
+      }
+      Optional<Timestamp> maxRoundEnd = eventSetupRepository.findMaxRoundEndDate(eventId);
+      if (maxRoundEnd.isPresent() && !newEnd.after(maxRoundEnd.get())) {
+        throw new BadRequestException(
+            "Ngày kết thúc sự kiện phải sau ngày kết thúc của vòng đấu cuối cùng.");
+      }
+    } else if (current.endDate != null) {
+      throw new BadRequestException("Không được xóa ngày kết thúc sự kiện.");
+    }
+
+    if (current.numRounds != null && newNumRounds < current.numRounds) {
+      throw new BadRequestException("Số vòng dự kiến chỉ được tăng, không được giảm.");
+    }
+
+    if (current.maxTeams != null) {
+      if (newMaxTeams == null) {
+        throw new BadRequestException("Không được bỏ giới hạn số đội sau khi đã thiết lập.");
+      }
+      if (newMaxTeams < current.maxTeams) {
+        throw new BadRequestException("Giới hạn số đội chỉ được tăng, không được giảm.");
+      }
+    }
+  }
+
+  private void validateEventStatusTransition(
+      String eventId, String currentStatus, String newStatus) {
+    if (currentStatus == null || newStatus == null || currentStatus.equalsIgnoreCase(newStatus)) {
+      return;
+    }
+
+    if (eventStatusOrder(newStatus) >= eventStatusOrder(currentStatus)) {
+      return;
+    }
+
+    if (eventSetupRepository.countTeamRegistrationsByEventId(eventId) > 0) {
+      throw new BadRequestException(
+          "Không thể hạ trạng thái sự kiện khi đã có đội đăng ký (mọi trạng thái đăng ký).");
+    }
+    if (eventSetupRepository.countMentorAssignmentsByEventId(eventId) > 0) {
+      throw new BadRequestException("Không thể hạ trạng thái sự kiện khi đã có phân công mentor.");
+    }
+    if (eventSetupRepository.countJudgeAssignmentsByEventId(eventId) > 0) {
+      throw new BadRequestException("Không thể hạ trạng thái sự kiện khi đã có phân công judge.");
+    }
+  }
+
+  private static int eventStatusOrder(String status) {
+    if (status == null) {
+      return 0;
+    }
+    return switch (status.trim().toUpperCase()) {
+      case "BUILDING" -> 1;
+      case "UPCOMING" -> 2;
+      case "ONGOING" -> 3;
+      case "COMPLETED" -> 4;
+      default -> 0;
+    };
+  }
+
+  private void validateEventReadyForUpcoming(String eventId, EventSetupRow pendingEvent) {
+    EventSetupRow event =
+        pendingEvent != null
+            ? mergeEventForUpcomingValidation(eventId, pendingEvent)
+            : eventSetupRepository
+                .findEventById(eventId)
+                .orElseThrow(() -> new BadRequestException("Không tìm thấy sự kiện."));
+
+    if (event.title == null || event.title.isBlank()) {
+      throw new BadRequestException("Tên sự kiện là bắt buộc trước khi chuyển sang UPCOMING.");
+    }
+    if (event.startDate == null) {
+      throw new BadRequestException(
+          "Ngày bắt đầu sự kiện là bắt buộc trước khi chuyển sang UPCOMING.");
+    }
+    if (event.endDate == null) {
+      throw new BadRequestException(
+          "Ngày kết thúc sự kiện là bắt buộc trước khi chuyển sang UPCOMING.");
+    }
+    if (event.startDate.after(event.endDate)) {
+      throw new BadRequestException("Ngày bắt đầu sự kiện phải trước hoặc bằng ngày kết thúc.");
+    }
+    if (event.numRounds == null || event.numRounds < 1) {
+      throw new BadRequestException("Số vòng dự kiến phải ít nhất là 1.");
+    }
+
+    if (eventSetupRepository.countRoundsByEventId(eventId) < 1) {
+      throw new BadRequestException(
+          "Sự kiện phải có ít nhất một vòng đấu trước khi chuyển sang UPCOMING.");
+    }
+
+    List<EventRoundSetupRow> rounds = eventSetupRepository.findRoundsByEventId(eventId);
+    for (EventRoundSetupRow round : rounds) {
+      validateRoundSetupComplete(round);
+    }
+
+    if (eventSetupRepository.countGroupsByEventId(eventId) < 1) {
+      throw new BadRequestException(
+          "Sự kiện phải có ít nhất một bảng đấu trước khi chuyển sang UPCOMING.");
+    }
+
+    if (awardRepository.countByEventId(eventId) < 1) {
+      throw new BadRequestException(
+          "Sự kiện phải có ít nhất một giải thưởng trước khi chuyển sang UPCOMING.");
+    }
+
+    if (event.maxTeams != null && eventSetupRepository.hasUnlimitedGroupsInEvent(eventId)) {
+      throw new BadRequestException(
+          "Khi sự kiện có giới hạn số đội, mọi bảng đấu phải có số đội tối đa.");
+    }
+  }
+
+  private EventSetupRow mergeEventForUpcomingValidation(
+      String eventId, EventSetupRow pendingEvent) {
+    EventSetupRow stored =
+        eventSetupRepository
+            .findEventById(eventId)
+            .orElseThrow(() -> new BadRequestException("Không tìm thấy sự kiện."));
+    stored.title = pendingEvent.title;
+    stored.startDate = pendingEvent.startDate;
+    stored.endDate = pendingEvent.endDate;
+    stored.numRounds = pendingEvent.numRounds;
+    stored.maxTeams = pendingEvent.maxTeams;
+    return stored;
+  }
+
+  private void validateRoundSetupComplete(EventRoundSetupRow round) {
+    String roundLabel =
+        round.name == null || round.name.isBlank() ? round.roundId : round.name.trim();
+    if (round.name == null || round.name.isBlank()) {
+      throw new BadRequestException(
+          "Vòng đấu \"" + roundLabel + "\" phải có tên trước khi chuyển sang UPCOMING.");
+    }
+    if (round.startDate == null) {
+      throw new BadRequestException(
+          "Vòng đấu \"" + roundLabel + "\" phải có ngày bắt đầu trước khi chuyển sang UPCOMING.");
+    }
+    if (round.endDate == null) {
+      throw new BadRequestException(
+          "Vòng đấu \"" + roundLabel + "\" phải có ngày kết thúc trước khi chuyển sang UPCOMING.");
+    }
+    if (round.submissionDeadline == null) {
+      throw new BadRequestException(
+          "Vòng đấu \"" + roundLabel + "\" phải có hạn nộp bài trước khi chuyển sang UPCOMING.");
+    }
+    if (round.startDate.after(round.endDate)) {
+      throw new BadRequestException(
+          "Vòng đấu \"" + roundLabel + "\": ngày bắt đầu phải trước hoặc bằng ngày kết thúc.");
+    }
+    if (round.submissionDeadline.after(round.endDate)) {
+      throw new BadRequestException(
+          "Vòng đấu \"" + roundLabel + "\": hạn nộp bài phải trước hoặc bằng ngày kết thúc.");
+    }
+    if (round.winnersPerRound < 1) {
+      throw new BadRequestException(
+          "Vòng đấu \"" + roundLabel + "\" phải có số winner mỗi vòng ít nhất là 1.");
+    }
+
+    if (criteriaRepository.findCriteriaByRoundId(round.roundId).isEmpty()) {
+      throw new BadRequestException(
+          "Vòng đấu \""
+              + roundLabel
+              + "\" phải có ít nhất một tiêu chí chấm điểm trước khi chuyển sang UPCOMING.");
+    }
+
+    double totalWeight = criteriaRepository.sumWeightByRound(round.roundId, null);
+    if (Math.abs(totalWeight - 100.0) > 0.009) {
+      throw new BadRequestException(
+          "Vòng đấu \""
+              + roundLabel
+              + "\" phải có tổng trọng số tiêu chí đạt 100% (hiện tại: "
+              + String.format("%.2f", totalWeight)
+              + "%).");
+    }
+  }
 
   private void validateRoundWithinEvent(
       String eventId, Timestamp startDate, Timestamp endDate, Timestamp submissionDeadline) {

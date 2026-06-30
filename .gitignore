@@ -35,6 +35,7 @@ dist/
 hackathon.env
 hackathon.env.properties
 secret/
+backend/secret/
 *.pem
 
 # OS & System Files

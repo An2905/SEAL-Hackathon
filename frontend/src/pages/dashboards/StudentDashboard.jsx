@@ -17,6 +17,7 @@ import {
 } from '../../api/team'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
+import { eventStatusLabel } from '../../utils/eventStatusLabels'
 import ChatPopup, { ChatOpenButton } from '../../components/chat/ChatPopup'
 import Pagination from '../../components/common/Pagination'
 import LoadingState from '../../components/common/LoadingState'
@@ -95,16 +96,6 @@ function eventStatusPillClass(status) {
   if (key === 'COMPLETED') return 'status-default'
   if (key === 'CANCELLED') return 'status-inactive'
   return 'status-default'
-}
-
-function eventStatusLabel(status) {
-  const key = (status || '').toUpperCase()
-  if (key === 'ONGOING') return 'Đang diễn ra'
-  if (key === 'BUILDING') return 'Đang thiết lập'
-  if (key === 'UPCOMING') return 'Sắp diễn ra'
-  if (key === 'COMPLETED') return 'Đã kết thúc'
-  if (key === 'CANCELLED') return 'Đã hủy'
-  return status || '—'
 }
 
 function hasOngoingOrUpcomingRegistration(registrations) {
@@ -838,7 +829,7 @@ function JoinEventForm({ onSuccess, embedded = false }) {
           </div>
         ) : events.length === 0 ? (
           <div className='empty-state' style={{ padding: '8px 0' }}>
-            Hiện chưa có sự kiện UPCOMING hoặc đội đã đăng ký hết.
+            Hiện chưa có sự kiện sắp diễn ra hoặc đội đã đăng ký hết.
           </div>
         ) : (
           <select
@@ -875,7 +866,7 @@ function JoinEventForm({ onSuccess, embedded = false }) {
         <div className='student-events-register__head'>
           <div className='card-title'>Đăng ký sự kiện mới</div>
           <p className='card-sub' style={{ margin: 0 }}>
-            Chọn sự kiện UPCOMING — BTC sẽ duyệt và phân bảng sau khi đội đăng ký.
+            Chọn sự kiện sắp diễn ra — BTC sẽ duyệt và phân bảng sau khi đội đăng ký.
           </p>
         </div>
         {formBody}
@@ -889,7 +880,7 @@ function JoinEventForm({ onSuccess, embedded = false }) {
         <div className='card-title'>Đăng ký sự kiện</div>
       </div>
       <p className='card-sub'>
-        Chọn sự kiện đang mở đăng ký (UPCOMING). BTC sẽ duyệt và phân bảng sau khi đội đăng ký.
+        Chọn sự kiện đang mở đăng ký (sắp diễn ra). BTC sẽ duyệt và phân bảng sau khi đội đăng ký.
       </p>
       {formBody}
     </div>

@@ -14,6 +14,22 @@ public class AwardRepository {
 
   @Autowired private DataSource dataSource;
 
+  public int countByEventId(String eventId) {
+    String sql = "SELECT COUNT(*) AS cnt FROM awards WHERE event_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return rs.getInt("cnt");
+        }
+      }
+    } catch (Exception e) {
+      return 0;
+    }
+    return 0;
+  }
+
   public boolean belongsToEvent(String awardId, String eventId) {
     String sql = "SELECT 1 FROM awards WHERE award_id = ? AND event_id = ?";
     try (Connection conn = dataSource.getConnection();

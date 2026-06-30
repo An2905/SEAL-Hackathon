@@ -7,6 +7,7 @@ import { getAllEvents, getEventDetail } from '../../../api/event'
 import { getAllAccounts, assignJudge, assignMentor } from '../../../api/staff'
 import { useToast } from '../../../context/ToastContext'
 import { localizeError } from '../../../utils/errors'
+import { eventStatusLabel } from '../../../utils/eventStatusLabels'
 
 const EXCLUDED_EVENT_STATUSES = new Set(['BUILDING', 'COMPLETED'])
 
@@ -15,18 +16,6 @@ function isAssignableEvent(event) {
     .trim()
     .toUpperCase()
   return status && !EXCLUDED_EVENT_STATUSES.has(status)
-}
-
-function eventStatusLabel(status) {
-  const key = String(status ?? '')
-    .trim()
-    .toUpperCase()
-  if (key === 'UPCOMING') return 'Sắp diễn ra'
-  if (key === 'ONGOING') return 'Đang diễn ra'
-  if (key === 'CANCELLED') return 'Đã hủy'
-  if (key === 'BUILDING') return 'Đang thiết lập'
-  if (key === 'COMPLETED') return 'Đã kết thúc'
-  return status || '—'
 }
 
 function EventAssignStatsPanel({ detail }) {
@@ -313,7 +302,7 @@ export default function StaffAssignPage() {
           <div>
             <div className='card-title'>Chọn sự kiện</div>
             <p className='card-sub' style={{ margin: '4px 0 0' }}>
-              {assignableEvents.length} sự kiện khả dụng (trừ BUILDING & COMPLETED)
+              {assignableEvents.length} sự kiện khả dụng (trừ đang thiết lập & đã kết thúc)
             </p>
           </div>
         </div>

@@ -281,6 +281,62 @@ public class EventSetupRepository {
     return Optional.empty();
   }
 
+  public int promoteUpcomingToOngoing(Timestamp now) {
+    String sql =
+        "UPDATE events SET status = 'ONGOING' "
+            + "WHERE status = 'UPCOMING' AND start_date IS NOT NULL AND start_date <= ?";
+    return executeTimestampUpdate(sql, now);
+  }
+
+  public int promoteOngoingToCompleted(Timestamp now) {
+    String sql =
+        "UPDATE events SET status = 'COMPLETED' "
+            + "WHERE status = 'ONGOING' AND end_date IS NOT NULL AND end_date <= ?";
+    return executeTimestampUpdate(sql, now);
+  }
+
+  public void syncAutoStatusForEvent(String eventId, Timestamp now) {
+    String sqlUpcoming =
+        "UPDATE events SET status = 'ONGOING' "
+            + "WHERE event_id = ? AND status = 'UPCOMING' AND start_date IS NOT NULL AND start_date <= ?";
+    String sqlOngoing =
+        "UPDATE events SET status = 'COMPLETED' "
+            + "WHERE event_id = ? AND status = 'ONGOING' AND end_date IS NOT NULL AND end_date <= ?";
+    try (Connection conn = dataSource.getConnection()) {
+      try (PreparedStatement ps = conn.prepareStatement(sqlUpcoming)) {
+        ps.setString(1, eventId);
+        ps.setTimestamp(2, now);
+        ps.executeUpdate();
+      }
+      try (PreparedStatement ps = conn.prepareStatement(sqlOngoing)) {
+        ps.setString(1, eventId);
+        ps.setTimestamp(2, now);
+        ps.executeUpdate();
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to sync event status for " + eventId, e);
+    }
+  }
+
+  public Optional<Timestamp> findMaxRoundEndDate(String eventId) {
+    String sql = "SELECT MAX(end_date) AS max_end FROM rounds WHERE event_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          Timestamp maxEnd = rs.getTimestamp("max_end");
+          if (maxEnd != null) {
+            return Optional.of(maxEnd);
+          }
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
+    }
+    return Optional.empty();
+  }
+
   public Optional<Timestamp[]> findEventDateBounds(String eventId) {
     String sql = "SELECT start_date, end_date FROM events WHERE event_id = ?";
     try (Connection conn = dataSource.getConnection();
@@ -624,6 +680,16 @@ public class EventSetupRepository {
     }
   }
 
+  private int executeTimestampUpdate(String sql, Timestamp timestamp) {
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setTimestamp(1, timestamp);
+      return ps.executeUpdate();
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
+    }
+  }
+
   public List<EventRoundSetupRow> findRoundsByEventId(String eventId) {
     String sql =
         "SELECT round_id, event_id, name, round_order, start_date, end_date, submission_deadline, winners_per_round FROM rounds WHERE event_id = ? ORDER BY round_order ASC";
@@ -649,6 +715,40 @@ public class EventSetupRepository {
       throw new RuntimeException(sql, e);
     }
     return list;
+  }
+
+  public int countRoundsByEventId(String eventId) {
+    String sql = "SELECT COUNT(*) AS cnt FROM rounds WHERE event_id = ?";
+    return countById(sql, eventId);
+  }
+
+  public int countGroupsByEventId(String eventId) {
+    String sql =
+        "SELECT COUNT(*) AS cnt FROM round_groups rg "
+            + "INNER JOIN rounds r ON rg.round_id = r.round_id "
+            + "WHERE r.event_id = ?";
+    return countById(sql, eventId);
+  }
+
+  public int countTeamRegistrationsByEventId(String eventId) {
+    String sql = "SELECT COUNT(*) AS cnt FROM team_registrations WHERE event_id = ?";
+    return countById(sql, eventId);
+  }
+
+  public int countMentorAssignmentsByEventId(String eventId) {
+    String sql =
+        "SELECT COUNT(*) AS cnt FROM mentor_assignments ma "
+            + "INNER JOIN rounds r ON ma.round_id = r.round_id "
+            + "WHERE r.event_id = ?";
+    return countById(sql, eventId);
+  }
+
+  public int countJudgeAssignmentsByEventId(String eventId) {
+    String sql =
+        "SELECT COUNT(*) AS cnt FROM judge_assignments ja "
+            + "INNER JOIN rounds r ON ja.round_id = r.round_id "
+            + "WHERE r.event_id = ?";
+    return countById(sql, eventId);
   }
 
   public int countApprovedTeamsInEvent(String eventId) {
@@ -695,6 +795,22 @@ public class EventSetupRepository {
       if (excludeGroupId != null && !excludeGroupId.isBlank()) {
         ps.setString(2, excludeGroupId);
       }
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+      }
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  public boolean hasUnlimitedGroupsInEvent(String eventId) {
+    String sql =
+        "SELECT 1 FROM round_groups rg "
+            + "INNER JOIN rounds r ON rg.round_id = r.round_id "
+            + "WHERE r.event_id = ? AND rg.max_teams IS NULL";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
       try (ResultSet rs = ps.executeQuery()) {
         return rs.next();
       }

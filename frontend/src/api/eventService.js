@@ -359,7 +359,7 @@ export async function updateEvent({
     .trim()
     .toUpperCase()
   if (!['BUILDING', 'UPCOMING', 'ONGOING', 'COMPLETED'].includes(nextStatus)) {
-    throw new Error('Trạng thái phải là BUILDING, UPCOMING, ONGOING hoặc COMPLETED')
+    throw new Error('Trạng thái không hợp lệ.')
   }
 
   const body = {

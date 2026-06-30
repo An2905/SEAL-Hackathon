@@ -12,6 +12,7 @@ import {
 import ExpertGroupColleaguesBoard from '../../components/expert/ExpertGroupColleaguesBoard'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import { eventStatusLabel } from '../../utils/eventStatusLabels'
 import { localizeError } from '../../utils/errors'
 import { vietnameseRoleLabel } from '../../utils/roleLabels'
 import ChatPopup from '../../components/chat/ChatPopup'
@@ -67,7 +68,7 @@ function StatusBadge({ status }) {
   return (
     <span className='status-picker' style={{ flexShrink: 0 }}>
       <span className={`status-pill ${eventStatusPillClass(status)}`} style={{ cursor: 'default' }}>
-        {status || '—'}
+        {eventStatusLabel(status)}
       </span>
     </span>
   )

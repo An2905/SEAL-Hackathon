@@ -20,10 +20,8 @@ import {
   updateMentorAssignment
 } from '../../api/staffAssignment'
 import {
-  createEventAward,
   createEventGroup,
   createEventRound,
-  deleteEventAward,
   deleteEventGroup,
   deleteEventRound,
   getEventGroupTeams,
@@ -31,7 +29,6 @@ import {
   removeTeamFromGroup,
   getEventRoundDetail,
   updateEvent,
-  updateEventAward,
   updateEventGroup,
   updateEventRound
 } from '../../api/eventService'
@@ -39,13 +36,19 @@ import FormField from '../../components/common/FormField'
 import LoadingButton from '../../components/common/LoadingButton'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
+import {
+  BUILDING_STATUS_OPTIONS,
+  eventStatusLabel,
+  eventStatusLockHint,
+  isEventStatusLocked
+} from '../../utils/eventStatusLabels'
 import CriteriaManager from './staff/CriteriaManager'
+import AwardsManager from './staff/AwardsManager'
 import CommitListModal from '../../components/common/CommitListModal'
 import { parseGitHubRepoUrl } from '../../api/githubRepo'
 import Pagination from '../../components/common/Pagination'
 
 const REGISTRATION_STATUSES = ['PENDING', 'APPROVED', 'REJECTED']
-const EVENT_STATUSES = ['BUILDING', 'UPCOMING', 'ONGOING', 'COMPLETED']
 const PAGE_SIZE = 5
 
 function eventStatusPillClass(status) {
@@ -1054,6 +1057,11 @@ function EventBoardSection({
   }, [event?.groups, event?.assignedMentors, event?.assignedJudges])
   return (
     <section className='event-board' style={{ marginTop: 16 }}>
+      <div className='event-board-head' aria-hidden='true'>
+        <span>Vòng</span>
+        <span>Bảng thi</span>
+        <span>Winner</span>
+      </div>
       {rounds.length ? (
         rounds.map((round) => {
           const groups = groupsByRound.get(round.roundId) ?? []
@@ -1178,17 +1186,6 @@ function EventBoardSection({
       />{' '}
     </section>
   )
-}
-
-function eventStatusLabel(status) {
-  const key = String(status ?? '')
-    .trim()
-    .toUpperCase()
-  if (key === 'BUILDING') return 'Đang thiết lập (BUILDING)'
-  if (key === 'UPCOMING') return 'Sắp diễn ra (UPCOMING)'
-  if (key === 'ONGOING') return 'Đang diễn ra (ONGOING)'
-  if (key === 'COMPLETED') return 'Đã kết thúc (COMPLETED)'
-  return status || '—'
 }
 
 function toDatetimeLocalValue(value) {
@@ -2397,7 +2394,8 @@ function EventDetailInfoPanel({ event, onUpdated }) {
     }
   }
 
-  const statusLocked = String(event.status ?? '').toUpperCase() === 'COMPLETED'
+  const statusLocked = isEventStatusLocked(event.status)
+  const editLocked = String(event.status ?? '').toUpperCase() === 'COMPLETED'
 
   const editFormId = `event-info-edit-${event.eventId}`
 
@@ -2493,18 +2491,24 @@ function EventDetailInfoPanel({ event, onUpdated }) {
         />
       </FormField>
       <FormField label='Trạng thái *'>
-        <select name='status' value={form.status} onChange={handleChange} disabled={saving || statusLocked} required>
-          {EVENT_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
         {statusLocked ? (
-          <p className='event-stat-edit-hint' style={{ marginTop: 6 }}>
-            Sự kiện COMPLETED — không đổi trạng thái (theo ràng buộc DB).
-          </p>
-        ) : null}
+          <>
+            <input type='text' value={eventStatusLabel(event.status)} disabled readOnly />
+            {eventStatusLockHint(event.status) ? (
+              <p className='event-stat-edit-hint' style={{ marginTop: 6 }}>
+                {eventStatusLockHint(event.status)}
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <select name='status' value={form.status} onChange={handleChange} disabled={saving} required>
+            {BUILDING_STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {eventStatusLabel(s)}
+              </option>
+            ))}
+          </select>
+        )}
       </FormField>
       <FormField label='GitHub Repository mẫu'>
         <input
@@ -2550,9 +2554,15 @@ function EventDetailInfoPanel({ event, onUpdated }) {
         <div className={`event-detail-info${editOpen ? ' is-edit-open' : ''}`}>{detailBody}</div>
         <div className='event-detail-info-actions-outside' style={{ marginTop: 16 }}>
           {!editOpen ? (
-            <button type='button' className='btn btn-outline' onClick={handleStartEdit}>
-              Sửa
-            </button>
+            editLocked ? (
+              <p className='event-stat-edit-hint' style={{ margin: 0 }}>
+                Sự kiện đã kết thúc — không thể chỉnh sửa.
+              </p>
+            ) : (
+              <button type='button' className='btn btn-outline' onClick={handleStartEdit}>
+                Sửa
+              </button>
+            )
           ) : (
             <>
               <LoadingButton loading={saving} type='submit' form={editFormId} className='btn btn-primary'>
@@ -2565,203 +2575,6 @@ function EventDetailInfoPanel({ event, onUpdated }) {
           )}
         </div>
       </Modal>
-    </>
-  )
-}
-
-function AwardStatItem({ eventId, award, onUpdated, onDeleted }) {
-  const { showToast } = useToast()
-  const [editOpen, setEditOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({
-    title: award.title || '',
-    rank: award.rank == null ? '' : String(award.rank)
-  })
-
-  useEffect(() => {
-    if (!editOpen) {
-      setForm({
-        title: award.title || '',
-        rank: award.rank == null ? '' : String(award.rank)
-      })
-    }
-  }, [award.title, award.rank, editOpen])
-
-  const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
-
-  const handleSave = async (e) => {
-    e.preventDefault()
-    setSaving(true)
-    try {
-      const updated = await updateEventAward({
-        eventId,
-        awardId: award.awardId,
-        title: form.title,
-        rank: form.rank
-      })
-      onUpdated?.(updated)
-      showToast('Đã cập nhật giải thưởng', 'success')
-      setEditOpen(false)
-    } catch (err) {
-      showToast(localizeError(err.message), 'error')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className={`event-stat-item-card${editOpen ? ' is-edit-open' : ''}`}>
-      <div className='kv event-stat-item'>
-        <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-          <div style={{ fontWeight: 600 }}>{award.title || '—'}</div>
-          {award.rank != null ? (
-            <div style={{ fontSize: 11, color: 'var(--text-mute)' }}>Hạng #{award.rank}</div>
-          ) : null}
-        </span>
-        <div className='event-stat-item-actions'>
-          <button
-            type='button'
-            className='btn btn-outline btn-sm'
-            onClick={() => setEditOpen((v) => !v)}
-            aria-expanded={editOpen}
-          >
-            {editOpen ? 'Thu gọn' : 'Sửa'}
-          </button>
-          <StatItemDeleteButton
-            itemLabel={award.title || 'giải thưởng'}
-            confirmMessage={`Xóa giải thưởng "${award.title || 'này'}"?`}
-            onDelete={async () => {
-              await deleteEventAward({
-                eventId,
-                awardId: award.awardId
-              })
-              onDeleted?.(award.awardId)
-            }}
-          />
-        </div>
-      </div>
-      {editOpen ? (
-        <form className='event-stat-item-edit' onSubmit={handleSave}>
-          <FormField label='Tên giải thưởng *'>
-            <input name='title' value={form.title} onChange={handleChange} maxLength={100} disabled={saving} required />
-          </FormField>
-          <FormField label='Hạng'>
-            <input
-              type='number'
-              name='rank'
-              value={form.rank}
-              onChange={handleChange}
-              min={1}
-              disabled={saving}
-              placeholder='Để trống nếu không có hạng'
-            />
-          </FormField>
-          <div className='event-stat-item-edit-foot'>
-            <LoadingButton type='submit' className='btn btn-primary btn-sm' loading={saving}>
-              Lưu
-            </LoadingButton>
-            <button type='button' className='btn btn-ghost btn-sm' onClick={() => setEditOpen(false)} disabled={saving}>
-              Hủy
-            </button>
-          </div>
-        </form>
-      ) : null}
-    </div>
-  )
-}
-
-function AwardsDropdownContent({ eventId, awards = [], onAwardCreated, onAwardUpdated, onAwardDeleted }) {
-  const { showToast } = useToast()
-  const [createOpen, setCreateOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ title: '', rank: '' })
-  const [page, setPage] = useState(1)
-
-  const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
-
-  const handleCreate = async (e) => {
-    e.preventDefault()
-    setSaving(true)
-    try {
-      const created = await createEventAward({
-        eventId,
-        title: form.title,
-        rank: form.rank
-      })
-      onAwardCreated?.(created)
-      showToast('Đã thêm giải thưởng', 'success')
-      setForm({ title: '', rank: '' })
-      setCreateOpen(false)
-    } catch (err) {
-      showToast(localizeError(err.message), 'error')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <>
-      {!awards.length ? (
-        <div className='event-stat-dropdown-empty'>Chưa có giải thưởng nào.</div>
-      ) : (
-        <>
-          <div className='kv-list'>
-            {awards.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((award) => (
-              <AwardStatItem
-                key={award.awardId}
-                eventId={eventId}
-                award={award}
-                onUpdated={onAwardUpdated}
-                onDeleted={onAwardDeleted}
-              />
-            ))}
-          </div>
-          <Pagination total={awards.length} pageSize={PAGE_SIZE} currentPage={page} onChange={setPage} />
-        </>
-      )}
-      {createOpen ? (
-        <form className='event-stat-item-edit' style={{ marginTop: 12 }} onSubmit={handleCreate}>
-          <FormField label='Tên giải thưởng *'>
-            <input name='title' value={form.title} onChange={handleChange} maxLength={100} disabled={saving} required />
-          </FormField>
-          <FormField label='Hạng'>
-            <input
-              type='number'
-              name='rank'
-              value={form.rank}
-              onChange={handleChange}
-              min={1}
-              disabled={saving}
-              placeholder='Để trống nếu không có hạng'
-            />
-          </FormField>
-          <div className='event-stat-item-edit-foot'>
-            <LoadingButton type='submit' className='btn btn-primary btn-sm' loading={saving}>
-              Thêm
-            </LoadingButton>
-            <button
-              type='button'
-              className='btn btn-ghost btn-sm'
-              onClick={() => {
-                setCreateOpen(false)
-                setForm({ title: '', rank: '' })
-              }}
-              disabled={saving}
-            >
-              Hủy
-            </button>
-          </div>
-        </form>
-      ) : (
-        <button
-          type='button'
-          className='btn btn-ghost btn-sm'
-          style={{ marginTop: 12 }}
-          onClick={() => setCreateOpen(true)}
-        >
-          + Thêm giải thưởng
-        </button>
-      )}
     </>
   )
 }
@@ -3092,7 +2905,7 @@ export default function EventDetailsPage() {
               </div>
             </div>
             <span className={`status-pill ${eventStatusPillClass(event.status)}`} style={{ cursor: 'default' }}>
-              {event.status || '—'}
+              {eventStatusLabel(event.status)}
             </span>
           </div>
 
@@ -3172,6 +2985,16 @@ export default function EventDetailsPage() {
 
           <div style={{ marginTop: 24 }}>
             <CriteriaManager rounds={event.rounds ?? []} />
+          </div>
+
+          <div style={{ marginTop: 24 }}>
+            <AwardsManager
+              eventId={event.eventId}
+              awards={event.awards ?? []}
+              onAwardCreated={handleAwardCreated}
+              onAwardUpdated={handleAwardUpdated}
+              onAwardDeleted={handleAwardDeleted}
+            />
           </div>
 
           <ConfirmModal
