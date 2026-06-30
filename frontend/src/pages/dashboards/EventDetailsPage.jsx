@@ -40,6 +40,8 @@ import LoadingButton from '../../components/common/LoadingButton'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 import CriteriaManager from './staff/CriteriaManager'
+import CommitListModal from '../../components/common/CommitListModal'
+import { parseGitHubRepoUrl } from '../../api/githubRepo'
 import Pagination from '../../components/common/Pagination'
 
 const REGISTRATION_STATUSES = ['PENDING', 'APPROVED', 'REJECTED']
@@ -1293,6 +1295,8 @@ function TeamRegistrationStatusPicker({ team, onUpdated }) {
 function GitHubStatusBadge({ team, onGitHubUpdated }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [commitModalOpen, setCommitModalOpen] = useState(false)
+  const parsedRepo = parseGitHubRepoUrl(team.githubRepoUrl)
 
   const handleRetry = async () => {
     if (!team.registrationId) return
@@ -1313,35 +1317,56 @@ function GitHubStatusBadge({ team, onGitHubUpdated }) {
 
   if (status === 'SUCCESS') {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span
-          className='status-pill'
-          style={{
-            background: '#e6fffa',
-            color: '#047481',
-            border: '1px solid #b2f5ea',
-            cursor: 'default',
-            fontSize: 11,
-            padding: '2px 8px',
-            borderRadius: 20,
-            fontWeight: 600
-          }}
-        >
-          GitHub SUCCESS
-        </span>
-        {team.githubRepoUrl && (
-          <a
-            href={team.githubRepoUrl}
-            target='_blank'
-            rel='noopener noreferrer'
-            className='btn btn-ghost btn-sm'
-            style={{ fontSize: 11, padding: '2px 6px', textDecoration: 'underline' }}
-            title='Repo URL'
+      <>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span
+            className='status-pill'
+            style={{
+              background: '#e6fffa',
+              color: '#047481',
+              border: '1px solid #b2f5ea',
+              cursor: 'default',
+              fontSize: 11,
+              padding: '2px 8px',
+              borderRadius: 20,
+              fontWeight: 600
+            }}
           >
-            Repo
-          </a>
+            GitHub SUCCESS
+          </span>
+          {team.githubRepoUrl && (
+            <a
+              href={team.githubRepoUrl}
+              target='_blank'
+              rel='noopener noreferrer'
+              className='btn btn-ghost btn-sm'
+              style={{ fontSize: 11, padding: '2px 6px', textDecoration: 'underline' }}
+              title='Repo URL'
+            >
+              Repo
+            </a>
+          )}
+          {parsedRepo && (
+            <button
+              type='button'
+              className='btn btn-outline btn-sm'
+              style={{ fontSize: 11, padding: '2px 8px' }}
+              onClick={() => setCommitModalOpen(true)}
+            >
+              Commits
+            </button>
+          )}
+        </div>
+        {parsedRepo && (
+          <CommitListModal
+            isOpen={commitModalOpen}
+            onClose={() => setCommitModalOpen(false)}
+            owner={parsedRepo.owner}
+            repo={parsedRepo.repo}
+            teamName={team.teamName}
+          />
         )}
-      </div>
+      </>
     )
   }
 

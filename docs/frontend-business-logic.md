@@ -12,24 +12,38 @@
 
 ```
 frontend/src/
-├── api/              # Tất cả lời gọi HTTP (auth, team, event, judge, mentor, staff…)
+├── api/
+│   ├── auth.js           # Login, register, profile, password, GitHub link OAuth
+│   ├── client.js         # apiFetch wrapper (Bearer token, throws 'NETWORK' on fail)
+│   ├── checkIn.js        # Check-in member/team API
+│   ├── criteriaApi.js    # Criteria CRUD (dùng apiFetch)
+│   ├── event.js          # getAllEvents, getEventDetail, attachPendingTeamsToEvents
+│   ├── eventService.js   # Round, group, award, team-group CRUD
+│   ├── githubRepo.js     # listCommits, getCommit, parseGitHubRepoUrl
+│   ├── judge.js          # Judge dashboard APIs
+│   ├── mentor.js         # Mentor dashboard APIs
+│   ├── normalizers.js    # Chuẩn hoá ID từ các kiểu dữ liệu backend
+│   ├── staff.js          # Staff/coordinator APIs + filterEmails
+│   ├── staffAssignment.js# Sửa/xoá judge & mentor assignment
+│   ├── staffUniversity.js# University CRUD
+│   └── team.js           # Team CRUD, joinEvent, dropEvent, registrations
 ├── components/
-│   ├── chat/         # ChatPopup, TeamChatPanel (WebSocket/STOMP)
-│   ├── common/       # Modal, Pagination, FormField, LoginModal, RegisterModal…
-│   ├── dashboard/    # DashboardHeader, TabNav, ModuleContainer
-│   ├── expert/       # ExpertGroupColleaguesBoard, expertDashboardUtils
-│   ├── judge/        # JudgeCriteriaPanel, JudgeScoreModal, SubmissionLinks
-│   ├── landing/      # LandingEventsSection
-│   └── layout/       # DashboardLayout, HomeNavbar, TopBar, SiteFooter
+│   ├── chat/             # ChatPopup, TeamChatPanel (WebSocket/STOMP)
+│   ├── common/           # Modal, Pagination, FormField, CommitListModal, LoginModal…
+│   ├── dashboard/        # DashboardHeader, TabNav, ModuleContainer
+│   ├── expert/           # ExpertGroupColleaguesBoard, expertDashboardUtils
+│   ├── judge/            # JudgeCriteriaPanel, JudgeScoreModal, SubmissionLinks
+│   ├── landing/          # LandingEventsSection
+│   └── layout/           # DashboardLayout, HomeNavbar, TopBar, SiteFooter
 ├── context/
-│   ├── AuthContext   # JWT state, saveAuth, clearAuth, pathForRole
-│   └── ToastContext  # Thông báo toast toàn app
+│   ├── AuthContext       # JWT state, saveAuth, clearAuth, pathForRole
+│   └── ToastContext      # Thông báo toast toàn app
 ├── guards/
-│   ├── RequireAuth   # Chặn nếu chưa đăng nhập
-│   └── RequireRole   # Chặn nếu sai role
+│   ├── RequireAuth       # Chặn nếu chưa đăng nhập
+│   └── RequireRole       # Chặn nếu sai role
 ├── hooks/
-│   ├── useChatStomp  # Kết nối WebSocket STOMP cho chat
-│   └── useRecaptcha  # Google reCAPTCHA
+│   ├── useChatStomp      # Kết nối WebSocket STOMP cho chat
+│   └── useRecaptcha      # Google reCAPTCHA
 └── pages/
     ├── HomePage.jsx
     └── dashboards/
@@ -44,7 +58,7 @@ frontend/src/
             ├── StaffAssignPage.jsx
             ├── StaffUniversitiesPage.jsx
             ├── StaffCheckInPage.jsx
-            ├── StaffAnnouncementsPage.jsx
+            ├── StaffFilterEmailPage.jsx  # Thay thế StaffAnnouncementsPage
             ├── StaffProfilePage.jsx
             └── CriteriaManager.jsx
 ```
@@ -120,6 +134,7 @@ Chưa có đội → Tạo đội HOẶC Tham gia đội
 - Liệt kê tất cả sự kiện đội đã đăng ký, kèm trạng thái đăng ký (`PENDING / APPROVED / REJECTED`) và trạng thái sự kiện (`BUILDING / UPCOMING / ONGOING / COMPLETED / CANCELLED`).
 - Nếu đăng ký được duyệt (APPROVED), hiển thị danh sách **mentor của bảng**.
 - Mỗi mentor có nút **Chat** mở `ChatPopup` (kết nối WebSocket STOMP).
+- **Rời sự kiện** — chỉ Leader, chỉ với đăng ký đang `PENDING`: gọi `DELETE /api/team/drop-event { teamId, eventId }` → xoá đăng ký ngay trên UI.
 
 #### Activity Log
 - Ghi lại các hành động trong phiên hiện tại (tạo đội, tham gia đội, đăng ký sự kiện…) kèm timestamp.
@@ -188,6 +203,14 @@ Mentor (EXPERT_INTERNAL / EXPERT_EXTERNAL) theo dõi các đội được gán v
 
 Dashboard Staff có **5 tab** được render bởi `DashboardLayout`.
 
+| Tab | Key | Component |
+|-----|-----|-----------|
+| Sự kiện | `events` | `StaffEventsPage` |
+| Tài khoản | `accounts` | `StaffAccountsPage` |
+| Phân công | `assign` | `StaffAssignPage` |
+| Trường ĐH | `universities` | `StaffUniversitiesPage` |
+| Email | `emails` | `StaffFilterEmailPage` |
+
 ---
 
 ### Tab 1 — Sự kiện (`StaffEventsPage`)
@@ -231,6 +254,21 @@ Dashboard Staff có **5 tab** được render bởi `DashboardLayout`.
 **File:** `pages/dashboards/staff/StaffUniversitiesPage.jsx`
 
 - Quản lý danh sách trường đại học tham gia hệ thống.
+- Xoá trường: nếu còn sinh viên liên kết → bắt buộc chọn trường thay thế trước khi xác nhận xoá.
+
+---
+
+### Tab 5 — Email (`StaffFilterEmailPage`)
+
+**File:** `pages/dashboards/staff/StaffFilterEmailPage.jsx`
+
+Thay thế `StaffAnnouncementsPage` (đã xoá). Lọc và xuất danh sách email toàn hệ thống.
+
+- Bộ lọc: `emailContains` và/hoặc `nameContains` (tổng ≥ 2 ký tự).
+- Tự động gửi `audiences=ALL_IN_EVENT,EXPERT` — tìm toàn hệ thống, không cần chọn sự kiện.
+- Kết quả: số email duy nhất, số trùng đã bỏ, nút **Copy danh sách**, danh sách recipient.
+- API: `GET /api/staff/emails/filter`.
+- Tìm kiếm substring, không phân biệt hoa thường (`LIKE %keyword%`).
 
 ---
 
@@ -247,7 +285,7 @@ Trang đầy đủ nhất, quản lý mọi khía cạnh của một sự kiện
 | **Bảng thi (Groups)** | Thêm/sửa/xóa bảng, gán đội vào bảng, xóa đội khỏi bảng |
 | **Criteria** | Quản lý tiêu chí chấm điểm cho từng vòng (`CriteriaManager`) |
 | **Đăng ký đội** | Duyệt đăng ký: PENDING → APPROVED / REJECTED. Không hiển thị ID nội bộ |
-| **GitHub** | Retry provisioning repo cho đội; bật/tắt quyền truy cập repo toàn sự kiện |
+| **GitHub** | Retry provisioning repo cho đội; bật/tắt quyền truy cập repo toàn sự kiện; nút **Commits** xem lịch sử commit từng đội |
 | **Giải thưởng** | Thêm/sửa/xóa giải thưởng của sự kiện |
 | **Judge/Mentor** | Xem danh sách được gán, sửa/xóa phân công |
 
@@ -293,16 +331,6 @@ Trang dành cho **mọi role đã đăng nhập** (RequireAuth, không phân bi�
 
 ---
 
-### Trang Thông báo (chưa hoạt động)
-
-**File:** `pages/dashboards/staff/StaffAnnouncementsPage.jsx`
-
-| Form | Mục tiêu | API |
-|------|----------|-----|
-| **Gửi toàn hệ thống** | Tất cả người dùng | `sendAnnouncementToAll` |
-| **Gửi nhắm đối tượng** | Chọn nhóm (FPT Student / Student / Mentor đã phân công / Judge đã phân công) trong một sự kiện cụ thể | `sendAnnouncementToParticipants` |
-
-⚠️ Trang này chưa được thêm vào `TABS` của `StaffLayout` và `api/staff.js` chưa export các hàm trên — trang này chưa hoạt động.
 
 ---
 
