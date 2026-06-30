@@ -38,7 +38,23 @@ export async function apiFetch(path, { method = 'GET', body, auth = true } = {})
   }
 
   const text = await response.text()
-  if (!response.ok) throw new Error(text || `HTTP_${response.status}`)
+  if (!response.ok) {
+    // BE errors come back as JSON ({status, message, timestamp, errors}) via
+    // GlobalExceptionHandler — extract the plain message so localizeError() can
+    // match it against ERROR_MAP instead of showing the raw JSON blob.
+    let message = text
+    if (text) {
+      try {
+        const parsed = JSON.parse(text)
+        if (parsed && typeof parsed.message === 'string' && parsed.message) {
+          message = parsed.message
+        }
+      } catch {
+        // Not JSON (e.g. plain-text error) — keep raw text.
+      }
+    }
+    throw new Error(message || `HTTP_${response.status}`)
+  }
   return text
 }
 
