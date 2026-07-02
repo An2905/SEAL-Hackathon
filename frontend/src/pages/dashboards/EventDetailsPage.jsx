@@ -1335,18 +1335,22 @@ function TeamRegistrationDetailModal({ team, isOpen, onClose, onTeamUpdated }) {
       onClose={onClose}
       title='Đăng ký & GitHub'
       subtitle={team?.teamName || undefined}
-      className='modal-wide'
+      className='modal-wide team-registration-detail-modal'
     >
       {error ? <FormMessage message={error} type='error' /> : null}
 
       <div className='kv-list team-registration-detail-kv'>
         <div className='kv'>
           <span>Trạng thái đăng ký</span>
-          {team ? <TeamRegistrationStatusPicker team={team} onUpdated={onTeamUpdated} /> : '—'}
+          <span className='kv-value'>
+            {team ? <TeamRegistrationStatusPicker team={team} onUpdated={onTeamUpdated} /> : '—'}
+          </span>
         </div>
         <div className='kv'>
           <span>GitHub</span>
-          {team ? <GitHubStatusBadge team={team} onGitHubUpdated={onTeamUpdated} /> : '—'}
+          <span className='kv-value'>
+            {team ? <GitHubStatusBadge team={team} onGitHubUpdated={onTeamUpdated} /> : '—'}
+          </span>
         </div>
       </div>
 
@@ -1548,6 +1552,41 @@ function GitHubStatusBadge({ team, onGitHubUpdated }) {
   )
 }
 
+function TeamRegistrationsBulkActions({ onBulkAccess }) {
+  return (
+    <div className='team-registrations-bulk-actions'>
+      <button
+        type='button'
+        className='btn btn-outline btn-sm'
+        style={{
+          borderColor: '#22c55e',
+          color: '#16a34a',
+          padding: '6px 12px',
+          height: 'auto',
+          minHeight: 0
+        }}
+        onClick={() => onBulkAccess?.(true)}
+      >
+        Mở quyền làm bài (Tất cả)
+      </button>
+      <button
+        type='button'
+        className='btn btn-outline btn-sm'
+        style={{
+          borderColor: '#ef4444',
+          color: '#dc2626',
+          padding: '6px 12px',
+          height: 'auto',
+          minHeight: 0
+        }}
+        onClick={() => onBulkAccess?.(false)}
+      >
+        Khóa quyền làm bài (Tất cả)
+      </button>
+    </div>
+  )
+}
+
 function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess }) {
   const [page, setPage] = useState(1)
   const [activeTeam, setActiveTeam] = useState(null)
@@ -1563,7 +1602,12 @@ function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess }) {
     return (
       <section className='criteria-manager'>
         <div className='criteria-manager-head'>
-          <h3 className='section-title'>Đăng ký và tích hợp GitHub</h3>
+          <div className='team-registrations-title-row'>
+            <h3 className='section-title' style={{ margin: 0 }}>
+              Đăng ký và tích hợp GitHub
+            </h3>
+            <TeamRegistrationsBulkActions onBulkAccess={onBulkAccess} />
+          </div>
         </div>
         <div className='empty-state'>Chưa có đội nào tham gia.</div>
       </section>
@@ -1573,39 +1617,11 @@ function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess }) {
   return (
     <section className='criteria-manager'>
       <div className='criteria-manager-head'>
-        <h3 className='section-title'>Đăng ký và tích hợp GitHub</h3>
-      </div>
-
-      <div className='criteria-modal-toolbar' style={{ justifyContent: 'flex-end' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          <button
-            type='button'
-            className='btn btn-outline btn-sm'
-            style={{
-              borderColor: '#22c55e',
-              color: '#16a34a',
-              padding: '6px 12px',
-              height: 'auto',
-              minHeight: 0
-            }}
-            onClick={() => onBulkAccess?.(true)}
-          >
-            Mở quyền làm bài (Tất cả)
-          </button>
-          <button
-            type='button'
-            className='btn btn-outline btn-sm'
-            style={{
-              borderColor: '#ef4444',
-              color: '#dc2626',
-              padding: '6px 12px',
-              height: 'auto',
-              minHeight: 0
-            }}
-            onClick={() => onBulkAccess?.(false)}
-          >
-            Khóa quyền làm bài (Tất cả)
-          </button>
+        <div className='team-registrations-title-row'>
+          <h3 className='section-title' style={{ margin: 0 }}>
+            Đăng ký và tích hợp GitHub
+          </h3>
+          <TeamRegistrationsBulkActions onBulkAccess={onBulkAccess} />
         </div>
       </div>
 

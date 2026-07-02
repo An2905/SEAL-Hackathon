@@ -3634,6 +3634,46 @@ main {
   margin-bottom: 6px;
 }
 
+.team-registrations-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.team-registrations-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.team-registration-detail-modal .team-registration-detail-kv .kv {
+  gap: 12px;
+}
+
+.team-registration-detail-modal .team-registration-detail-kv .kv > span:first-child {
+  flex-shrink: 0;
+}
+
+.team-registration-detail-modal .team-registration-detail-kv .kv-value {
+  margin-left: auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  text-align: right;
+  max-width: none;
+  flex-shrink: 0;
+}
+
+.team-registration-detail-modal .team-registration-detail-kv .kv-value .status-picker,
+.team-registration-detail-modal .team-registration-detail-kv .kv-value > div {
+  justify-content: flex-end;
+}
+
 .team-registration-members {
   border: 1px solid var(--border);
   border-radius: var(--radius);
