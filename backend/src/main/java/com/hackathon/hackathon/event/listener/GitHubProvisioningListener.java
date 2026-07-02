@@ -55,34 +55,7 @@ public class GitHubProvisioningListener {
     }
     String teamName = teamNameOpt.get();
     String repoName = teamName;
-
-    // Get event template repository configuration
-    String templateRepo = eventRepository.findTemplateRepoByEventId(eventId);
-    if (templateRepo == null || templateRepo.isBlank()) {
-      log.error("GitHub template repository is not configured for eventId: {}", eventId);
-      teamRegistrationRepository.updateGithubStatus(registrationId, "FAILED");
-      return;
-    }
-
-    String org = gitHubAppConfig.getOrganization();
-    String templateOwner = org;
-
-    if (templateRepo.contains("/")) {
-      String[] parts = templateRepo.split("/", 2);
-      templateOwner = parts[0];
-      templateRepo = parts[1];
-    }
-
-    if (org == null || org.isBlank()) {
-      org = templateOwner;
-    }
-
-    if (org == null || org.isBlank()) {
-      log.error(
-          "GitHub organization is not configured (neither via github.app.organization nor via template repo path owner)");
-      teamRegistrationRepository.updateGithubStatus(registrationId, "FAILED");
-      return;
-    }
+    String org = "SWP391-SEAL-Hackathon";
 
     Long githubRepoId = tr.getGithubRepoId();
     String githubRepoUrl = tr.getGithubRepoUrl();
@@ -90,16 +63,9 @@ public class GitHubProvisioningListener {
     try {
       // 1. Create Repository (Double-Check)
       if (githubRepoUrl == null || githubRepoUrl.isBlank()) {
-        log.info(
-            "Creating GitHub repository from template: {}/{} for team: {} under org: {}",
-            templateOwner,
-            templateRepo,
-            teamName,
-            org);
+        log.info("Creating GitHub repository: {} under org: {}", repoName, org);
         try {
-          Map<String, Object> repoResult =
-              gitHubRepoService.createOrgRepoInternal(
-                  templateOwner, templateRepo, org, repoName, true);
+          Map<String, Object> repoResult = gitHubRepoService.createOrgRepoInternal(repoName);
           if (repoResult != null) {
             githubRepoId =
                 repoResult.get("id") != null ? Long.valueOf(repoResult.get("id").toString()) : null;

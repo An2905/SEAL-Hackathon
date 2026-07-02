@@ -1,5 +1,6 @@
 package com.hackathon.hackathon.controller.github;
 
+import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.model.dto.request.GitHubCreateRepoRequest;
 import com.hackathon.hackathon.service.github.GitHubRepoService;
 import java.util.List;
@@ -42,20 +43,15 @@ public class GitHubRepoController {
         gitHubRepoService.getRepoCommit(authHeader, owner, repo, ref, perPage, page));
   }
 
-  // Tạo repo mới theo template
-  @PostMapping("{templateOwner}/{templateRepo}/generate")
+  // Tạo repo mới trong Organization SWP391-SEAL-Hackathon
+  // POST /api/github/repos
+  @PostMapping
   public ResponseEntity<Map<String, Object>> createRepo(
       @RequestHeader("Authorization") String authHeader,
-      @PathVariable String templateOwner,
-      @PathVariable String templateRepo,
       @RequestBody GitHubCreateRepoRequest request) {
-    return ResponseEntity.ok(
-        gitHubRepoService.createOrgRepo(
-            authHeader,
-            templateOwner,
-            templateRepo,
-            request.getOwner(),
-            request.getName(),
-            request.getIsPrivate() != null ? request.getIsPrivate() : true));
+    if (request.getName() == null || request.getName().trim().isEmpty()) {
+      throw new BadRequestException("Repository name is required.");
+    }
+    return ResponseEntity.ok(gitHubRepoService.createOrgRepo(authHeader, request.getName()));
   }
 }
