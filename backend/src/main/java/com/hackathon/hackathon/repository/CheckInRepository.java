@@ -325,6 +325,19 @@ public class CheckInRepository {
     }
   }
 
+  public boolean isTeamFullyCheckedIn(String eventId, String teamId) {
+    try (Connection conn = dataSource.getConnection()) {
+      int totalMembers = countTeamMembers(conn, teamId);
+      if (totalMembers <= 0) {
+        return false;
+      }
+      int checkedMembers = countCheckedMembers(conn, eventId, teamId);
+      return checkedMembers == totalMembers;
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
   private int countCheckedMembers(Connection conn, String eventId, String teamId)
       throws SQLException {
     String sql =

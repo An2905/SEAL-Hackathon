@@ -30,7 +30,8 @@ import {
   getEventRoundDetail,
   updateEvent,
   updateEventGroup,
-  updateEventRound
+  updateEventRound,
+  autoFillRoundGroups
 } from '../../api/eventService'
 import FormField from '../../components/common/FormField'
 import LoadingButton from '../../components/common/LoadingButton'
@@ -759,11 +760,12 @@ function EventBoardGroupDetailModal({
   )
 }
 
-function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated, onDeleted }) {
+function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated, onDeleted, onAutoFilled }) {
   const { showToast } = useToast()
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [autoFilling, setAutoFilling] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({
@@ -849,7 +851,23 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
     }
   }
 
-  const busy = loadingDetail || saving || deleting
+  const handleAutoFill = async () => {
+    if (!round?.roundId) return
+    setAutoFilling(true)
+    setError('')
+    try {
+      const result = await autoFillRoundGroups({ eventId, roundId: round.roundId })
+      showToast(result.message || 'Đã phân bảng tự động', result.assignedCount > 0 ? 'success' : 'info')
+      await onAutoFilled?.()
+    } catch (err) {
+      setError(localizeError(err.message))
+      showToast(localizeError(err.message), 'error')
+    } finally {
+      setAutoFilling(false)
+    }
+  }
+
+  const busy = loadingDetail || saving || deleting || autoFilling
   const phase = round ? getRoundPhase(round) : 'unknown'
   const phaseLabel =
     phase === 'ongoing' ? 'Đang diễn ra' : phase === 'upcoming' ? 'Sắp diễn ra' : phase === 'past' ? 'Đã kết thúc' : '—'
@@ -960,9 +978,17 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
                   justifyContent: 'space-between'
                 }}
               >
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <LoadingButton loading={saving} type='submit' disabled={busy}>
                     Lưu thay đổi
+                  </LoadingButton>
+                  <LoadingButton
+                    type='button'
+                    loading={autoFilling}
+                    disabled={busy}
+                    onClick={handleAutoFill}
+                  >
+                    Tự động phân bảng
                   </LoadingButton>
                   <button type='button' className='btn btn-ghost' onClick={onClose} disabled={busy}>
                     Đóng
@@ -1016,7 +1042,8 @@ function EventBoardSection({
   onRoundUpdated,
   onRoundDeleted,
   onGroupUpdated,
-  onGroupDeleted
+  onGroupDeleted,
+  onAutoFilled
 }) {
   const [roundModalOpen, setRoundModalOpen] = useState(false)
   const [groupModalOpen, setGroupModalOpen] = useState(false)
@@ -1169,6 +1196,7 @@ function EventBoardSection({
         }}
         onUpdated={onRoundUpdated}
         onDeleted={onRoundDeleted}
+        onAutoFilled={onAutoFilled}
       />
       <EventBoardGroupDetailModal
         eventId={event.eventId}
@@ -2925,6 +2953,7 @@ export default function EventDetailsPage() {
             onRoundDeleted={handleRoundDeleted}
             onGroupUpdated={handleGroupUpdated}
             onGroupDeleted={handleGroupDeleted}
+            onAutoFilled={loadEvent}
           />
 
           <div

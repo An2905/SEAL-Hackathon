@@ -10,6 +10,7 @@ import com.hackathon.hackathon.model.dto.request.UpdateAwardRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventGroupRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventRoundRequest;
+import com.hackathon.hackathon.model.dto.response.AutoFillGroupsResponse;
 import com.hackathon.hackathon.model.dto.response.CreateEventGroupResponse;
 import com.hackathon.hackathon.model.dto.response.CreateEventResponse;
 import com.hackathon.hackathon.model.dto.response.CreateEventRoundResponse;
@@ -129,6 +130,14 @@ public class EventController {
       @RequestParam String teamId) {
     return ResponseEntity.ok(
         eventService.removeTeamFromGroup(authHeader, eventId, roundId, groupId, teamId));
+  }
+
+  @PostMapping("/groups/auto-fill")
+  public ResponseEntity<AutoFillGroupsResponse> autoFillRoundGroups(
+      @RequestHeader("Authorization") String authHeader,
+      @RequestParam String eventId,
+      @RequestParam String roundId) {
+    return ResponseEntity.ok(eventService.autoFillRoundGroups(authHeader, eventId, roundId));
   }
 
   @DeleteMapping("/rounds")
