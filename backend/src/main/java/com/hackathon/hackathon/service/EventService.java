@@ -16,6 +16,7 @@ import com.hackathon.hackathon.model.dto.request.UpdateAwardRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventGroupRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventRoundRequest;
+import com.hackathon.hackathon.model.dto.response.AutoFillGroupsResponse;
 import com.hackathon.hackathon.model.dto.response.CheckInPageResponse;
 import com.hackathon.hackathon.model.dto.response.CheckInTeamResponse;
 import com.hackathon.hackathon.model.dto.response.CreateEventGroupResponse;
@@ -23,6 +24,7 @@ import com.hackathon.hackathon.model.dto.response.CreateEventResponse;
 import com.hackathon.hackathon.model.dto.response.CreateEventRoundResponse;
 import com.hackathon.hackathon.model.dto.response.EventAwardResponse;
 import com.hackathon.hackathon.model.dto.response.EventDetailResponse;
+import com.hackathon.hackathon.model.dto.response.EventGroupResponse;
 import com.hackathon.hackathon.model.dto.response.EventRoundSetupResponse;
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
 import com.hackathon.hackathon.model.dto.response.EventTeamResponse;
@@ -49,7 +51,10 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
 import org.apache.poi.ss.usermodel.Row;
@@ -681,6 +686,183 @@ public class EventService {
     return buildGroupTeamsResponse(gid, eid, rid);
   }
 
+  public AutoFillGroupsResponse autoFillRoundGroups(
+      String authHeader, String eventId, String roundId) {
+    authService.validateRole(authHeader, "COORDINATOR");
+    String eid = trim(eventId);
+    String rid = trim(roundId);
+    if (eid.isEmpty() || rid.isEmpty()) {
+      throw new BadRequestException("ID sự kiện và ID vòng đấu là bắt buộc.");
+    }
+    if (!eventRepository.existsById(eid)) {
+      throw new BadRequestException("Không tìm thấy sự kiện.");
+    }
+    if (!eventRepository.roundBelongsToEvent(rid, eid)) {
+      throw new BadRequestException("Vòng đấu không thuộc sự kiện này.");
+    }
+    return doAutoFillRoundGroups(eid, rid, true, false);
+  }
+
+  private void tryAutoFillOnCheckIn(String eventId, String teamId) {
+    if (!"APPROVED"
+        .equals(teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse(""))) {
+      return;
+    }
+    if (!checkInRepository.isTeamFullyCheckedIn(eventId, teamId)) {
+      return;
+    }
+    eventRepository
+        .findFirstRoundId(eventId)
+        .ifPresent(roundId -> doAutoFillRoundGroups(eventId, roundId, true, true));
+  }
+
+  /** Gọi sau khi đội đủ điều kiện (APPROVED + check-in đủ thành viên ở vòng 1). */
+  public void syncAutoFillAfterTeamEligible(String eventId, String teamId) {
+    if (eventId == null || teamId == null) {
+      return;
+    }
+    String eid = trim(eventId);
+    String tid = trim(teamId);
+    if (eid.isEmpty() || tid.isEmpty()) {
+      return;
+    }
+    tryAutoFillOnCheckIn(eid, tid);
+  }
+
+  private AutoFillGroupsResponse doAutoFillRoundGroups(
+      String eventId,
+      String roundId,
+      boolean cascadeToNextRound,
+      boolean requireFullCheckInForRoundOne) {
+    List<EventGroupResponse> groups =
+        eventRepository.findGroupsByEventId(eventId).stream()
+            .filter(g -> roundId.equals(g.getRoundId()))
+            .sorted(
+                Comparator.comparing(
+                    g -> g.getName(), Comparator.nullsLast(String::compareToIgnoreCase)))
+            .toList();
+
+    if (groups.isEmpty()) {
+      AutoFillGroupsResponse response = new AutoFillGroupsResponse();
+      response.setEventId(eventId);
+      response.setRoundId(roundId);
+      response.setAssignedCount(0);
+      response.setMessage("Không có bảng đấu trong vòng này.");
+      return response;
+    }
+
+    int roundOrder =
+        eventSetupRepository
+            .findRoundByEventAndId(eventId, roundId)
+            .map(row -> row.roundOrder)
+            .orElse(1);
+    boolean requireFullCheckIn = roundOrder <= 1 && requireFullCheckInForRoundOne;
+
+    List<TeamRegistration> eligible =
+        eventRepository.findEligibleTeamsForAutoFill(eventId, roundId, requireFullCheckIn);
+    if (eligible.isEmpty()) {
+      AutoFillGroupsResponse response = new AutoFillGroupsResponse();
+      response.setEventId(eventId);
+      response.setRoundId(roundId);
+      response.setAssignedCount(0);
+      response.setMessage(
+          buildNoEligibleTeamsMessage(eventId, roundId, roundOrder, requireFullCheckIn));
+      if (cascadeToNextRound) {
+        tryAutoFillNextRoundIfWinnersReady(eventId, roundId);
+      }
+      return response;
+    }
+
+    Deque<TeamRegistration> queue = new ArrayDeque<>(eligible);
+    int assigned = 0;
+
+    for (EventGroupResponse group : groups) {
+      if (queue.isEmpty()) {
+        break;
+      }
+
+      String groupId = group.getGroupId();
+      int current = eventSetupRepository.countApprovedTeamsInGroup(groupId, eventId);
+      Integer maxTeams = group.getMaxTeams();
+
+      while (!queue.isEmpty()) {
+        if (maxTeams != null && current >= maxTeams) {
+          break;
+        }
+
+        TeamRegistration team = queue.poll();
+        if (team == null || team.getTeamId() == null || team.getTeamId().isBlank()) {
+          continue;
+        }
+        if (eventSetupRepository.isTeamInRound(roundId, team.getTeamId())) {
+          continue;
+        }
+        if (maxTeams != null) {
+          int currentCount = eventSetupRepository.countApprovedTeamsInGroup(groupId, eventId);
+          if (currentCount >= maxTeams) {
+            break;
+          }
+        }
+
+        if (!eventSetupRepository.insertGroupTeam(groupId, roundId, team.getTeamId())) {
+          continue;
+        }
+        assigned++;
+        current++;
+      }
+    }
+
+    if (cascadeToNextRound) {
+      tryAutoFillNextRoundIfWinnersReady(eventId, roundId);
+    }
+
+    AutoFillGroupsResponse response = new AutoFillGroupsResponse();
+    response.setEventId(eventId);
+    response.setRoundId(roundId);
+    response.setAssignedCount(assigned);
+    response.setMessage(
+        assigned > 0
+            ? "Đã tự động phân " + assigned + " đội vào bảng đấu."
+            : "Không có đội nào được phân vào bảng.");
+    return response;
+  }
+
+  private void tryAutoFillNextRoundIfWinnersReady(String eventId, String roundId) {
+    Optional<EventRoundSetupRow> roundOpt =
+        eventSetupRepository.findRoundByEventAndId(eventId, roundId);
+    if (roundOpt.isEmpty()) {
+      return;
+    }
+
+    EventRoundSetupRow round = roundOpt.get();
+    int winnerCount = eventRepository.countRoundWinners(roundId);
+    if (winnerCount < round.winnersPerRound) {
+      return;
+    }
+
+    eventRepository
+        .findNextRoundId(eventId, round.roundOrder)
+        .ifPresent(nextRoundId -> doAutoFillRoundGroups(eventId, nextRoundId, true, false));
+  }
+
+  private String buildNoEligibleTeamsMessage(
+      String eventId, String roundId, int roundOrder, boolean requireFullCheckIn) {
+    List<TeamRegistration> approvedNotAssigned =
+        eventRepository.findEligibleTeamsForAutoFill(eventId, roundId, false);
+    if (approvedNotAssigned.isEmpty()) {
+      return "Tất cả đội đã duyệt đều đã được phân vào vòng này (hoặc chưa có đội APPROVED).";
+    }
+    if (roundOrder <= 1 && requireFullCheckIn) {
+      return "Có "
+          + approvedNotAssigned.size()
+          + " đội đã duyệt nhưng chưa check-in đủ thành viên. Vui lòng check-in trước khi tự động phân bảng.";
+    }
+    if (roundOrder > 1) {
+      return "Không có đội winner vòng trước nào chưa được phân vào vòng này.";
+    }
+    return "Không có đội nào cần phân bảng.";
+  }
+
   private void validateGroupTeamContext(String eventId, String roundId, String groupId) {
     String eid = trim(eventId);
     String rid = trim(roundId);
@@ -1088,6 +1270,8 @@ public class EventService {
       }
     }
 
+    tryAutoFillOnCheckIn(eventId, teamId);
+
     return response;
   }
 
@@ -1123,6 +1307,8 @@ public class EventService {
         teamRegistrationRepository.updateGithubStatus(response.getRegistrationId(), "FAILED");
       }
     }
+
+    tryAutoFillOnCheckIn(eventId, teamId);
 
     return response;
   }

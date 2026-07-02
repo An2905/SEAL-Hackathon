@@ -183,6 +183,27 @@ export async function removeTeamFromGroup({ eventId, roundId, groupId, teamId })
   return mapGroupTeamsResponse(parseJson(text), { groupId: gid })
 }
 
+// POST /api/staff/events/groups/auto-fill?eventId=&roundId=
+export async function autoFillRoundGroups({ eventId, roundId }) {
+  const eid = normalizeEventId(eventId)
+  const rid = normalizeId(roundId)
+  if (!eid || !rid) throw new Error('Thiếu thông tin vòng thi')
+
+  const params = new URLSearchParams({ eventId: eid, roundId: rid })
+  const text = await apiFetch(`/api/staff/events/groups/auto-fill?${params}`, {
+    method: 'POST'
+  })
+  const data = parseJson(text)
+  const assignedRaw = data.assignedCount ?? data.assigned_count
+  const assignedNum = assignedRaw == null || assignedRaw === '' ? 0 : Number(assignedRaw)
+  return {
+    eventId: String(data.eventId ?? data.event_id ?? eid),
+    roundId: String(data.roundId ?? data.round_id ?? rid),
+    assignedCount: Number.isFinite(assignedNum) ? assignedNum : 0,
+    message: data.message ?? 'Đã phân bảng tự động'
+  }
+}
+
 function mapGroupResponse(data, fallback = {}) {
   const maxRaw = data.maxTeams ?? data.max_teams ?? fallback.maxTeams
   const maxNum = maxRaw == null || maxRaw === '' ? null : Number(maxRaw)

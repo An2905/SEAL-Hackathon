@@ -10,6 +10,8 @@ import { getEventDetail } from '../../api/event'
 import {
   changeTeamRegistrationStatus,
   getAllAccounts,
+  getTeamMembers,
+  normalizeRegistrationId,
   retryGitHubProvisioning,
   updateEventRepoAccess
 } from '../../api/staff'
@@ -30,7 +32,8 @@ import {
   getEventRoundDetail,
   updateEvent,
   updateEventGroup,
-  updateEventRound
+  updateEventRound,
+  autoFillRoundGroups
 } from '../../api/eventService'
 import FormField from '../../components/common/FormField'
 import LoadingButton from '../../components/common/LoadingButton'
@@ -48,8 +51,9 @@ import CommitListModal from '../../components/common/CommitListModal'
 import { parseGitHubRepoUrl } from '../../api/githubRepo'
 import Pagination from '../../components/common/Pagination'
 
-const REGISTRATION_STATUSES = ['PENDING', 'APPROVED', 'REJECTED']
 const PAGE_SIZE = 5
+const TEAM_REGISTRATIONS_PAGE_SIZE = 5
+const REGISTRATION_STATUSES = ['PENDING', 'APPROVED', 'REJECTED']
 
 function eventStatusPillClass(status) {
   const key = (status || '').toUpperCase()
@@ -715,16 +719,8 @@ function EventBoardGroupDetailModal({
                 />
               </FormField>
               <FormMessage message={error} type='error' />
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 8,
-                  marginTop: 12,
-                  justifyContent: 'space-between'
-                }}
-              >
-                <div style={{ display: 'flex', gap: 8 }}>
+              <div className='event-board-modal-actions'>
+                <div className='event-board-modal-actions-left'>
                   <LoadingButton loading={saving} type='submit' disabled={busy}>
                     Lưu thay đổi
                   </LoadingButton>
@@ -732,14 +728,16 @@ function EventBoardGroupDetailModal({
                     Đóng
                   </button>
                 </div>
-                <button
-                  type='button'
-                  className='btn btn-danger btn-sm'
-                  onClick={() => setConfirmDeleteOpen(true)}
-                  disabled={busy}
-                >
-                  Xóa bảng
-                </button>
+                <div className='event-board-modal-actions-right'>
+                  <button
+                    type='button'
+                    className='btn btn-danger btn-sm'
+                    onClick={() => setConfirmDeleteOpen(true)}
+                    disabled={busy}
+                  >
+                    Xóa bảng
+                  </button>
+                </div>
               </div>
             </form>
           </>
@@ -759,11 +757,12 @@ function EventBoardGroupDetailModal({
   )
 }
 
-function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated, onDeleted }) {
+function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated, onDeleted, onAutoFilled }) {
   const { showToast } = useToast()
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [autoFilling, setAutoFilling] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({
@@ -849,7 +848,28 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
     }
   }
 
-  const busy = loadingDetail || saving || deleting
+  const handleAutoFill = async () => {
+    if (!round?.roundId) return
+    setAutoFilling(true)
+    setError('')
+    try {
+      const result = await autoFillRoundGroups({ eventId, roundId: round.roundId })
+      const roundNum = Number(round.roundOrder ?? 1)
+      const hint =
+        result.assignedCount === 0 && roundNum > 1
+          ? ' Vòng 2+ chỉ phân các đội winner vòng trước — hãy thử vòng 1 (IDEA round).'
+          : ''
+      showToast((result.message || 'Đã phân bảng tự động') + hint, result.assignedCount > 0 ? 'success' : 'info')
+      await onAutoFilled?.()
+    } catch (err) {
+      setError(localizeError(err.message))
+      showToast(localizeError(err.message), 'error')
+    } finally {
+      setAutoFilling(false)
+    }
+  }
+
+  const busy = loadingDetail || saving || deleting || autoFilling
   const phase = round ? getRoundPhase(round) : 'unknown'
   const phaseLabel =
     phase === 'ongoing' ? 'Đang diễn ra' : phase === 'upcoming' ? 'Sắp diễn ra' : phase === 'past' ? 'Đã kết thúc' : '—'
@@ -951,31 +971,36 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
                 />
               </FormField>
               <FormMessage message={error} type='error' />
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 8,
-                  marginTop: 12,
-                  justifyContent: 'space-between'
-                }}
-              >
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <LoadingButton loading={saving} type='submit' disabled={busy}>
-                    Lưu thay đổi
+              <div className='event-board-modal-actions'>
+                <div className='event-board-modal-actions-left'>
+                  <LoadingButton
+                    type='button'
+                    loading={autoFilling}
+                    disabled={busy}
+                    onClick={handleAutoFill}
+                    className='btn btn-primary btn-sm'
+                  >
+                    Tự động phân bảng (vòng {round?.roundOrder ?? '—'})
                   </LoadingButton>
-                  <button type='button' className='btn btn-ghost' onClick={onClose} disabled={busy}>
-                    Đóng
+                </div>
+                <div className='event-board-modal-actions-right'>
+                  <LoadingButton
+                    loading={saving}
+                    type='submit'
+                    disabled={busy}
+                    className='btn btn-primary btn-sm'
+                  >
+                    Lưu
+                  </LoadingButton>
+                  <button
+                    type='button'
+                    className='btn btn-danger btn-sm'
+                    onClick={() => setConfirmDeleteOpen(true)}
+                    disabled={busy}
+                  >
+                    Xóa
                   </button>
                 </div>
-                <button
-                  type='button'
-                  className='btn btn-danger btn-sm'
-                  onClick={() => setConfirmDeleteOpen(true)}
-                  disabled={busy}
-                >
-                  Xóa vòng
-                </button>
               </div>
             </form>
           </>
@@ -1016,7 +1041,8 @@ function EventBoardSection({
   onRoundUpdated,
   onRoundDeleted,
   onGroupUpdated,
-  onGroupDeleted
+  onGroupDeleted,
+  onAutoFilled
 }) {
   const [roundModalOpen, setRoundModalOpen] = useState(false)
   const [groupModalOpen, setGroupModalOpen] = useState(false)
@@ -1169,6 +1195,7 @@ function EventBoardSection({
         }}
         onUpdated={onRoundUpdated}
         onDeleted={onRoundDeleted}
+        onAutoFilled={onAutoFilled}
       />
       <EventBoardGroupDetailModal
         eventId={event.eventId}
@@ -1218,74 +1245,143 @@ function teamStatusLabel(status) {
   return status || '—'
 }
 
+function githubStatusShortLabel(status) {
+  const key = String(status ?? '').toUpperCase()
+  if (key === 'SUCCESS') return 'GitHub đã cấp'
+  if (key === 'PENDING') return 'GitHub đang xử lý'
+  if (key === 'FAILED') return 'GitHub lỗi'
+  return 'Chưa khởi tạo GitHub'
+}
+
+function registrationMatches(a, b) {
+  return normalizeRegistrationId(a) === normalizeRegistrationId(b)
+}
+
+function patchTeamRegistration(list, registrationId, updates) {
+  if (!Array.isArray(list)) return list
+  return list.map((team) =>
+    registrationMatches(team.registrationId, registrationId) ? { ...team, ...updates } : team
+  )
+}
+
 function TeamRegistrationStatusPicker({ team, onUpdated }) {
-  const { showToast } = useToast()
-  const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const registrationId = team?.registrationId ?? ''
+  const currentStatus = String(team?.status ?? '')
+    .trim()
+    .toUpperCase()
 
   const handleSelect = async (e) => {
     const next = e.target.value
-    setOpen(false)
-    const currentStatus = String(team.status ?? '')
-      .trim()
-      .toUpperCase()
     if (next === currentStatus) return
+    if (!team?.registrationId) return
 
-    if (!registrationId) {
-      showToast('Không xác định được đăng ký — vui lòng tải lại trang', 'error')
-      return
-    }
+    const previousStatus = currentStatus
+    onUpdated?.(team.registrationId, { status: next })
 
     setSaving(true)
     try {
-      await changeTeamRegistrationStatus({ registrationId, status: next })
-      onUpdated(registrationId, next)
-      showToast(`Đã cập nhật trạng thái → ${next}`, 'success')
-    } catch (err) {
-      showToast(localizeError(err.message), 'error')
+      await changeTeamRegistrationStatus({ registrationId: team.registrationId, status: next })
+    } catch {
+      onUpdated?.(team.registrationId, { status: previousStatus })
     } finally {
       setSaving(false)
     }
   }
 
-  if (!registrationId) {
-    return <span style={{ fontSize: 11, color: 'var(--text-mute)' }}>{teamStatusLabel(team.status)}</span>
-  }
+  return (
+    <span className='status-picker'>
+      <select
+        className='status-picker-select'
+        value={currentStatus || REGISTRATION_STATUSES[0]}
+        onChange={handleSelect}
+        disabled={saving}
+        aria-label='Trạng thái đăng ký'
+      >
+        {REGISTRATION_STATUSES.map((s) => (
+          <option key={s} value={s}>
+            {teamStatusLabel(s)}
+          </option>
+        ))}
+      </select>
+    </span>
+  )
+}
 
-  if (open) {
-    return (
-      <div className='status-picker'>
-        <select
-          className='status-picker-select'
-          value={team.status}
-          onChange={handleSelect}
-          onBlur={() => setOpen(false)}
-          disabled={saving}
-          autoFocus
-        >
-          {REGISTRATION_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      </div>
-    )
-  }
+function TeamRegistrationDetailModal({ team, isOpen, onClose, onTeamUpdated }) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [members, setMembers] = useState([])
+
+  const loadMembers = useCallback(async () => {
+    if (!team?.teamId) return
+    setLoading(true)
+    setError('')
+    try {
+      setMembers(await getTeamMembers(team.teamId))
+    } catch (err) {
+      setError(localizeError(err.message))
+      setMembers([])
+    } finally {
+      setLoading(false)
+    }
+  }, [team?.teamId])
+
+  useEffect(() => {
+    if (isOpen && team?.teamId) loadMembers()
+  }, [isOpen, team?.teamId, loadMembers])
 
   return (
-    <div className='status-picker'>
-      <button
-        type='button'
-        className={`status-pill ${registrationStatusPillClass(team.status)}`}
-        onClick={() => !saving && setOpen(true)}
-        disabled={saving}
-        title='Nhấn để đổi trạng thái đăng ký'
-      >
-        {team.status}
-      </button>
-    </div>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title='Đăng ký & GitHub'
+      className='modal-wide team-registration-detail-modal'
+    >
+      {error ? <FormMessage message={error} type='error' /> : null}
+
+      <div className='team-registration-detail-head'>
+        <p className='team-registration-detail-team-name'>{team?.teamName || '—'}</p>
+        <div className='team-registration-detail-head-controls'>
+          {team ? <GitHubStatusBadge team={team} onGitHubUpdated={onTeamUpdated} /> : null}
+          {team ? <TeamRegistrationStatusPicker team={team} onUpdated={onTeamUpdated} /> : null}
+        </div>
+      </div>
+
+      {loading ? (
+        <LoadingState text='Đang tải thành viên…' />
+      ) : members.length === 0 ? (
+        <div className='empty-state team-registration-members-empty'>Đội chưa có thành viên.</div>
+      ) : (
+        <div className='team-registration-members'>
+          <div className='accounts-table team-registration-members-table'>
+            <div className='accounts-table-row accounts-table-row--head'>
+              <span className='accounts-table-index'>#</span>
+              <span>Họ và tên</span>
+              <span>Email</span>
+              <span>GitHub</span>
+              <span>Trạng thái</span>
+            </div>
+            {members.map((member, idx) => (
+              <div className='accounts-table-row' key={member.userId || `${member.email}-${idx}`}>
+                <span className='accounts-table-index'>{idx + 1}</span>
+                <span className='accounts-table-cell' style={{ fontWeight: 600, color: 'var(--text)' }}>
+                  {member.fullName || '—'}
+                </span>
+                <span className='accounts-table-cell accounts-table-cell--muted'>{member.email || '—'}</span>
+                <span className='accounts-table-cell accounts-table-cell--muted'>
+                  {member.githubUsername || '—'}
+                </span>
+                <span className='accounts-table-cell accounts-table-cell--status'>
+                  <span className={`status-pill ${registrationStatusPillClass(member.status)}`} style={{ cursor: 'default' }}>
+                    {teamStatusLabel(member.status)}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </Modal>
   )
 }
 
@@ -1449,26 +1545,147 @@ function GitHubStatusBadge({ team, onGitHubUpdated }) {
   )
 }
 
-function TeamsDropdownContent({ teams, onUpdated, onGitHubUpdated }) {
-  const [page, setPage] = useState(1)
-  if (!teams.length) {
-    return <div className='event-stat-dropdown-empty'>Chưa có đội nào tham gia.</div>
-  }
+function TeamRegistrationsBulkActions({ onBulkAccess }) {
   return (
-    <>
-      <div className='kv-list'>
-        {teams.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((team) => (
-          <div className='kv' key={team.registrationId || team.teamId} style={{ gap: 12, alignItems: 'center' }}>
-            <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-              <div style={{ fontWeight: 600 }}>{team.teamName || '—'}</div>
-            </span>
-            <GitHubStatusBadge team={team} onGitHubUpdated={onGitHubUpdated} />
-            <TeamRegistrationStatusPicker team={team} onUpdated={onUpdated} />
+    <div className='team-registrations-bulk-actions'>
+      <button
+        type='button'
+        className='btn btn-outline btn-sm'
+        style={{
+          borderColor: '#22c55e',
+          color: '#16a34a',
+          padding: '6px 12px',
+          height: 'auto',
+          minHeight: 0
+        }}
+        onClick={() => onBulkAccess?.(true)}
+      >
+        Mở quyền làm bài (Tất cả)
+      </button>
+      <button
+        type='button'
+        className='btn btn-outline btn-sm'
+        style={{
+          borderColor: '#ef4444',
+          color: '#dc2626',
+          padding: '6px 12px',
+          height: 'auto',
+          minHeight: 0
+        }}
+        onClick={() => onBulkAccess?.(false)}
+      >
+        Khóa quyền làm bài (Tất cả)
+      </button>
+    </div>
+  )
+}
+
+function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess }) {
+  const [page, setPage] = useState(1)
+  const [activeTeam, setActiveTeam] = useState(null)
+  const [teamRows, setTeamRows] = useState(teams)
+
+  useEffect(() => {
+    setTeamRows(teams)
+  }, [teams])
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(teamRows.length / TEAM_REGISTRATIONS_PAGE_SIZE))
+    if (page > totalPages) setPage(totalPages)
+  }, [teamRows.length, page])
+
+  const sortedTeamRows = useMemo(
+    () =>
+      [...teamRows].sort((a, b) =>
+        String(a.teamName ?? '').localeCompare(String(b.teamName ?? ''), 'vi', { sensitivity: 'base' })
+      ),
+    [teamRows]
+  )
+
+  const paginatedTeams = useMemo(
+    () =>
+      sortedTeamRows.slice(
+        (page - 1) * TEAM_REGISTRATIONS_PAGE_SIZE,
+        page * TEAM_REGISTRATIONS_PAGE_SIZE
+      ),
+    [sortedTeamRows, page]
+  )
+
+  const handlePageChange = (nextPage) => {
+    setPage(nextPage)
+  }
+
+  const handleTeamUpdated = (registrationId, updates) => {
+    setTeamRows((prev) => patchTeamRegistration(prev, registrationId, updates))
+    setActiveTeam((prev) =>
+      prev && registrationMatches(prev.registrationId, registrationId) ? { ...prev, ...updates } : prev
+    )
+    onTeamUpdated?.(registrationId, updates)
+  }
+
+  if (!teamRows.length) {
+    return (
+      <section className='criteria-manager'>
+        <div className='criteria-manager-head'>
+          <div className='team-registrations-title-row'>
+            <h3 className='section-title' style={{ margin: 0 }}>
+              Đăng ký và tích hợp GitHub
+            </h3>
+            <TeamRegistrationsBulkActions onBulkAccess={onBulkAccess} />
           </div>
+        </div>
+        <div className='empty-state'>Chưa có đội nào tham gia.</div>
+      </section>
+    )
+  }
+
+  return (
+    <section className='criteria-manager'>
+      <div className='criteria-manager-head'>
+        <div className='team-registrations-title-row'>
+          <h3 className='section-title' style={{ margin: 0 }}>
+            Đăng ký và tích hợp GitHub
+          </h3>
+          <TeamRegistrationsBulkActions onBulkAccess={onBulkAccess} />
+        </div>
+      </div>
+
+      <div className='criteria-round-list team-registrations-list'>
+        {paginatedTeams.map((team) => (
+          <button
+            key={team.registrationId || team.teamId}
+            type='button'
+            className='criteria-round-row'
+            onClick={() => setActiveTeam(team)}
+          >
+            <span className='criteria-round-row-main'>
+              <span className='criteria-round-row-name'>{team.teamName || '—'}</span>
+              <span className='criteria-round-row-meta'>
+                {teamStatusLabel(team.status)} · {githubStatusShortLabel(team.githubStatus)}
+              </span>
+            </span>
+            <span className='criteria-round-row-action'>Chi tiết ›</span>
+          </button>
         ))}
       </div>
-      <Pagination total={teams.length} pageSize={PAGE_SIZE} currentPage={page} onChange={setPage} />
-    </>
+
+      <Pagination
+        className='team-registrations-pagination'
+        total={sortedTeamRows.length}
+        pageSize={TEAM_REGISTRATIONS_PAGE_SIZE}
+        currentPage={page}
+        onChange={handlePageChange}
+        itemLabel='đội'
+        showSinglePageSummary
+      />
+
+      <TeamRegistrationDetailModal
+        team={activeTeam}
+        isOpen={Boolean(activeTeam)}
+        onClose={() => setActiveTeam(null)}
+        onTeamUpdated={handleTeamUpdated}
+      />
+    </section>
   )
 }
 
@@ -2527,20 +2744,18 @@ function EventDetailInfoPanel({ event, onUpdated }) {
       <div className='event-detail-info-wrap' style={{ marginTop: 16 }}>
         <button
           type='button'
-          className='event-detail-info-compact'
+          className='criteria-round-row event-detail-info-compact'
           onClick={() => setDetailOpen(true)}
           aria-haspopup='dialog'
         >
-          <span className='event-detail-info-compact-main'>
-            <span className='event-detail-info-compact-label'>Thông tin sự kiện</span>
-            <span className='event-detail-info-compact-meta'>
+          <span className='criteria-round-row-main'>
+            <span className='criteria-round-row-name'>Thông tin sự kiện</span>
+            <span className='criteria-round-row-meta'>
               {formatEventDateTime(event.startDate)} → {formatEventDateTime(event.endDate)} ·{' '}
               {eventStatusLabel(event.status)} · {event.totalTeams ?? 0} đội
             </span>
           </span>
-          <span className='event-detail-info-compact-chevron' aria-hidden>
-            ›
-          </span>
+          <span className='criteria-round-row-action'>Chi tiết ›</span>
         </button>
       </div>
 
@@ -2604,7 +2819,26 @@ export default function EventDetailsPage() {
     setLoading(true)
     setError(null)
     try {
-      setEvent(await getEventDetail(eventId))
+      const data = await getEventDetail(eventId)
+      setEvent(data)
+
+      const firstRound = [...(data.rounds ?? [])].sort(
+        (a, b) => Number(a.roundOrder ?? 0) - Number(b.roundOrder ?? 0)
+      )[0]
+      if (firstRound?.roundId) {
+        try {
+          const fillResult = await autoFillRoundGroups({
+            eventId,
+            roundId: firstRound.roundId
+          })
+          if (fillResult.assignedCount > 0) {
+            setEvent(await getEventDetail(eventId))
+            showToast(fillResult.message, 'success')
+          }
+        } catch {
+          // Bỏ qua nếu auto-fill không chạy được (vd. chưa có bảng)
+        }
+      }
     } catch (err) {
       setError(localizeError(err.message))
       showToast('Không tải được chi tiết sự kiện', 'error')
@@ -2617,24 +2851,12 @@ export default function EventDetailsPage() {
     loadEvent()
   }, [loadEvent])
 
-  const handleTeamRegistrationUpdated = (registrationId, newStatus) => {
+  const handleTeamUpdated = (registrationId, updates) => {
     setEvent((prev) => {
       if (!prev) return prev
       return {
         ...prev,
-        teams: prev.teams.map((team) =>
-          team.registrationId === registrationId ? { ...team, status: newStatus } : team
-        )
-      }
-    })
-  }
-
-  const handleTeamGitHubStatusUpdated = (registrationId, updates) => {
-    setEvent((prev) => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        teams: prev.teams.map((team) => (team.registrationId === registrationId ? { ...team, ...updates } : team))
+        teams: patchTeamRegistration(prev.teams, registrationId, updates)
       }
     })
   }
@@ -2896,17 +3118,21 @@ export default function EventDetailsPage() {
 
       {!loading && event && (
         <div className='card event-detail-card' style={{ '--event-accent': eventAccentColor(event.status) }}>
-          <div className='card-head'>
-            <div>
+          <div className='event-detail-card-head'>
+            <div className='event-detail-card-title-row'>
               <div className='card-title'>{event.title || '—'}</div>
-              <div className='card-sub' style={{ margin: 0 }}>
-                {event.numRounds ?? 1} vòng dự kiến · {formatMaxTeams(event.maxTeams)} · {event.totalTeams ?? 0} đội
-                đăng ký
+              <div className='event-detail-card-status-wrap'>
+                <span
+                  className={`status-pill ${eventStatusPillClass(event.status)} event-detail-card-status`}
+                  style={{ cursor: 'default' }}
+                >
+                  {eventStatusLabel(event.status)}
+                </span>
+              </div>
+              <div className='card-sub event-detail-card-sub'>
+                {event.numRounds ?? 1} vòng dự kiến · {event.totalTeams ?? 0} đội đăng ký
               </div>
             </div>
-            <span className={`status-pill ${eventStatusPillClass(event.status)}`} style={{ cursor: 'default' }}>
-              {eventStatusLabel(event.status)}
-            </span>
           </div>
 
           {event.description ? (
@@ -2925,62 +3151,15 @@ export default function EventDetailsPage() {
             onRoundDeleted={handleRoundDeleted}
             onGroupUpdated={handleGroupUpdated}
             onGroupDeleted={handleGroupDeleted}
+            onAutoFilled={loadEvent}
           />
 
-          <div
-            className='event-registrations-section'
-            style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid var(--border)' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h3 className='section-title' style={{ margin: 0 }}>
-                Đăng ký và tích hợp GitHub
-              </h3>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  type='button'
-                  className='btn btn-outline btn-sm'
-                  style={{
-                    borderColor: '#22c55e',
-                    color: '#16a34a',
-                    padding: '6px 12px',
-                    height: 'auto',
-                    minHeight: 0
-                  }}
-                  onClick={() => setBulkAccessModal({ isOpen: true, grant: true, loading: false })}
-                >
-                  Mở quyền làm bài (Tất cả)
-                </button>
-                <button
-                  type='button'
-                  className='btn btn-outline btn-sm'
-                  style={{
-                    borderColor: '#ef4444',
-                    color: '#dc2626',
-                    padding: '6px 12px',
-                    height: 'auto',
-                    minHeight: 0
-                  }}
-                  onClick={() => setBulkAccessModal({ isOpen: true, grant: false, loading: false })}
-                >
-                  Khóa quyền làm bài (Tất cả)
-                </button>
-              </div>
-            </div>
-            <div
-              className='card'
-              style={{
-                padding: 18,
-                background: 'var(--card-bg, #fff)',
-                border: '1px solid var(--border)',
-                borderRadius: 12
-              }}
-            >
-              <TeamsDropdownContent
-                teams={event.teams || []}
-                onUpdated={handleTeamRegistrationUpdated}
-                onGitHubUpdated={handleTeamGitHubStatusUpdated}
-              />
-            </div>
+          <div style={{ marginTop: 24 }}>
+            <TeamRegistrationsSection
+              teams={event.teams || []}
+              onTeamUpdated={handleTeamUpdated}
+              onBulkAccess={(grant) => setBulkAccessModal({ isOpen: true, grant, loading: false })}
+            />
           </div>
 
           <div style={{ marginTop: 24 }}>

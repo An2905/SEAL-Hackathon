@@ -12,20 +12,38 @@ import { useState } from 'react'
  * Usage:
  *   <Pagination total={22} pageSize={5} currentPage={page} onChange={setPage} />
  */
-export default function Pagination({ total, pageSize = 5, currentPage, onChange }) {
-  const totalPages = Math.ceil(total / pageSize)
-  if (totalPages <= 1) return null
+export default function Pagination({
+  total,
+  pageSize = 5,
+  currentPage,
+  onChange,
+  className,
+  itemLabel = 'mục',
+  showSinglePageSummary = false
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  if (totalPages <= 1 && !showSinglePageSummary) return null
 
-  const from = (currentPage - 1) * pageSize + 1
+  const from = total === 0 ? 0 : (currentPage - 1) * pageSize + 1
   const to = Math.min(currentPage * pageSize, total)
+
+  if (totalPages <= 1) {
+    return (
+      <div className={className} style={wrapStyle}>
+        <span style={infoStyle}>
+          Hiển thị {from}–{to} / {total} {itemLabel}
+        </span>
+      </div>
+    )
+  }
 
   // Build page number array with ellipsis
   const pages = buildPages(currentPage, totalPages)
 
   return (
-    <div style={wrapStyle}>
+    <div className={className} style={wrapStyle}>
       <span style={infoStyle}>
-        Hiển thị {from}–{to} / {total} mục
+        Hiển thị {from}–{to} / {total} {itemLabel}
       </span>
 
       <div style={btnGroupStyle}>

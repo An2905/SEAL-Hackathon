@@ -330,6 +330,109 @@ public class EventRepository {
     }
   }
 
+  public List<TeamRegistration> findEligibleTeamsForAutoFill(
+      String eventId, String roundId, boolean requireFullCheckIn) {
+    List<TeamRegistration> registrations = new ArrayList<>();
+    StringBuilder sql =
+        new StringBuilder(
+            "SELECT tr.registration_id, tr.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url "
+                + "FROM team_registrations tr "
+                + "JOIN teams t ON tr.team_id = t.team_id "
+                + "JOIN rounds curr ON curr.round_id = ? AND curr.event_id = ? "
+                + "LEFT JOIN rounds prev ON prev.event_id = curr.event_id AND prev.round_order = curr.round_order - 1 "
+                + "WHERE tr.event_id = ? AND tr.status = 'APPROVED' "
+                + "AND NOT EXISTS ("
+                + "SELECT 1 FROM group_teams gt WHERE gt.team_id = tr.team_id AND gt.round_id = ?"
+                + ") "
+                + "AND ("
+                + "curr.round_order <= 1 "
+                + "OR EXISTS ("
+                + "SELECT 1 FROM round_winners rw WHERE rw.round_id = prev.round_id AND rw.team_id = tr.team_id"
+                + ")"
+                + ") ");
+    if (requireFullCheckIn) {
+      sql.append(
+          "AND ("
+              + "SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = tr.team_id"
+              + ") > 0 "
+              + "AND ("
+              + "SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = tr.team_id"
+              + ") = ("
+              + "SELECT COUNT(*) FROM team_members tm "
+              + "JOIN check_ins ci ON ci.user_id = tm.user_id AND ci.team_id = tm.team_id AND ci.event_id = ? "
+              + "WHERE tm.team_id = tr.team_id AND ci.checked_in = 1"
+              + ") ");
+    }
+    sql.append("ORDER BY t.team_name ASC");
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+      ps.setString(1, roundId);
+      ps.setString(2, eventId);
+      ps.setString(3, eventId);
+      ps.setString(4, roundId);
+      if (requireFullCheckIn) {
+        ps.setString(5, eventId);
+      }
+      try (ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+          registrations.add(eventMapper.teamRegistrationFromResultSet(rs));
+        }
+      }
+    } catch (Exception e) {
+      return registrations;
+    }
+    return registrations;
+  }
+
+  public Optional<String> findFirstRoundId(String eventId) {
+    String sql = "SELECT round_id FROM rounds WHERE event_id = ? ORDER BY round_order ASC LIMIT 1";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return Optional.of(rs.getString("round_id"));
+        }
+      }
+    } catch (Exception e) {
+      return Optional.empty();
+    }
+    return Optional.empty();
+  }
+
+  public Optional<String> findNextRoundId(String eventId, int currentRoundOrder) {
+    String sql = "SELECT round_id FROM rounds WHERE event_id = ? AND round_order = ? LIMIT 1";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      ps.setInt(2, currentRoundOrder + 1);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return Optional.of(rs.getString("round_id"));
+        }
+      }
+    } catch (Exception e) {
+      return Optional.empty();
+    }
+    return Optional.empty();
+  }
+
+  public int countRoundWinners(String roundId) {
+    String sql = "SELECT COUNT(*) AS cnt FROM round_winners WHERE round_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, roundId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return rs.getInt("cnt");
+        }
+      }
+    } catch (Exception e) {
+      return 0;
+    }
+    return 0;
+  }
+
   public List<Award> findAwardsByEventId(String eventId) {
     List<Award> awards = new ArrayList<>();
     String sql =

@@ -174,7 +174,8 @@ function mapMentorAssignedTeamMemberRow(row) {
     fullName: r.fullName ?? r.full_name ?? '',
     email: r.email ?? '',
     userRole: r.userRole ?? r.user_role ?? '',
-    teamRole: r.teamRole ?? r.team_role ?? ''
+    teamRole: r.teamRole ?? r.team_role ?? '',
+    githubUsername: r.githubUsername ?? r.github_username ?? ''
   }
 }
 

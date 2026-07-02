@@ -139,8 +139,41 @@ export async function changeTeamRegistrationStatus({ registrationId, status }) {
     method: 'PUT',
     body: { registrationId: id, status: nextStatus }
   })
-  if (!/registration status updated successfully/i.test(text)) throw new Error(text)
+  let message = text
+  try {
+    const parsed = JSON.parse(text)
+    if (parsed && typeof parsed.message === 'string') message = parsed.message
+  } catch {
+    // Plain-text response — keep raw text.
+  }
+  if (
+    !/registration status updated successfully/i.test(message) &&
+    !/cập nhật trạng thái đăng ký.*thành công/i.test(message)
+  ) {
+    throw new Error(message || 'Cập nhật trạng thái thất bại')
+  }
   return true
+}
+
+function mapStaffTeamMemberRow(data) {
+  return {
+    userId: String(data.userId ?? data.user_id ?? ''),
+    fullName: data.fullName ?? data.full_name ?? '',
+    email: data.email ?? '',
+    githubUsername: data.githubUsername ?? data.github_username ?? '',
+    status: data.status ?? ''
+  }
+}
+
+// GET /api/staff/teams/members?teamId=
+export async function getTeamMembers(teamId) {
+  const tid = normalizeId(teamId)
+  if (!tid) throw new Error('Không xác định được đội')
+
+  const params = new URLSearchParams({ teamId: tid })
+  const data = parseStaffJson(await apiFetch(`/api/staff/teams/members?${params}`, { method: 'GET' }))
+  if (!Array.isArray(data)) return []
+  return data.map(mapStaffTeamMemberRow)
 }
 
 // POST /api/staff/assign/judge
