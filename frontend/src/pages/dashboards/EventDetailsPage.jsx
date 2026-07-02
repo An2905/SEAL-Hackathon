@@ -2650,10 +2650,7 @@ function EventDetailInfoPanel({ event, onUpdated }) {
         <span>Đội đã đăng ký</span>
         <span>{event.totalTeams ?? '0'}</span>
       </div>
-      <div className='kv'>
-        <span>GitHub Repository mẫu</span>
-        <span>{event.githubTemplateRepo || '—'}</span>
-      </div>
+
       <div className='kv'>
         <span>Ngày tạo</span>
         <span>{formatEventDateTime(event.createdAt)}</span>
@@ -2727,15 +2724,7 @@ function EventDetailInfoPanel({ event, onUpdated }) {
           </select>
         )}
       </FormField>
-      <FormField label='GitHub Repository mẫu'>
-        <input
-          name='githubTemplateRepo'
-          value={form.githubTemplateRepo}
-          onChange={handleChange}
-          disabled={saving}
-          placeholder='ví dụ: <chủ sở hữu>/repo hoặc repo'
-        />
-      </FormField>
+
     </form>
   )
 

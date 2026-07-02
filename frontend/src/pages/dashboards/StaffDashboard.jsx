@@ -310,15 +310,7 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
         <FormField label='Số vòng thi dự kiến'>
           <input type='number' name='numRounds' value={form.numRounds} onChange={handle} min={1} disabled={loading} />
         </FormField>
-        <FormField label='GitHub Template Repository'>
-          <input
-            name='githubTemplateRepo'
-            value={form.githubTemplateRepo}
-            onChange={handle}
-            disabled={loading}
-            placeholder='owner/repo hoặc tên repo (tuỳ chọn)'
-          />
-        </FormField>
+
         <LoadingButton loading={loading} type='submit'>
           Tạo sự kiện
         </LoadingButton>
