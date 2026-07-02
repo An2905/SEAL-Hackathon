@@ -1966,6 +1966,42 @@ main {
   border-left-color: var(--event-accent, #888780);
 }
 
+.card.event-detail-card .event-detail-card-head {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.event-detail-card-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  gap: 4px 16px;
+}
+
+.event-detail-card-title-row .card-title {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.event-detail-card-status-wrap {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.event-detail-card-status {
+  flex-shrink: 0;
+}
+
+.event-detail-card-sub {
+  flex: 0 0 100%;
+  width: 100%;
+  margin: 0;
+}
+
 .event-stat-item-card {
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -2038,50 +2074,9 @@ main {
   gap: 10px;
 }
 .event-detail-info-compact {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--color-background-secondary);
-  cursor: pointer;
   font-family: inherit;
-  text-align: left;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
 }
-.event-detail-info-compact:hover {
-  border-color: var(--border-strong);
-  background: var(--bg-elev);
-}
-.event-detail-info-compact-main {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  flex: 1;
-}
-.event-detail-info-compact-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-}
-.event-detail-info-compact-meta {
-  font-size: 12px;
-  color: var(--text-dim);
-  line-height: 1.4;
-  word-break: break-word;
-}
-.event-detail-info-compact-chevron {
-  flex-shrink: 0;
-  font-size: 18px;
-  line-height: 1;
-  color: var(--text-mute);
-}
+
 .event-detail-info-actions-outside {
   display: flex;
   flex-wrap: wrap;
@@ -3571,7 +3566,7 @@ main {
 .criteria-round-row-action {
   flex-shrink: 0;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--accent, #ea580c);
 }
 
@@ -3630,18 +3625,16 @@ main {
 }
 
 .team-registration-detail-modal .team-registration-detail-head {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 12px 16px;
   margin: 0 0 24px;
-  padding-right: 36px;
 }
 
 .team-registration-detail-modal .team-registration-detail-team-name {
   margin: 0;
   min-width: 0;
-  flex: 1;
   font-size: 14px;
   line-height: 1.45;
   color: var(--text-dim);
@@ -3653,19 +3646,31 @@ main {
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 8px;
-  flex-shrink: 0;
-  margin-left: auto;
+  justify-self: end;
+  width: max-content;
+  max-width: 100%;
 }
 
-.team-registration-detail-modal .team-registration-detail-head-controls .status-picker,
-.team-registration-detail-modal .team-registration-detail-head-controls > div {
+.team-registration-detail-modal .team-registration-detail-head-controls .status-picker {
+  display: inline-flex;
   justify-content: flex-end;
+}
+
+.team-registration-detail-modal .team-registration-detail-head-controls .status-picker-select {
+  margin: 0;
+}
+
+.team-registration-detail-modal .team-registration-detail-head-controls > div {
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 .event-board-modal-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   margin-top: 12px;
   width: 100%;
@@ -3682,6 +3687,7 @@ main {
 .event-board-modal-actions-right {
   display: flex;
   align-items: center;
+  gap: 8px;
   margin-left: auto;
   justify-content: flex-end;
 }
@@ -3699,6 +3705,16 @@ main {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.team-registrations-list {
+  margin-bottom: 0;
+}
+
+.team-registrations-pagination {
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding-top: 4px;
 }
 
 .team-registration-members {

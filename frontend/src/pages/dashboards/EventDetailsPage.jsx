@@ -11,6 +11,7 @@ import {
   changeTeamRegistrationStatus,
   getAllAccounts,
   getTeamMembers,
+  normalizeRegistrationId,
   retryGitHubProvisioning,
   updateEventRepoAccess
 } from '../../api/staff'
@@ -51,6 +52,7 @@ import { parseGitHubRepoUrl } from '../../api/githubRepo'
 import Pagination from '../../components/common/Pagination'
 
 const PAGE_SIZE = 5
+const TEAM_REGISTRATIONS_PAGE_SIZE = 5
 const REGISTRATION_STATUSES = ['PENDING', 'APPROVED', 'REJECTED']
 
 function eventStatusPillClass(status) {
@@ -971,24 +973,32 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
               <FormMessage message={error} type='error' />
               <div className='event-board-modal-actions'>
                 <div className='event-board-modal-actions-left'>
-                  <LoadingButton loading={saving} type='submit' disabled={busy}>
-                    Lưu thay đổi
-                  </LoadingButton>
-                  <LoadingButton type='button' loading={autoFilling} disabled={busy} onClick={handleAutoFill}>
+                  <LoadingButton
+                    type='button'
+                    loading={autoFilling}
+                    disabled={busy}
+                    onClick={handleAutoFill}
+                    className='btn btn-primary btn-sm'
+                  >
                     Tự động phân bảng (vòng {round?.roundOrder ?? '—'})
                   </LoadingButton>
-                  <button type='button' className='btn btn-ghost' onClick={onClose} disabled={busy}>
-                    Đóng
-                  </button>
                 </div>
                 <div className='event-board-modal-actions-right'>
+                  <LoadingButton
+                    loading={saving}
+                    type='submit'
+                    disabled={busy}
+                    className='btn btn-primary btn-sm'
+                  >
+                    Lưu
+                  </LoadingButton>
                   <button
                     type='button'
                     className='btn btn-danger btn-sm'
                     onClick={() => setConfirmDeleteOpen(true)}
                     disabled={busy}
                   >
-                    Xóa vòng
+                    Xóa
                   </button>
                 </div>
               </div>
@@ -1243,8 +1253,18 @@ function githubStatusShortLabel(status) {
   return 'Chưa khởi tạo GitHub'
 }
 
+function registrationMatches(a, b) {
+  return normalizeRegistrationId(a) === normalizeRegistrationId(b)
+}
+
+function patchTeamRegistration(list, registrationId, updates) {
+  if (!Array.isArray(list)) return list
+  return list.map((team) =>
+    registrationMatches(team.registrationId, registrationId) ? { ...team, ...updates } : team
+  )
+}
+
 function TeamRegistrationStatusPicker({ team, onUpdated }) {
-  const { showToast } = useToast()
   const [saving, setSaving] = useState(false)
   const currentStatus = String(team?.status ?? '')
     .trim()
@@ -1253,18 +1273,16 @@ function TeamRegistrationStatusPicker({ team, onUpdated }) {
   const handleSelect = async (e) => {
     const next = e.target.value
     if (next === currentStatus) return
-    if (!team?.registrationId) {
-      showToast('Không xác định được đăng ký — vui lòng tải lại danh sách đội', 'error')
-      return
-    }
+    if (!team?.registrationId) return
+
+    const previousStatus = currentStatus
+    onUpdated?.(team.registrationId, { status: next })
 
     setSaving(true)
     try {
       await changeTeamRegistrationStatus({ registrationId: team.registrationId, status: next })
-      onUpdated?.(team.registrationId, { status: next })
-      showToast(`Đã cập nhật trạng thái đăng ký → ${teamStatusLabel(next)}`, 'success')
-    } catch (err) {
-      showToast(localizeError(err.message), 'error')
+    } catch {
+      onUpdated?.(team.registrationId, { status: previousStatus })
     } finally {
       setSaving(false)
     }
@@ -1565,15 +1583,47 @@ function TeamRegistrationsBulkActions({ onBulkAccess }) {
 function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess }) {
   const [page, setPage] = useState(1)
   const [activeTeam, setActiveTeam] = useState(null)
+  const [teamRows, setTeamRows] = useState(teams)
 
-  const paginatedTeams = teams.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  useEffect(() => {
+    setTeamRows(teams)
+  }, [teams])
 
-  const handleTeamUpdated = (registrationId, updates) => {
-    onTeamUpdated?.(registrationId, updates)
-    setActiveTeam((prev) => (prev?.registrationId === registrationId ? { ...prev, ...updates } : prev))
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(teamRows.length / TEAM_REGISTRATIONS_PAGE_SIZE))
+    if (page > totalPages) setPage(totalPages)
+  }, [teamRows.length, page])
+
+  const sortedTeamRows = useMemo(
+    () =>
+      [...teamRows].sort((a, b) =>
+        String(a.teamName ?? '').localeCompare(String(b.teamName ?? ''), 'vi', { sensitivity: 'base' })
+      ),
+    [teamRows]
+  )
+
+  const paginatedTeams = useMemo(
+    () =>
+      sortedTeamRows.slice(
+        (page - 1) * TEAM_REGISTRATIONS_PAGE_SIZE,
+        page * TEAM_REGISTRATIONS_PAGE_SIZE
+      ),
+    [sortedTeamRows, page]
+  )
+
+  const handlePageChange = (nextPage) => {
+    setPage(nextPage)
   }
 
-  if (!teams.length) {
+  const handleTeamUpdated = (registrationId, updates) => {
+    setTeamRows((prev) => patchTeamRegistration(prev, registrationId, updates))
+    setActiveTeam((prev) =>
+      prev && registrationMatches(prev.registrationId, registrationId) ? { ...prev, ...updates } : prev
+    )
+    onTeamUpdated?.(registrationId, updates)
+  }
+
+  if (!teamRows.length) {
     return (
       <section className='criteria-manager'>
         <div className='criteria-manager-head'>
@@ -1600,7 +1650,7 @@ function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess }) {
         </div>
       </div>
 
-      <div className='criteria-round-list'>
+      <div className='criteria-round-list team-registrations-list'>
         {paginatedTeams.map((team) => (
           <button
             key={team.registrationId || team.teamId}
@@ -1619,9 +1669,15 @@ function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess }) {
         ))}
       </div>
 
-      {teams.length > PAGE_SIZE ? (
-        <Pagination total={teams.length} pageSize={PAGE_SIZE} currentPage={page} onChange={setPage} />
-      ) : null}
+      <Pagination
+        className='team-registrations-pagination'
+        total={sortedTeamRows.length}
+        pageSize={TEAM_REGISTRATIONS_PAGE_SIZE}
+        currentPage={page}
+        onChange={handlePageChange}
+        itemLabel='đội'
+        showSinglePageSummary
+      />
 
       <TeamRegistrationDetailModal
         team={activeTeam}
@@ -2688,20 +2744,18 @@ function EventDetailInfoPanel({ event, onUpdated }) {
       <div className='event-detail-info-wrap' style={{ marginTop: 16 }}>
         <button
           type='button'
-          className='event-detail-info-compact'
+          className='criteria-round-row event-detail-info-compact'
           onClick={() => setDetailOpen(true)}
           aria-haspopup='dialog'
         >
-          <span className='event-detail-info-compact-main'>
-            <span className='event-detail-info-compact-label'>Thông tin sự kiện</span>
-            <span className='event-detail-info-compact-meta'>
+          <span className='criteria-round-row-main'>
+            <span className='criteria-round-row-name'>Thông tin sự kiện</span>
+            <span className='criteria-round-row-meta'>
               {formatEventDateTime(event.startDate)} → {formatEventDateTime(event.endDate)} ·{' '}
               {eventStatusLabel(event.status)} · {event.totalTeams ?? 0} đội
             </span>
           </span>
-          <span className='event-detail-info-compact-chevron' aria-hidden>
-            ›
-          </span>
+          <span className='criteria-round-row-action'>Chi tiết ›</span>
         </button>
       </div>
 
@@ -2802,7 +2856,7 @@ export default function EventDetailsPage() {
       if (!prev) return prev
       return {
         ...prev,
-        teams: prev.teams.map((team) => (team.registrationId === registrationId ? { ...team, ...updates } : team))
+        teams: patchTeamRegistration(prev.teams, registrationId, updates)
       }
     })
   }
@@ -3064,17 +3118,21 @@ export default function EventDetailsPage() {
 
       {!loading && event && (
         <div className='card event-detail-card' style={{ '--event-accent': eventAccentColor(event.status) }}>
-          <div className='card-head'>
-            <div>
+          <div className='event-detail-card-head'>
+            <div className='event-detail-card-title-row'>
               <div className='card-title'>{event.title || '—'}</div>
-              <div className='card-sub' style={{ margin: 0 }}>
-                {event.numRounds ?? 1} vòng dự kiến · {formatMaxTeams(event.maxTeams)} · {event.totalTeams ?? 0} đội
-                đăng ký
+              <div className='event-detail-card-status-wrap'>
+                <span
+                  className={`status-pill ${eventStatusPillClass(event.status)} event-detail-card-status`}
+                  style={{ cursor: 'default' }}
+                >
+                  {eventStatusLabel(event.status)}
+                </span>
+              </div>
+              <div className='card-sub event-detail-card-sub'>
+                {event.numRounds ?? 1} vòng dự kiến · {event.totalTeams ?? 0} đội đăng ký
               </div>
             </div>
-            <span className={`status-pill ${eventStatusPillClass(event.status)}`} style={{ cursor: 'default' }}>
-              {eventStatusLabel(event.status)}
-            </span>
           </div>
 
           {event.description ? (
