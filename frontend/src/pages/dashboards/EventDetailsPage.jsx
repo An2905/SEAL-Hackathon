@@ -1250,6 +1250,14 @@ function teamStatusLabel(status) {
   return status || '—'
 }
 
+function githubStatusShortLabel(status) {
+  const key = String(status ?? '').toUpperCase()
+  if (key === 'SUCCESS') return 'GitHub đã cấp'
+  if (key === 'PENDING') return 'GitHub đang xử lý'
+  if (key === 'FAILED') return 'GitHub lỗi'
+  return 'Chưa khởi tạo GitHub'
+}
+
 function TeamRegistrationStatusDisplay({ status }) {
   return (
     <span
@@ -1262,7 +1270,7 @@ function TeamRegistrationStatusDisplay({ status }) {
   )
 }
 
-function TeamMembersModal({ team, isOpen, onClose }) {
+function TeamRegistrationDetailModal({ team, isOpen, onClose, onGitHubUpdated }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [members, setMembers] = useState([])
@@ -1285,18 +1293,37 @@ function TeamMembersModal({ team, isOpen, onClose }) {
     if (isOpen && team?.teamId) loadMembers()
   }, [isOpen, team?.teamId, loadMembers])
 
+  const handleClose = () => {
+    onClose()
+  }
+
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
-      title={team?.teamName || 'Chi tiết đội'}
-      subtitle='Thành viên trong đội'
+      onClose={handleClose}
+      title='Đăng ký & GitHub'
+      subtitle={team?.teamName || undefined}
       className='modal-wide'
     >
+      {error ? <FormMessage message={error} type='error' /> : null}
+
+      <div className='kv-list' style={{ marginBottom: 16 }}>
+        <div className='kv'>
+          <span>Trạng thái đăng ký</span>
+          <TeamRegistrationStatusDisplay status={team?.status} />
+        </div>
+        <div className='kv'>
+          <span>GitHub</span>
+          {team ? <GitHubStatusBadge team={team} onGitHubUpdated={onGitHubUpdated} /> : '—'}
+        </div>
+      </div>
+
+      <p className='muted' style={{ margin: '0 0 10px' }}>
+        {loading ? 'Đang tải…' : `${members.length} thành viên`}
+      </p>
+
       {loading ? (
         <LoadingState text='Đang tải thành viên…' />
-      ) : error ? (
-        <FormMessage message={error} type='error' />
       ) : members.length === 0 ? (
         <div className='empty-state'>Đội chưa có thành viên.</div>
       ) : (
@@ -1327,6 +1354,12 @@ function TeamMembersModal({ team, isOpen, onClose }) {
           ))}
         </div>
       )}
+
+      <div style={{ marginTop: 16 }}>
+        <button type='button' className='btn btn-ghost' onClick={handleClose}>
+          Đóng
+        </button>
+      </div>
     </Modal>
   )
 }
@@ -1491,49 +1524,110 @@ function GitHubStatusBadge({ team, onGitHubUpdated }) {
   )
 }
 
-function TeamsDropdownContent({ teams, onGitHubUpdated }) {
+function TeamRegistrationsSection({ teams, onGitHubUpdated, onBulkAccess }) {
   const [page, setPage] = useState(1)
-  const [memberModalTeam, setMemberModalTeam] = useState(null)
+  const [activeTeam, setActiveTeam] = useState(null)
+
+  const approvedCount = useMemo(
+    () => teams.filter((t) => String(t.status ?? '').toUpperCase() === 'APPROVED').length,
+    [teams]
+  )
+
+  const paginatedTeams = teams.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   if (!teams.length) {
-    return <div className='event-stat-dropdown-empty'>Chưa có đội nào tham gia.</div>
-  }
-  return (
-    <>
-      <div className='kv-list'>
-        {teams.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((team) => (
-          <div className='kv' key={team.registrationId || team.teamId} style={{ gap: 12, alignItems: 'center' }}>
-            <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-              <button
-                type='button'
-                className='btn btn-ghost'
-                style={{
-                  fontWeight: 600,
-                  padding: 0,
-                  minHeight: 0,
-                  height: 'auto',
-                  textAlign: 'left',
-                  color: 'var(--text)',
-                  textDecoration: 'underline',
-                  textUnderlineOffset: 3
-                }}
-                onClick={() => setMemberModalTeam(team)}
-                title='Xem thành viên trong đội'
-              >
-                {team.teamName || '—'}
-              </button>
-            </span>
-            <GitHubStatusBadge team={team} onGitHubUpdated={onGitHubUpdated} />
-            <TeamRegistrationStatusDisplay status={team.status} />
+    return (
+      <section className='criteria-manager'>
+        <div className='criteria-manager-head'>
+          <div>
+            <h3 className='section-title'>Đăng ký và tích hợp GitHub</h3>
+            <p className='muted' style={{ margin: '4px 0 0' }}>
+              Nhấn vào đội để xem thành viên và trạng thái GitHub
+            </p>
           </div>
+        </div>
+        <div className='empty-state'>Chưa có đội nào tham gia.</div>
+      </section>
+    )
+  }
+
+  return (
+    <section className='criteria-manager'>
+      <div className='criteria-manager-head'>
+        <div>
+          <h3 className='section-title'>Đăng ký và tích hợp GitHub</h3>
+          <p className='muted' style={{ margin: '4px 0 0' }}>
+            Nhấn vào đội để xem thành viên và trạng thái GitHub
+          </p>
+        </div>
+      </div>
+
+      <div className='criteria-modal-toolbar'>
+        <p className='muted' style={{ margin: 0 }}>
+          {teams.length} đội · {approvedCount} đã duyệt
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <button
+            type='button'
+            className='btn btn-outline btn-sm'
+            style={{
+              borderColor: '#22c55e',
+              color: '#16a34a',
+              padding: '6px 12px',
+              height: 'auto',
+              minHeight: 0
+            }}
+            onClick={() => onBulkAccess?.(true)}
+          >
+            Mở quyền làm bài (Tất cả)
+          </button>
+          <button
+            type='button'
+            className='btn btn-outline btn-sm'
+            style={{
+              borderColor: '#ef4444',
+              color: '#dc2626',
+              padding: '6px 12px',
+              height: 'auto',
+              minHeight: 0
+            }}
+            onClick={() => onBulkAccess?.(false)}
+          >
+            Khóa quyền làm bài (Tất cả)
+          </button>
+        </div>
+      </div>
+
+      <div className='criteria-round-list'>
+        {paginatedTeams.map((team) => (
+          <button
+            key={team.registrationId || team.teamId}
+            type='button'
+            className='criteria-round-row'
+            onClick={() => setActiveTeam(team)}
+          >
+            <span className='criteria-round-row-main'>
+              <span className='criteria-round-row-name'>{team.teamName || '—'}</span>
+              <span className='criteria-round-row-meta'>
+                {teamStatusLabel(team.status)} · {githubStatusShortLabel(team.githubStatus)}
+              </span>
+            </span>
+            <span className='criteria-round-row-action'>Chi tiết ›</span>
+          </button>
         ))}
       </div>
-      <Pagination total={teams.length} pageSize={PAGE_SIZE} currentPage={page} onChange={setPage} />
-      <TeamMembersModal
-        team={memberModalTeam}
-        isOpen={Boolean(memberModalTeam)}
-        onClose={() => setMemberModalTeam(null)}
+
+      {teams.length > PAGE_SIZE ? (
+        <Pagination total={teams.length} pageSize={PAGE_SIZE} currentPage={page} onChange={setPage} />
+      ) : null}
+
+      <TeamRegistrationDetailModal
+        team={activeTeam}
+        isOpen={Boolean(activeTeam)}
+        onClose={() => setActiveTeam(null)}
+        onGitHubUpdated={onGitHubUpdated}
       />
-    </>
+    </section>
   )
 }
 
@@ -3000,56 +3094,12 @@ export default function EventDetailsPage() {
             onAutoFilled={loadEvent}
           />
 
-          <div
-            className='event-registrations-section'
-            style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid var(--border)' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h3 className='section-title' style={{ margin: 0 }}>
-                Đăng ký và tích hợp GitHub
-              </h3>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  type='button'
-                  className='btn btn-outline btn-sm'
-                  style={{
-                    borderColor: '#22c55e',
-                    color: '#16a34a',
-                    padding: '6px 12px',
-                    height: 'auto',
-                    minHeight: 0
-                  }}
-                  onClick={() => setBulkAccessModal({ isOpen: true, grant: true, loading: false })}
-                >
-                  Mở quyền làm bài (Tất cả)
-                </button>
-                <button
-                  type='button'
-                  className='btn btn-outline btn-sm'
-                  style={{
-                    borderColor: '#ef4444',
-                    color: '#dc2626',
-                    padding: '6px 12px',
-                    height: 'auto',
-                    minHeight: 0
-                  }}
-                  onClick={() => setBulkAccessModal({ isOpen: true, grant: false, loading: false })}
-                >
-                  Khóa quyền làm bài (Tất cả)
-                </button>
-              </div>
-            </div>
-            <div
-              className='card'
-              style={{
-                padding: 18,
-                background: 'var(--card-bg, #fff)',
-                border: '1px solid var(--border)',
-                borderRadius: 12
-              }}
-            >
-              <TeamsDropdownContent teams={event.teams || []} onGitHubUpdated={handleTeamGitHubStatusUpdated} />
-            </div>
+          <div style={{ marginTop: 24 }}>
+            <TeamRegistrationsSection
+              teams={event.teams || []}
+              onGitHubUpdated={handleTeamGitHubStatusUpdated}
+              onBulkAccess={(grant) => setBulkAccessModal({ isOpen: true, grant, loading: false })}
+            />
           </div>
 
           <div style={{ marginTop: 24 }}>
