@@ -27,6 +27,7 @@ import com.hackathon.hackathon.model.dto.response.StaffEmailFilterResponse;
 import com.hackathon.hackathon.model.dto.response.StaffEmailMatchDetailResponse;
 import com.hackathon.hackathon.model.dto.response.StaffEmailMatchRow;
 import com.hackathon.hackathon.model.dto.response.StaffEmailRecipientResponse;
+import com.hackathon.hackathon.model.dto.response.StaffTeamMemberResponse;
 import com.hackathon.hackathon.model.dto.response.UniversityOverviewResponse;
 import com.hackathon.hackathon.model.dto.response.UniversityResponse;
 import com.hackathon.hackathon.model.entity.EventCriterion;
@@ -265,6 +266,27 @@ public class StaffService {
     }
 
     return new MessageResponse("Cập nhật trạng thái đăng ký của đội thành công.");
+  }
+
+  public List<StaffTeamMemberResponse> getTeamMembers(String authHeader, String teamId) {
+    authService.validateRole(authHeader, "COORDINATOR");
+
+    String tid = teamId == null ? "" : teamId.trim();
+    if (tid.isEmpty()) {
+      throw new BadRequestException("ID đội là bắt buộc.");
+    }
+
+    List<StaffTeamMemberResponse> members = new ArrayList<>();
+    for (User user : teamRepository.findTeamMembersByTeamId(tid)) {
+      StaffTeamMemberResponse row = new StaffTeamMemberResponse();
+      row.setUserId(user.getUserId());
+      row.setFullName(user.getFullName());
+      row.setEmail(user.getEmail());
+      row.setGithubUsername(user.getGithubUsername());
+      row.setStatus(user.getStatus());
+      members.add(row);
+    }
+    return members;
   }
 
   public MessageResponse retryGitHubProvisioning(String authHeader, String registrationId) {

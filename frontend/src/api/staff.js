@@ -143,6 +143,27 @@ export async function changeTeamRegistrationStatus({ registrationId, status }) {
   return true
 }
 
+function mapStaffTeamMemberRow(data) {
+  return {
+    userId: String(data.userId ?? data.user_id ?? ''),
+    fullName: data.fullName ?? data.full_name ?? '',
+    email: data.email ?? '',
+    githubUsername: data.githubUsername ?? data.github_username ?? '',
+    status: data.status ?? ''
+  }
+}
+
+// GET /api/staff/teams/members?teamId=
+export async function getTeamMembers(teamId) {
+  const tid = normalizeId(teamId)
+  if (!tid) throw new Error('Không xác định được đội')
+
+  const params = new URLSearchParams({ teamId: tid })
+  const data = parseStaffJson(await apiFetch(`/api/staff/teams/members?${params}`, { method: 'GET' }))
+  if (!Array.isArray(data)) return []
+  return data.map(mapStaffTeamMemberRow)
+}
+
 // POST /api/staff/assign/judge
 // Body: { judgeId, roundId, groupId }
 export async function assignJudge({ judgeId, roundId, groupId }) {
