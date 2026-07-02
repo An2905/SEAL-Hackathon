@@ -857,7 +857,12 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
     setError('')
     try {
       const result = await autoFillRoundGroups({ eventId, roundId: round.roundId })
-      showToast(result.message || 'Đã phân bảng tự động', result.assignedCount > 0 ? 'success' : 'info')
+      const roundNum = Number(round.roundOrder ?? 1)
+      const hint =
+        result.assignedCount === 0 && roundNum > 1
+          ? ' Vòng 2+ chỉ phân các đội winner vòng trước — hãy thử vòng 1 (IDEA round).'
+          : ''
+      showToast((result.message || 'Đã phân bảng tự động') + hint, result.assignedCount > 0 ? 'success' : 'info')
       await onAutoFilled?.()
     } catch (err) {
       setError(localizeError(err.message))
@@ -988,7 +993,7 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
                     disabled={busy}
                     onClick={handleAutoFill}
                   >
-                    Tự động phân bảng
+                    Tự động phân bảng (vòng {round?.roundOrder ?? '—'})
                   </LoadingButton>
                   <button type='button' className='btn btn-ghost' onClick={onClose} disabled={busy}>
                     Đóng
@@ -2632,7 +2637,26 @@ export default function EventDetailsPage() {
     setLoading(true)
     setError(null)
     try {
-      setEvent(await getEventDetail(eventId))
+      const data = await getEventDetail(eventId)
+      setEvent(data)
+
+      const firstRound = [...(data.rounds ?? [])].sort(
+        (a, b) => Number(a.roundOrder ?? 0) - Number(b.roundOrder ?? 0)
+      )[0]
+      if (firstRound?.roundId) {
+        try {
+          const fillResult = await autoFillRoundGroups({
+            eventId,
+            roundId: firstRound.roundId
+          })
+          if (fillResult.assignedCount > 0) {
+            setEvent(await getEventDetail(eventId))
+            showToast(fillResult.message, 'success')
+          }
+        } catch {
+          // Bỏ qua nếu auto-fill không chạy được (vd. chưa có bảng)
+        }
+      }
     } catch (err) {
       setError(localizeError(err.message))
       showToast('Không tải được chi tiết sự kiện', 'error')

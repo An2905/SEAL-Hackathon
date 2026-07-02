@@ -700,7 +700,7 @@ public class EventService {
     if (!eventRepository.roundBelongsToEvent(rid, eid)) {
       throw new BadRequestException("Vòng đấu không thuộc sự kiện này.");
     }
-    return doAutoFillRoundGroups(eid, rid, true);
+    return doAutoFillRoundGroups(eid, rid, true, false);
   }
 
   private void tryAutoFillOnCheckIn(String eventId, String teamId) {
@@ -713,11 +713,27 @@ public class EventService {
     }
     eventRepository
         .findFirstRoundId(eventId)
-        .ifPresent(roundId -> doAutoFillRoundGroups(eventId, roundId, true));
+        .ifPresent(roundId -> doAutoFillRoundGroups(eventId, roundId, true, true));
+  }
+
+  /** Gọi sau khi đội đủ điều kiện (APPROVED + check-in đủ thành viên ở vòng 1). */
+  public void syncAutoFillAfterTeamEligible(String eventId, String teamId) {
+    if (eventId == null || teamId == null) {
+      return;
+    }
+    String eid = trim(eventId);
+    String tid = trim(teamId);
+    if (eid.isEmpty() || tid.isEmpty()) {
+      return;
+    }
+    tryAutoFillOnCheckIn(eid, tid);
   }
 
   private AutoFillGroupsResponse doAutoFillRoundGroups(
-      String eventId, String roundId, boolean cascadeToNextRound) {
+      String eventId,
+      String roundId,
+      boolean cascadeToNextRound,
+      boolean requireFullCheckInForRoundOne) {
     List<EventGroupResponse> groups =
         eventRepository.findGroupsByEventId(eventId).stream()
             .filter(g -> roundId.equals(g.getRoundId()))
@@ -740,7 +756,7 @@ public class EventService {
             .findRoundByEventAndId(eventId, roundId)
             .map(row -> row.roundOrder)
             .orElse(1);
-    boolean requireFullCheckIn = roundOrder <= 1;
+    boolean requireFullCheckIn = roundOrder <= 1 && requireFullCheckInForRoundOne;
 
     List<TeamRegistration> eligible =
         eventRepository.findEligibleTeamsForAutoFill(eventId, roundId, requireFullCheckIn);
@@ -749,7 +765,8 @@ public class EventService {
       response.setEventId(eventId);
       response.setRoundId(roundId);
       response.setAssignedCount(0);
-      response.setMessage("Không có đội nào cần phân bảng.");
+      response.setMessage(
+          buildNoEligibleTeamsMessage(eventId, roundId, roundOrder, requireFullCheckIn));
       if (cascadeToNextRound) {
         tryAutoFillNextRoundIfWinnersReady(eventId, roundId);
       }
@@ -825,7 +842,25 @@ public class EventService {
 
     eventRepository
         .findNextRoundId(eventId, round.roundOrder)
-        .ifPresent(nextRoundId -> doAutoFillRoundGroups(eventId, nextRoundId, true));
+        .ifPresent(nextRoundId -> doAutoFillRoundGroups(eventId, nextRoundId, true, false));
+  }
+
+  private String buildNoEligibleTeamsMessage(
+      String eventId, String roundId, int roundOrder, boolean requireFullCheckIn) {
+    List<TeamRegistration> approvedNotAssigned =
+        eventRepository.findEligibleTeamsForAutoFill(eventId, roundId, false);
+    if (approvedNotAssigned.isEmpty()) {
+      return "Tất cả đội đã duyệt đều đã được phân vào vòng này (hoặc chưa có đội APPROVED).";
+    }
+    if (roundOrder <= 1 && requireFullCheckIn) {
+      return "Có "
+          + approvedNotAssigned.size()
+          + " đội đã duyệt nhưng chưa check-in đủ thành viên. Vui lòng check-in trước khi tự động phân bảng.";
+    }
+    if (roundOrder > 1) {
+      return "Không có đội winner vòng trước nào chưa được phân vào vòng này.";
+    }
+    return "Không có đội nào cần phân bảng.";
   }
 
   private void validateGroupTeamContext(String eventId, String roundId, String groupId) {

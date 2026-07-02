@@ -99,6 +99,8 @@ public class StaffService {
 
   @Autowired private StaffEmailRepository staffEmailRepository;
 
+  @Autowired private EventService eventService;
+
   // region REGIS ACCOUNT FOR ADS
   public MessageResponse registerAccount(String authHeader, CreateStaffAccountRequest request) {
     authService.validateRole(authHeader, "COORDINATOR");
@@ -258,6 +260,8 @@ public class StaffService {
         teamRegistrationRepository.updateGithubStatus(registrationId, "FAILED");
         throw e;
       }
+      eventService.syncAutoFillAfterTeamEligible(
+          registration.getEventId(), registration.getTeamId());
     }
 
     return new MessageResponse("Cập nhật trạng thái đăng ký của đội thành công.");
