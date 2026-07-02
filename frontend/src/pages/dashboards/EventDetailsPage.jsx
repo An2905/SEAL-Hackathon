@@ -717,16 +717,8 @@ function EventBoardGroupDetailModal({
                 />
               </FormField>
               <FormMessage message={error} type='error' />
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 8,
-                  marginTop: 12,
-                  justifyContent: 'space-between'
-                }}
-              >
-                <div style={{ display: 'flex', gap: 8 }}>
+              <div className='event-board-modal-actions'>
+                <div className='event-board-modal-actions-left'>
                   <LoadingButton loading={saving} type='submit' disabled={busy}>
                     Lưu thay đổi
                   </LoadingButton>
@@ -734,14 +726,16 @@ function EventBoardGroupDetailModal({
                     Đóng
                   </button>
                 </div>
-                <button
-                  type='button'
-                  className='btn btn-danger btn-sm'
-                  onClick={() => setConfirmDeleteOpen(true)}
-                  disabled={busy}
-                >
-                  Xóa bảng
-                </button>
+                <div className='event-board-modal-actions-right'>
+                  <button
+                    type='button'
+                    className='btn btn-danger btn-sm'
+                    onClick={() => setConfirmDeleteOpen(true)}
+                    disabled={busy}
+                  >
+                    Xóa bảng
+                  </button>
+                </div>
               </div>
             </form>
           </>
@@ -975,39 +969,28 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
                 />
               </FormField>
               <FormMessage message={error} type='error' />
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 8,
-                  marginTop: 12,
-                  justifyContent: 'space-between'
-                }}
-              >
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className='event-board-modal-actions'>
+                <div className='event-board-modal-actions-left'>
                   <LoadingButton loading={saving} type='submit' disabled={busy}>
                     Lưu thay đổi
                   </LoadingButton>
-                  <LoadingButton
-                    type='button'
-                    loading={autoFilling}
-                    disabled={busy}
-                    onClick={handleAutoFill}
-                  >
+                  <LoadingButton type='button' loading={autoFilling} disabled={busy} onClick={handleAutoFill}>
                     Tự động phân bảng (vòng {round?.roundOrder ?? '—'})
                   </LoadingButton>
                   <button type='button' className='btn btn-ghost' onClick={onClose} disabled={busy}>
                     Đóng
                   </button>
                 </div>
-                <button
-                  type='button'
-                  className='btn btn-danger btn-sm'
-                  onClick={() => setConfirmDeleteOpen(true)}
-                  disabled={busy}
-                >
-                  Xóa vòng
-                </button>
+                <div className='event-board-modal-actions-right'>
+                  <button
+                    type='button'
+                    className='btn btn-danger btn-sm'
+                    onClick={() => setConfirmDeleteOpen(true)}
+                    disabled={busy}
+                  >
+                    Xóa vòng
+                  </button>
+                </div>
               </div>
             </form>
           </>
@@ -1341,8 +1324,8 @@ function TeamRegistrationDetailModal({ team, isOpen, onClose, onTeamUpdated }) {
       <div className='team-registration-detail-head'>
         <p className='team-registration-detail-team-name'>{team?.teamName || '—'}</p>
         <div className='team-registration-detail-head-controls'>
-          {team ? <TeamRegistrationStatusPicker team={team} onUpdated={onTeamUpdated} /> : null}
           {team ? <GitHubStatusBadge team={team} onGitHubUpdated={onTeamUpdated} /> : null}
+          {team ? <TeamRegistrationStatusPicker team={team} onUpdated={onTeamUpdated} /> : null}
         </div>
       </div>
 

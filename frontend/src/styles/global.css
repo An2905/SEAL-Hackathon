@@ -3662,6 +3662,30 @@ main {
   justify-content: flex-end;
 }
 
+.event-board-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  width: 100%;
+}
+
+.event-board-modal-actions-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.event-board-modal-actions-right {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
 .team-registrations-title-row {
   display: flex;
   align-items: center;
