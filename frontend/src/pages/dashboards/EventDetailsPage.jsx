@@ -1334,23 +1334,15 @@ function TeamRegistrationDetailModal({ team, isOpen, onClose, onTeamUpdated }) {
       isOpen={isOpen}
       onClose={onClose}
       title='Đăng ký & GitHub'
-      subtitle={team?.teamName || undefined}
       className='modal-wide team-registration-detail-modal'
     >
       {error ? <FormMessage message={error} type='error' /> : null}
 
-      <div className='kv-list team-registration-detail-kv'>
-        <div className='kv'>
-          <span>Trạng thái đăng ký</span>
-          <span className='kv-value'>
-            {team ? <TeamRegistrationStatusPicker team={team} onUpdated={onTeamUpdated} /> : '—'}
-          </span>
-        </div>
-        <div className='kv'>
-          <span>GitHub</span>
-          <span className='kv-value'>
-            {team ? <GitHubStatusBadge team={team} onGitHubUpdated={onTeamUpdated} /> : '—'}
-          </span>
+      <div className='team-registration-detail-head'>
+        <p className='team-registration-detail-team-name'>{team?.teamName || '—'}</p>
+        <div className='team-registration-detail-head-controls'>
+          {team ? <TeamRegistrationStatusPicker team={team} onUpdated={onTeamUpdated} /> : null}
+          {team ? <GitHubStatusBadge team={team} onGitHubUpdated={onTeamUpdated} /> : null}
         </div>
       </div>
 

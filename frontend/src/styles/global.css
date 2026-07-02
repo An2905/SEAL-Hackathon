@@ -3629,9 +3629,37 @@ main {
   margin-bottom: 12px;
 }
 
-.team-registration-detail-kv {
-  margin-top: 0;
-  margin-bottom: 6px;
+.team-registration-detail-modal .team-registration-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 24px;
+  padding-right: 36px;
+}
+
+.team-registration-detail-modal .team-registration-detail-team-name {
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.team-registration-detail-modal .team-registration-detail-head-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.team-registration-detail-modal .team-registration-detail-head-controls .status-picker,
+.team-registration-detail-modal .team-registration-detail-head-controls > div {
+  justify-content: flex-end;
 }
 
 .team-registrations-title-row {
@@ -3646,31 +3674,6 @@ main {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  justify-content: flex-end;
-}
-
-.team-registration-detail-modal .team-registration-detail-kv .kv {
-  gap: 12px;
-}
-
-.team-registration-detail-modal .team-registration-detail-kv .kv > span:first-child {
-  flex-shrink: 0;
-}
-
-.team-registration-detail-modal .team-registration-detail-kv .kv-value {
-  margin-left: auto;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  text-align: right;
-  max-width: none;
-  flex-shrink: 0;
-}
-
-.team-registration-detail-modal .team-registration-detail-kv .kv-value .status-picker,
-.team-registration-detail-modal .team-registration-detail-kv .kv-value > div {
   justify-content: flex-end;
 }
 
