@@ -9,4 +9,5 @@ public class MentorAssignedTeamMemberResponse {
   private String email;
   private String userRole;
   private String teamRole;
+  private String githubUsername;
 }

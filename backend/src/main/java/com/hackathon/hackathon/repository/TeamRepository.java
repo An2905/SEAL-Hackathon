@@ -200,7 +200,7 @@ public class TeamRepository {
         .append("t.team_id, t.team_name, t.status AS team_status, t.enrollCode, ")
         .append("t.leader_id, lu.full_name AS leader_name, lu.email AS leader_email, ")
         .append(
-            "um.user_id AS member_user_id, um.full_name AS member_full_name, um.email AS member_email, um.role AS member_role ")
+            "um.user_id AS member_user_id, um.full_name AS member_full_name, um.email AS member_email, um.role AS member_role, um.github_username AS member_github_username ")
         .append("FROM mentor_assignments ma ")
         .append("JOIN round_groups rg ON ma.group_id = rg.group_id ")
         .append("JOIN rounds r ON ma.round_id = r.round_id ")
@@ -264,6 +264,7 @@ public class TeamRepository {
             member.setEmail(rs.getString("member_email"));
             member.setUserRole(rs.getString("member_role"));
             member.setTeamRole(memberId.equals(team.getLeaderId()) ? "LEADER" : "MEMBER");
+            member.setGithubUsername(rs.getString("member_github_username"));
             team.getMembers().add(member);
           }
         }
