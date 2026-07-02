@@ -8,6 +8,14 @@ import { localizeError } from '../../../utils/errors'
 
 const PAGE_SIZE = 5
 
+const greenOutlineBtnStyle = {
+  borderColor: '#22c55e',
+  color: '#16a34a',
+  padding: '6px 12px',
+  height: 'auto',
+  minHeight: 0
+}
+
 function AwardForm({ initial, saving, onSubmit, onCancel, submitLabel }) {
   const [form, setForm] = useState(
     initial ?? {
@@ -165,24 +173,29 @@ export default function AwardsManager({
   return (
     <section className='awards-manager'>
       <div className='awards-manager-head'>
-        <div>
-          <h3 className='section-title'>Giải thưởng</h3>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className='awards-manager-title-row'>
+            <h3 className='section-title' style={{ margin: 0 }}>
+              Giải thưởng
+            </h3>
+            {!showAddForm && !editTarget ? (
+              <button
+                type='button'
+                className='btn btn-outline btn-sm'
+                style={greenOutlineBtnStyle}
+                onClick={() => {
+                  setShowAddForm(true)
+                  setEditTarget(null)
+                }}
+              >
+                ＋ Thêm giải thưởng
+              </button>
+            ) : null}
+          </div>
           <p className='muted' style={{ margin: '4px 0 0' }}>
             Thiết lập các giải thưởng của sự kiện — bắt buộc trước khi chuyển sang sắp diễn ra
           </p>
         </div>
-        {!showAddForm && !editTarget ? (
-          <button
-            type='button'
-            className='btn btn-outline btn-sm'
-            onClick={() => {
-              setShowAddForm(true)
-              setEditTarget(null)
-            }}
-          >
-            ＋ Thêm giải thưởng
-          </button>
-        ) : null}
       </div>
 
       {showAddForm ? (
