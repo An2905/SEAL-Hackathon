@@ -8,6 +8,7 @@ import ConfirmModal from '../../components/common/ConfirmModal'
 import LoadingState from '../../components/common/LoadingState'
 import { getEventDetail } from '../../api/event'
 import {
+  changeTeamRegistrationStatus,
   getAllAccounts,
   getTeamMembers,
   retryGitHubProvisioning,
@@ -50,6 +51,7 @@ import { parseGitHubRepoUrl } from '../../api/githubRepo'
 import Pagination from '../../components/common/Pagination'
 
 const PAGE_SIZE = 5
+const REGISTRATION_STATUSES = ['PENDING', 'APPROVED', 'REJECTED']
 
 function eventStatusPillClass(status) {
   const key = (status || '').toUpperCase()
@@ -1258,19 +1260,53 @@ function githubStatusShortLabel(status) {
   return 'Chưa khởi tạo GitHub'
 }
 
-function TeamRegistrationStatusDisplay({ status }) {
+function TeamRegistrationStatusPicker({ team, onUpdated }) {
+  const { showToast } = useToast()
+  const [saving, setSaving] = useState(false)
+  const currentStatus = String(team?.status ?? '')
+    .trim()
+    .toUpperCase()
+
+  const handleSelect = async (e) => {
+    const next = e.target.value
+    if (next === currentStatus) return
+    if (!team?.registrationId) {
+      showToast('Không xác định được đăng ký — vui lòng tải lại danh sách đội', 'error')
+      return
+    }
+
+    setSaving(true)
+    try {
+      await changeTeamRegistrationStatus({ registrationId: team.registrationId, status: next })
+      onUpdated?.(team.registrationId, { status: next })
+      showToast(`Đã cập nhật trạng thái đăng ký → ${teamStatusLabel(next)}`, 'success')
+    } catch (err) {
+      showToast(localizeError(err.message), 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <span
-      className={`status-pill ${registrationStatusPillClass(status)}`}
-      style={{ cursor: 'default', fontSize: 11, padding: '2px 10px' }}
-      title='Trạng thái đăng ký'
-    >
-      {teamStatusLabel(status)}
+    <span className='status-picker'>
+      <select
+        className='status-picker-select'
+        value={currentStatus || REGISTRATION_STATUSES[0]}
+        onChange={handleSelect}
+        disabled={saving}
+        aria-label='Trạng thái đăng ký'
+      >
+        {REGISTRATION_STATUSES.map((s) => (
+          <option key={s} value={s}>
+            {teamStatusLabel(s)}
+          </option>
+        ))}
+      </select>
     </span>
   )
 }
 
-function TeamRegistrationDetailModal({ team, isOpen, onClose, onGitHubUpdated }) {
+function TeamRegistrationDetailModal({ team, isOpen, onClose, onTeamUpdated }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [members, setMembers] = useState([])
@@ -1293,73 +1329,61 @@ function TeamRegistrationDetailModal({ team, isOpen, onClose, onGitHubUpdated })
     if (isOpen && team?.teamId) loadMembers()
   }, [isOpen, team?.teamId, loadMembers])
 
-  const handleClose = () => {
-    onClose()
-  }
-
   return (
     <Modal
       isOpen={isOpen}
-      onClose={handleClose}
+      onClose={onClose}
       title='Đăng ký & GitHub'
       subtitle={team?.teamName || undefined}
       className='modal-wide'
     >
       {error ? <FormMessage message={error} type='error' /> : null}
 
-      <div className='kv-list' style={{ marginBottom: 16 }}>
+      <div className='kv-list team-registration-detail-kv'>
         <div className='kv'>
           <span>Trạng thái đăng ký</span>
-          <TeamRegistrationStatusDisplay status={team?.status} />
+          {team ? <TeamRegistrationStatusPicker team={team} onUpdated={onTeamUpdated} /> : '—'}
         </div>
         <div className='kv'>
           <span>GitHub</span>
-          {team ? <GitHubStatusBadge team={team} onGitHubUpdated={onGitHubUpdated} /> : '—'}
+          {team ? <GitHubStatusBadge team={team} onGitHubUpdated={onTeamUpdated} /> : '—'}
         </div>
       </div>
-
-      <p className='muted' style={{ margin: '0 0 10px' }}>
-        {loading ? 'Đang tải…' : `${members.length} thành viên`}
-      </p>
 
       {loading ? (
         <LoadingState text='Đang tải thành viên…' />
       ) : members.length === 0 ? (
-        <div className='empty-state'>Đội chưa có thành viên.</div>
+        <div className='empty-state team-registration-members-empty'>Đội chưa có thành viên.</div>
       ) : (
-        <div className='accounts-table'>
-          <div className='accounts-table-row accounts-table-row--head'>
-            <span className='accounts-table-index'>#</span>
-            <span>Họ và tên</span>
-            <span>Email</span>
-            <span>GitHub</span>
-            <span>Trạng thái</span>
-          </div>
-          {members.map((member, idx) => (
-            <div className='accounts-table-row' key={member.userId || `${member.email}-${idx}`}>
-              <span className='accounts-table-index'>{idx + 1}</span>
-              <span className='accounts-table-cell' style={{ fontWeight: 600, color: 'var(--text)' }}>
-                {member.fullName || '—'}
-              </span>
-              <span className='accounts-table-cell accounts-table-cell--muted'>{member.email || '—'}</span>
-              <span className='accounts-table-cell accounts-table-cell--muted'>
-                {member.githubUsername || '—'}
-              </span>
-              <span className='accounts-table-cell accounts-table-cell--status'>
-                <span className={`status-pill ${registrationStatusPillClass(member.status)}`} style={{ cursor: 'default' }}>
-                  {teamStatusLabel(member.status)}
-                </span>
-              </span>
+        <div className='team-registration-members'>
+          <div className='accounts-table team-registration-members-table'>
+            <div className='accounts-table-row accounts-table-row--head'>
+              <span className='accounts-table-index'>#</span>
+              <span>Họ và tên</span>
+              <span>Email</span>
+              <span>GitHub</span>
+              <span>Trạng thái</span>
             </div>
-          ))}
+            {members.map((member, idx) => (
+              <div className='accounts-table-row' key={member.userId || `${member.email}-${idx}`}>
+                <span className='accounts-table-index'>{idx + 1}</span>
+                <span className='accounts-table-cell' style={{ fontWeight: 600, color: 'var(--text)' }}>
+                  {member.fullName || '—'}
+                </span>
+                <span className='accounts-table-cell accounts-table-cell--muted'>{member.email || '—'}</span>
+                <span className='accounts-table-cell accounts-table-cell--muted'>
+                  {member.githubUsername || '—'}
+                </span>
+                <span className='accounts-table-cell accounts-table-cell--status'>
+                  <span className={`status-pill ${registrationStatusPillClass(member.status)}`} style={{ cursor: 'default' }}>
+                    {teamStatusLabel(member.status)}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
-
-      <div style={{ marginTop: 16 }}>
-        <button type='button' className='btn btn-ghost' onClick={handleClose}>
-          Đóng
-        </button>
-      </div>
     </Modal>
   )
 }
@@ -1524,27 +1548,22 @@ function GitHubStatusBadge({ team, onGitHubUpdated }) {
   )
 }
 
-function TeamRegistrationsSection({ teams, onGitHubUpdated, onBulkAccess }) {
+function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess }) {
   const [page, setPage] = useState(1)
   const [activeTeam, setActiveTeam] = useState(null)
 
-  const approvedCount = useMemo(
-    () => teams.filter((t) => String(t.status ?? '').toUpperCase() === 'APPROVED').length,
-    [teams]
-  )
-
   const paginatedTeams = teams.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const handleTeamUpdated = (registrationId, updates) => {
+    onTeamUpdated?.(registrationId, updates)
+    setActiveTeam((prev) => (prev?.registrationId === registrationId ? { ...prev, ...updates } : prev))
+  }
 
   if (!teams.length) {
     return (
       <section className='criteria-manager'>
         <div className='criteria-manager-head'>
-          <div>
-            <h3 className='section-title'>Đăng ký và tích hợp GitHub</h3>
-            <p className='muted' style={{ margin: '4px 0 0' }}>
-              Nhấn vào đội để xem thành viên và trạng thái GitHub
-            </p>
-          </div>
+          <h3 className='section-title'>Đăng ký và tích hợp GitHub</h3>
         </div>
         <div className='empty-state'>Chưa có đội nào tham gia.</div>
       </section>
@@ -1554,18 +1573,10 @@ function TeamRegistrationsSection({ teams, onGitHubUpdated, onBulkAccess }) {
   return (
     <section className='criteria-manager'>
       <div className='criteria-manager-head'>
-        <div>
-          <h3 className='section-title'>Đăng ký và tích hợp GitHub</h3>
-          <p className='muted' style={{ margin: '4px 0 0' }}>
-            Nhấn vào đội để xem thành viên và trạng thái GitHub
-          </p>
-        </div>
+        <h3 className='section-title'>Đăng ký và tích hợp GitHub</h3>
       </div>
 
-      <div className='criteria-modal-toolbar'>
-        <p className='muted' style={{ margin: 0 }}>
-          {teams.length} đội · {approvedCount} đã duyệt
-        </p>
+      <div className='criteria-modal-toolbar' style={{ justifyContent: 'flex-end' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           <button
             type='button'
@@ -1625,7 +1636,7 @@ function TeamRegistrationsSection({ teams, onGitHubUpdated, onBulkAccess }) {
         team={activeTeam}
         isOpen={Boolean(activeTeam)}
         onClose={() => setActiveTeam(null)}
-        onGitHubUpdated={onGitHubUpdated}
+        onTeamUpdated={handleTeamUpdated}
       />
     </section>
   )
@@ -2795,7 +2806,7 @@ export default function EventDetailsPage() {
     loadEvent()
   }, [loadEvent])
 
-  const handleTeamGitHubStatusUpdated = (registrationId, updates) => {
+  const handleTeamUpdated = (registrationId, updates) => {
     setEvent((prev) => {
       if (!prev) return prev
       return {
@@ -3097,7 +3108,7 @@ export default function EventDetailsPage() {
           <div style={{ marginTop: 24 }}>
             <TeamRegistrationsSection
               teams={event.teams || []}
-              onGitHubUpdated={handleTeamGitHubStatusUpdated}
+              onTeamUpdated={handleTeamUpdated}
               onBulkAccess={(grant) => setBulkAccessModal({ isOpen: true, grant, loading: false })}
             />
           </div>

@@ -3629,6 +3629,49 @@ main {
   margin-bottom: 12px;
 }
 
+.team-registration-detail-kv {
+  margin-top: 0;
+  margin-bottom: 6px;
+}
+
+.team-registration-members {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-subtle);
+}
+
+.team-registration-members-empty {
+  margin-top: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.team-registration-members-table.accounts-table {
+  margin-top: 0;
+  gap: 0;
+}
+
+.team-registration-members-table .accounts-table-row {
+  grid-template-columns: 40px 1.2fr 1.4fr 1fr 0.9fr;
+  border-radius: 0;
+  padding: 10px 12px;
+}
+
+.team-registration-members-table .accounts-table-row--head {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.team-registration-members-table .accounts-table-row:not(.accounts-table-row--head) {
+  border-top: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.team-registration-members-table .accounts-table-row:not(.accounts-table-row--head):hover {
+  background: var(--color-background-secondary, var(--bg));
+}
+
 .criteria-list {
   display: flex;
   flex-direction: column;
