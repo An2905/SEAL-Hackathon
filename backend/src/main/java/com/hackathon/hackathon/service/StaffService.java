@@ -102,6 +102,8 @@ public class StaffService {
 
   @Autowired private EventService eventService;
 
+  @Autowired private EmailService emailService;
+
   // region REGIS ACCOUNT FOR ADS
   public MessageResponse registerAccount(String authHeader, CreateStaffAccountRequest request) {
     authService.validateRole(authHeader, "COORDINATOR");
@@ -134,7 +136,14 @@ public class StaffService {
       throw new BadRequestException("Tạo hồ sơ người tham gia thất bại.");
     }
 
-    return new MessageResponse("Đăng ký tài khoản thành công.");
+    boolean emailSent = emailService.sendAccountCredentialsEmail(email, fullName, rawPassword);
+    if (!emailSent) {
+      throw new BadRequestException(
+          "Tạo tài khoản thành công nhưng gửi email thất bại. Vui lòng thử lại hoặc dùng quên mật khẩu.");
+    }
+
+    return new MessageResponse(
+        "Đăng ký tài khoản thành công. Thông tin đăng nhập đã được gửi qua email.");
   }
 
   // endregion

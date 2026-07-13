@@ -38,9 +38,25 @@ public class EmailService {
     return sendEmail(toEmail, "Register OTP", "<h2>Your OTP is: " + escapeHtml(otp) + "</h2>", otp);
   }
 
+  public boolean sendAccountCredentialsEmail(String toEmail, String fullName, String password) {
+    String html =
+        "<h2>Tài khoản Hackathon của bạn đã được tạo</h2>"
+            + "<p>Xin chào "
+            + escapeHtml(fullName)
+            + ",</p>"
+            + "<p>Email đăng nhập: <b>"
+            + escapeHtml(toEmail)
+            + "</b></p>"
+            + "<p>Mật khẩu tạm: <b>"
+            + escapeHtml(password)
+            + "</b></p>"
+            + "<p>Vui lòng đăng nhập và đổi mật khẩu ngay sau lần đăng nhập đầu tiên.</p>";
+    return sendEmail(toEmail, "Thông tin tài khoản Hackathon", html, password);
+  }
+
   private boolean sendEmail(String toEmail, String subject, String htmlContent, String otp) {
     if (devBypass) {
-      System.out.println("=== [DEV BYPASS] OTP for " + toEmail + ": " + otp + " ===");
+      System.out.println("=== [DEV BYPASS] Email to " + toEmail + ": " + otp + " ===");
       return true;
     }
     if (brevoApiKey == null || brevoApiKey.isBlank()) {

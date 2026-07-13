@@ -18,7 +18,9 @@ export async function createStaffAccount({ email, fullName, role }) {
     method: 'POST',
     body: { email, fullName, role }
   })
-  if (!/account created successfully/i.test(text)) throw new Error(text)
+  if (!/account created successfully|đăng ký tài khoản thành công/i.test(text)) {
+    throw new Error(text)
+  }
   return true
 }
 
