@@ -54,12 +54,24 @@ public class EmailService {
     return sendEmail(toEmail, "Thông tin tài khoản Hackathon", html, password);
   }
 
+  private String resolveApiKey() {
+    if (brevoApiKey == null) {
+      return null;
+    }
+    String key = brevoApiKey.trim();
+    if ((key.startsWith("\"") && key.endsWith("\"")) || (key.startsWith("'") && key.endsWith("'"))) {
+      key = key.substring(1, key.length() - 1).trim();
+    }
+    return key;
+  }
+
   private boolean sendEmail(String toEmail, String subject, String htmlContent, String otp) {
     if (devBypass) {
       System.out.println("=== [DEV BYPASS] Email to " + toEmail + ": " + otp + " ===");
       return true;
     }
-    if (brevoApiKey == null || brevoApiKey.isBlank()) {
+    String apiKey = resolveApiKey();
+    if (apiKey == null || apiKey.isBlank()) {
       System.err.println(
           "BREVO_API_KEY is not configured — bật email.dev-bypass=true trong .env.properties để test local");
       return false;
@@ -74,7 +86,7 @@ public class EmailService {
       String json = objectMapper.writeValueAsString(body);
       HttpHeaders headers = new HttpHeaders();
       headers.setContentType(MediaType.APPLICATION_JSON);
-      headers.set("api-key", brevoApiKey);
+      headers.set("api-key", apiKey);
       HttpEntity<String> entity = new HttpEntity<>(json, headers);
       ResponseEntity<String> response =
           restTemplate.exchange(BREVO_URL, HttpMethod.POST, entity, String.class);
