@@ -69,7 +69,7 @@ public class GithubOauthService {
             + "?client_id="
             + urlEncode(githubClientId)
             + "&redirect_uri="
-            + urlEncode(resolveRedirectUri())
+            + urlEncode(githubRedirectUri)
             + "&scope="
             + urlEncode("read:user")
             + "&state="
@@ -197,25 +197,6 @@ public class GithubOauthService {
         || githubClientSecret.isBlank()) {
       throw new BadRequestException("GitHub OAuth is not configured.");
     }
-    if (resolveRedirectUri().isBlank()) {
-      throw new BadRequestException("GitHub redirect URI is not configured.");
-    }
-  }
-
-  private String resolveRedirectUri() {
-    return stripWrappingQuotes(githubRedirectUri);
-  }
-
-  private static String stripWrappingQuotes(String value) {
-    if (value == null) {
-      return "";
-    }
-    String trimmed = value.trim();
-    if ((trimmed.startsWith("\"") && trimmed.endsWith("\""))
-        || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-      return trimmed.substring(1, trimmed.length() - 1).trim();
-    }
-    return trimmed;
   }
 
   private String generateStateToken(String userId) {
@@ -267,7 +248,7 @@ public class GithubOauthService {
             + "&code="
             + urlEncode(code)
             + "&redirect_uri="
-            + urlEncode(resolveRedirectUri());
+            + urlEncode(githubRedirectUri);
 
     HttpRequest request =
         HttpRequest.newBuilder(URI.create("https://github.com/login/oauth/access_token"))
