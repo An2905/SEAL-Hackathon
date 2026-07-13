@@ -2,8 +2,6 @@ package com.hackathon.hackathon.service.github;
 
 import com.hackathon.hackathon.config.GitHubAppConfig;
 import io.jsonwebtoken.Jwts;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -20,8 +18,10 @@ public class GitHubJwtService {
 
   public String generateJwt() {
     try {
-      // Load private key content from file
-      String pemContent = Files.readString(Path.of(config.getPrivateKeyPath()));
+      String pemContent = normalizePem(config.getPrivateKey());
+      if (pemContent == null || pemContent.isBlank()) {
+        throw new IllegalStateException("GITHUB_PRIVATE_KEY is not configured.");
+      }
 
       PrivateKey privateKey = getPrivateKey(pemContent);
 
@@ -38,6 +38,18 @@ public class GitHubJwtService {
     } catch (Exception e) {
       throw new RuntimeException("Failed to generate GitHub JWT", e);
     }
+  }
+
+  private static String normalizePem(String raw) {
+    if (raw == null) {
+      return null;
+    }
+    String pem = raw.trim();
+    // Railway / .env often stores PEM as a single line with literal \n
+    if (pem.contains("\\n")) {
+      pem = pem.replace("\\n", "\n");
+    }
+    return pem;
   }
 
   private PrivateKey getPrivateKey(String pemContent) throws Exception {
