@@ -59,7 +59,8 @@ public class EmailService {
       return null;
     }
     String key = brevoApiKey.trim();
-    if ((key.startsWith("\"") && key.endsWith("\"")) || (key.startsWith("'") && key.endsWith("'"))) {
+    if ((key.startsWith("\"") && key.endsWith("\""))
+        || (key.startsWith("'") && key.endsWith("'"))) {
       key = key.substring(1, key.length() - 1).trim();
     }
     return key;
