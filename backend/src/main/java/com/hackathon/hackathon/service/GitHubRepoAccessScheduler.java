@@ -1,8 +1,7 @@
 package com.hackathon.hackathon.service;
 
 import com.hackathon.hackathon.repository.EventRepository;
-import java.sql.Timestamp;
-import java.time.Instant;
+import com.hackathon.hackathon.util.VietnamTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +20,7 @@ public class GitHubRepoAccessScheduler {
 
   @Scheduled(fixedDelay = 60000)
   public void syncRepositoryAccess() {
-    Timestamp now = Timestamp.from(Instant.now());
+    String now = VietnamTime.nowForDatabase();
     for (EventRepository.RepoAccessSchedule schedule : eventRepository.findRepoAccessSchedules(now)) {
       Boolean previousState = previousAccessStates.put(schedule.eventId(), schedule.accessOpen());
       if (previousState != null && previousState == schedule.accessOpen()) {

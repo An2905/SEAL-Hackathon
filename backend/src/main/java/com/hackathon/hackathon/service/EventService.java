@@ -43,6 +43,7 @@ import com.hackathon.hackathon.repository.EventSetupRepository.EventRoundSetupRo
 import com.hackathon.hackathon.repository.EventSetupRepository.EventSetupRow;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.service.github.GitHubRepoService;
+import com.hackathon.hackathon.util.VietnamTime;
 import io.jsonwebtoken.Claims;
 import java.io.ByteArrayOutputStream;
 import java.sql.Timestamp;
@@ -1361,13 +1362,13 @@ public class EventService {
   // endregion
 
   private void syncAutoEventStatuses() {
-    Timestamp now = Timestamp.from(Instant.now());
+    String now = VietnamTime.nowForDatabase();
     eventSetupRepository.promoteUpcomingToOngoing(now);
     eventSetupRepository.promoteOngoingToCompleted(now);
   }
 
   private void syncAutoEventStatusForEvent(String eventId) {
-    eventSetupRepository.syncAutoStatusForEvent(eventId, Timestamp.from(Instant.now()));
+    eventSetupRepository.syncAutoStatusForEvent(eventId, VietnamTime.nowForDatabase());
   }
 
   private void validateManualEventStatus(String currentStatus, String requestedStatus) {

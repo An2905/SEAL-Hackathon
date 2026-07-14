@@ -281,21 +281,21 @@ public class EventSetupRepository {
     return Optional.empty();
   }
 
-  public int promoteUpcomingToOngoing(Timestamp now) {
+  public int promoteUpcomingToOngoing(String now) {
     String sql =
         "UPDATE events SET status = 'ONGOING' "
             + "WHERE status = 'UPCOMING' AND start_date IS NOT NULL AND start_date <= ?";
-    return executeTimestampUpdate(sql, now);
+    return executeDateTimeUpdate(sql, now);
   }
 
-  public int promoteOngoingToCompleted(Timestamp now) {
+  public int promoteOngoingToCompleted(String now) {
     String sql =
         "UPDATE events SET status = 'COMPLETED' "
             + "WHERE status = 'ONGOING' AND end_date IS NOT NULL AND end_date <= ?";
-    return executeTimestampUpdate(sql, now);
+    return executeDateTimeUpdate(sql, now);
   }
 
-  public void syncAutoStatusForEvent(String eventId, Timestamp now) {
+  public void syncAutoStatusForEvent(String eventId, String now) {
     String sqlUpcoming =
         "UPDATE events SET status = 'ONGOING' "
             + "WHERE event_id = ? AND status = 'UPCOMING' AND start_date IS NOT NULL AND start_date <= ?";
@@ -305,12 +305,12 @@ public class EventSetupRepository {
     try (Connection conn = dataSource.getConnection()) {
       try (PreparedStatement ps = conn.prepareStatement(sqlUpcoming)) {
         ps.setString(1, eventId);
-        ps.setTimestamp(2, now);
+        ps.setString(2, now);
         ps.executeUpdate();
       }
       try (PreparedStatement ps = conn.prepareStatement(sqlOngoing)) {
         ps.setString(1, eventId);
-        ps.setTimestamp(2, now);
+        ps.setString(2, now);
         ps.executeUpdate();
       }
     } catch (Exception e) {
@@ -680,10 +680,10 @@ public class EventSetupRepository {
     }
   }
 
-  private int executeTimestampUpdate(String sql, Timestamp timestamp) {
+  private int executeDateTimeUpdate(String sql, String dateTime) {
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setTimestamp(1, timestamp);
+      ps.setString(1, dateTime);
       return ps.executeUpdate();
     } catch (Exception e) {
       throw new RuntimeException(sql, e);

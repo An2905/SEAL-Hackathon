@@ -401,15 +401,15 @@ public class EventRepository {
     return Optional.empty();
   }
 
-  public boolean hasOngoingRound(String eventId, Timestamp now) {
+  public boolean hasOngoingRound(String eventId, String now) {
     String sql =
         "SELECT 1 FROM rounds WHERE event_id = ? AND start_date IS NOT NULL "
             + "AND start_date <= ? AND (end_date IS NULL OR end_date > ?) LIMIT 1";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, eventId);
-      ps.setTimestamp(2, now);
-      ps.setTimestamp(3, now);
+      ps.setString(2, now);
+      ps.setString(3, now);
       try (ResultSet rs = ps.executeQuery()) {
         return rs.next();
       }
@@ -418,7 +418,7 @@ public class EventRepository {
     }
   }
 
-  public List<RepoAccessSchedule> findRepoAccessSchedules(Timestamp now) {
+  public List<RepoAccessSchedule> findRepoAccessSchedules(String now) {
     List<RepoAccessSchedule> schedules = new ArrayList<>();
     String sql =
         "SELECT e.event_id, "
@@ -430,8 +430,8 @@ public class EventRepository {
             + "FROM events e WHERE EXISTS (SELECT 1 FROM rounds r WHERE r.event_id = e.event_id)";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setTimestamp(1, now);
-      ps.setTimestamp(2, now);
+      ps.setString(1, now);
+      ps.setString(2, now);
       try (ResultSet rs = ps.executeQuery()) {
         while (rs.next()) {
           schedules.add(new RepoAccessSchedule(rs.getString("event_id"), rs.getBoolean("access_open")));

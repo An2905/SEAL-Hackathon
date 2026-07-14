@@ -48,6 +48,7 @@ import com.hackathon.hackathon.repository.TeamRepository;
 import com.hackathon.hackathon.repository.UniversityRepository;
 import com.hackathon.hackathon.repository.UserRepository;
 import com.hackathon.hackathon.service.github.GitHubRepoService;
+import com.hackathon.hackathon.util.VietnamTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -411,7 +412,7 @@ public class StaffService {
       String authHeader, String eventId, boolean grantAccess) {
     authService.validateRole(authHeader, "COORDINATOR");
 
-    if (!eventRepository.hasOngoingRound(eventId, new Timestamp(System.currentTimeMillis()))) {
+    if (!eventRepository.hasOngoingRound(eventId, VietnamTime.nowForDatabase())) {
       throw new BadRequestException(
           "Repository access can only be updated while a round is ongoing.");
     }
