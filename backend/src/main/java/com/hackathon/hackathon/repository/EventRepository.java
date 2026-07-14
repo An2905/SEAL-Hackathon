@@ -401,21 +401,21 @@ public class EventRepository {
     return Optional.empty();
   }
 
-  public Optional<Timestamp> findFirstRoundStartDate(String eventId) {
+  public boolean hasOngoingRound(String eventId, Timestamp now) {
     String sql =
-        "SELECT start_date FROM rounds WHERE event_id = ? ORDER BY round_order ASC LIMIT 1";
+        "SELECT 1 FROM rounds WHERE event_id = ? AND start_date IS NOT NULL "
+            + "AND start_date <= ? AND (end_date IS NULL OR end_date > ?) LIMIT 1";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, eventId);
+      ps.setTimestamp(2, now);
+      ps.setTimestamp(3, now);
       try (ResultSet rs = ps.executeQuery()) {
-        if (rs.next()) {
-          return Optional.ofNullable(rs.getTimestamp("start_date"));
-        }
+        return rs.next();
       }
     } catch (Exception e) {
       throw new RuntimeException(sql, e);
     }
-    return Optional.empty();
   }
 
   public List<RepoAccessSchedule> findRepoAccessSchedules(Timestamp now) {

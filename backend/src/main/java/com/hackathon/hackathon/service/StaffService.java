@@ -411,16 +411,9 @@ public class StaffService {
       String authHeader, String eventId, boolean grantAccess) {
     authService.validateRole(authHeader, "COORDINATOR");
 
-    Timestamp firstRoundStart =
-        eventRepository
-            .findFirstRoundStartDate(eventId)
-            .orElseThrow(
-                () ->
-                    new BadRequestException(
-                        "ChÆ°a thá»ƒ má»Ÿ hoáº·c khÃ³a repository vÃ¬ sá»± kiá»‡n chÆ°a cÃ³ vÃ²ng thi Ä‘áº§u tiÃªn."));
-    if (new Timestamp(System.currentTimeMillis()).before(firstRoundStart)) {
+    if (!eventRepository.hasOngoingRound(eventId, new Timestamp(System.currentTimeMillis()))) {
       throw new BadRequestException(
-          "Chá»‰ cÃ³ thá»ƒ má»Ÿ hoáº·c khÃ³a quyá»n repository tá»« thá»i Ä‘iá»ƒm báº¯t Ä‘áº§u cá»§a vÃ²ng Ä‘áº§u tiÃªn.");
+          "Repository access can only be updated while a round is ongoing.");
     }
 
     return updateEventRepoAccessInternal(eventId, grantAccess);

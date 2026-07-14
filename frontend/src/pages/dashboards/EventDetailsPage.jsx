@@ -105,12 +105,27 @@ function isRoundOngoing(round) {
   return getRoundPhase(round) === 'ongoing'
 }
 
-function getFirstRoundStartTime(rounds) {
-  const firstRound = [...(rounds ?? [])].sort(
-    (a, b) => Number(a.roundOrder ?? 0) - Number(b.roundOrder ?? 0)
-  )[0]
-  const startTime = firstRound?.startDate ? new Date(firstRound.startDate).getTime() : NaN
-  return Number.isFinite(startTime) ? startTime : null
+function getRepoAccessSchedule(rounds, now) {
+  let repoAccessAvailable = false
+  let nextChangeTime = null
+
+  for (const round of rounds ?? []) {
+    const startTime = round?.startDate ? new Date(round.startDate).getTime() : NaN
+    const endTime = round?.endDate ? new Date(round.endDate).getTime() : NaN
+    if (!Number.isFinite(startTime)) continue
+
+    if (startTime <= now && (!Number.isFinite(endTime) || now < endTime)) {
+      repoAccessAvailable = true
+    }
+
+    for (const boundary of [startTime, endTime]) {
+      if (Number.isFinite(boundary) && boundary > now && (nextChangeTime == null || boundary < nextChangeTime)) {
+        nextChangeTime = boundary
+      }
+    }
+  }
+
+  return { repoAccessAvailable, nextChangeTime }
 }
 
 function roundDisplayLabel(round) {
@@ -2822,17 +2837,16 @@ export default function EventDetailsPage() {
   const [error, setError] = useState(null)
   const [bulkAccessModal, setBulkAccessModal] = useState({ isOpen: false, grant: false, loading: false })
   const [now, setNow] = useState(() => Date.now())
-  const firstRoundStartTime = useMemo(() => getFirstRoundStartTime(event?.rounds), [event?.rounds])
-  const repoAccessAvailable = firstRoundStartTime != null && now >= firstRoundStartTime
+  const repoAccessSchedule = useMemo(() => getRepoAccessSchedule(event?.rounds, now), [event?.rounds, now])
+  const repoAccessAvailable = repoAccessSchedule.repoAccessAvailable
 
   useEffect(() => {
-    setNow(Date.now())
-    if (firstRoundStartTime == null) return undefined
+    if (repoAccessSchedule.nextChangeTime == null) return undefined
 
-    const delay = Math.max(0, firstRoundStartTime - Date.now())
+    const delay = Math.max(0, repoAccessSchedule.nextChangeTime - Date.now())
     const timeoutId = window.setTimeout(() => setNow(Date.now()), delay)
     return () => window.clearTimeout(timeoutId)
-  }, [firstRoundStartTime])
+  }, [repoAccessSchedule.nextChangeTime])
 
   const handleBulkAccessConfirm = async () => {
     setBulkAccessModal((prev) => ({ ...prev, loading: true }))
@@ -3192,7 +3206,7 @@ export default function EventDetailsPage() {
               onTeamUpdated={handleTeamUpdated}
               onBulkAccess={(grant) => setBulkAccessModal({ isOpen: true, grant, loading: false })}
               repoAccessAvailable={repoAccessAvailable}
-              firstRoundStartTime={firstRoundStartTime}
+              firstRoundStartTime={repoAccessSchedule.nextChangeTime}
             />
           </div>
 
