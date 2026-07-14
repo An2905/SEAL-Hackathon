@@ -15,6 +15,7 @@ import com.hackathon.hackathon.model.mapper.EventMapper;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -396,6 +397,23 @@ public class EventRepository {
       }
     } catch (Exception e) {
       return Optional.empty();
+    }
+    return Optional.empty();
+  }
+
+  public Optional<Timestamp> findFirstRoundStartDate(String eventId) {
+    String sql =
+        "SELECT start_date FROM rounds WHERE event_id = ? ORDER BY round_order ASC LIMIT 1";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return Optional.ofNullable(rs.getTimestamp("start_date"));
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
     }
     return Optional.empty();
   }

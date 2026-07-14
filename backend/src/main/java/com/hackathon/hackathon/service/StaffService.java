@@ -57,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.sql.Timestamp;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -409,6 +410,18 @@ public class StaffService {
   public MessageResponse updateEventRepoAccess(
       String authHeader, String eventId, boolean grantAccess) {
     authService.validateRole(authHeader, "COORDINATOR");
+
+    Timestamp firstRoundStart =
+        eventRepository
+            .findFirstRoundStartDate(eventId)
+            .orElseThrow(
+                () ->
+                    new BadRequestException(
+                        "ChÆ°a thá»ƒ má»Ÿ hoáº·c khÃ³a repository vÃ¬ sá»± kiá»‡n chÆ°a cÃ³ vÃ²ng thi Ä‘áº§u tiÃªn."));
+    if (new Timestamp(System.currentTimeMillis()).before(firstRoundStart)) {
+      throw new BadRequestException(
+          "Chá»‰ cÃ³ thá»ƒ má»Ÿ hoáº·c khÃ³a quyá»n repository tá»« thá»i Ä‘iá»ƒm báº¯t Ä‘áº§u cá»§a vÃ²ng Ä‘áº§u tiÃªn.");
+    }
 
     List<TeamRegistration> registrations = eventRepository.findTeamRegistrationsByEventId(eventId);
     int successCount = 0;

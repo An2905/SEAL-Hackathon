@@ -105,6 +105,14 @@ function isRoundOngoing(round) {
   return getRoundPhase(round) === 'ongoing'
 }
 
+function getFirstRoundStartTime(rounds) {
+  const firstRound = [...(rounds ?? [])].sort(
+    (a, b) => Number(a.roundOrder ?? 0) - Number(b.roundOrder ?? 0)
+  )[0]
+  const startTime = firstRound?.startDate ? new Date(firstRound.startDate).getTime() : NaN
+  return Number.isFinite(startTime) ? startTime : null
+}
+
 function roundDisplayLabel(round) {
   const name = String(round?.name ?? '').trim()
   if (name) return name
@@ -1545,7 +1553,16 @@ function GitHubStatusBadge({ team, onGitHubUpdated }) {
   )
 }
 
-function TeamRegistrationsBulkActions({ onBulkAccess }) {
+function TeamRegistrationsBulkActions({ onBulkAccess, repoAccessAvailable, firstRoundStartTime }) {
+  if (!repoAccessAvailable) {
+    const availableAt = firstRoundStartTime ? formatEventDateTime(new Date(firstRoundStartTime)) : 'khi cấu hình vòng đầu tiên'
+    return (
+      <span className='card-sub' style={{ margin: 0 }}>
+        Quyền repository sẽ khả dụng từ {availableAt}.
+      </span>
+    )
+  }
+
   return (
     <div className='team-registrations-bulk-actions'>
       <button
@@ -1580,7 +1597,13 @@ function TeamRegistrationsBulkActions({ onBulkAccess }) {
   )
 }
 
-function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess }) {
+function TeamRegistrationsSection({
+  teams,
+  onTeamUpdated,
+  onBulkAccess,
+  repoAccessAvailable,
+  firstRoundStartTime
+}) {
   const [page, setPage] = useState(1)
   const [activeTeam, setActiveTeam] = useState(null)
   const [teamRows, setTeamRows] = useState(teams)
@@ -1631,7 +1654,11 @@ function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess }) {
             <h3 className='section-title' style={{ margin: 0 }}>
               Đăng ký và tích hợp GitHub
             </h3>
-            <TeamRegistrationsBulkActions onBulkAccess={onBulkAccess} />
+            <TeamRegistrationsBulkActions
+              onBulkAccess={onBulkAccess}
+              repoAccessAvailable={repoAccessAvailable}
+              firstRoundStartTime={firstRoundStartTime}
+            />
           </div>
         </div>
         <div className='empty-state'>Chưa có đội nào tham gia.</div>
@@ -1646,7 +1673,11 @@ function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess }) {
           <h3 className='section-title' style={{ margin: 0 }}>
             Đăng ký và tích hợp GitHub
           </h3>
-          <TeamRegistrationsBulkActions onBulkAccess={onBulkAccess} />
+          <TeamRegistrationsBulkActions
+            onBulkAccess={onBulkAccess}
+            repoAccessAvailable={repoAccessAvailable}
+            firstRoundStartTime={firstRoundStartTime}
+          />
         </div>
       </div>
 
@@ -2790,6 +2821,18 @@ export default function EventDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [bulkAccessModal, setBulkAccessModal] = useState({ isOpen: false, grant: false, loading: false })
+  const [now, setNow] = useState(() => Date.now())
+  const firstRoundStartTime = useMemo(() => getFirstRoundStartTime(event?.rounds), [event?.rounds])
+  const repoAccessAvailable = firstRoundStartTime != null && now >= firstRoundStartTime
+
+  useEffect(() => {
+    setNow(Date.now())
+    if (firstRoundStartTime == null) return undefined
+
+    const delay = Math.max(0, firstRoundStartTime - Date.now())
+    const timeoutId = window.setTimeout(() => setNow(Date.now()), delay)
+    return () => window.clearTimeout(timeoutId)
+  }, [firstRoundStartTime])
 
   const handleBulkAccessConfirm = async () => {
     setBulkAccessModal((prev) => ({ ...prev, loading: true }))
@@ -3148,6 +3191,8 @@ export default function EventDetailsPage() {
               teams={event.teams || []}
               onTeamUpdated={handleTeamUpdated}
               onBulkAccess={(grant) => setBulkAccessModal({ isOpen: true, grant, loading: false })}
+              repoAccessAvailable={repoAccessAvailable}
+              firstRoundStartTime={firstRoundStartTime}
             />
           </div>
 
