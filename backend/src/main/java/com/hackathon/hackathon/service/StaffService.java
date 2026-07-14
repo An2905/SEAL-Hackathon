@@ -423,6 +423,15 @@ public class StaffService {
           "Chá»‰ cÃ³ thá»ƒ má»Ÿ hoáº·c khÃ³a quyá»n repository tá»« thá»i Ä‘iá»ƒm báº¯t Ä‘áº§u cá»§a vÃ²ng Ä‘áº§u tiÃªn.");
     }
 
+    return updateEventRepoAccessInternal(eventId, grantAccess);
+  }
+
+  public MessageResponse updateEventRepoAccessAutomatically(String eventId, boolean grantAccess) {
+    return updateEventRepoAccessInternal(eventId, grantAccess);
+  }
+
+  private MessageResponse updateEventRepoAccessInternal(String eventId, boolean grantAccess) {
+
     List<TeamRegistration> registrations = eventRepository.findTeamRegistrationsByEventId(eventId);
     int successCount = 0;
     int skipCount = 0;

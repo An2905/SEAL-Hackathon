@@ -418,6 +418,33 @@ public class EventRepository {
     return Optional.empty();
   }
 
+  public List<RepoAccessSchedule> findRepoAccessSchedules(Timestamp now) {
+    List<RepoAccessSchedule> schedules = new ArrayList<>();
+    String sql =
+        "SELECT e.event_id, "
+            + "CASE WHEN EXISTS ("
+            + "SELECT 1 FROM rounds r WHERE r.event_id = e.event_id "
+            + "AND r.start_date IS NOT NULL AND r.start_date <= ? "
+            + "AND (r.end_date IS NULL OR r.end_date > ?)"
+            + ") THEN 1 ELSE 0 END AS access_open "
+            + "FROM events e WHERE EXISTS (SELECT 1 FROM rounds r WHERE r.event_id = e.event_id)";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setTimestamp(1, now);
+      ps.setTimestamp(2, now);
+      try (ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+          schedules.add(new RepoAccessSchedule(rs.getString("event_id"), rs.getBoolean("access_open")));
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
+    }
+    return schedules;
+  }
+
+  public record RepoAccessSchedule(String eventId, boolean accessOpen) {}
+
   public Optional<String> findNextRoundId(String eventId, int currentRoundOrder) {
     String sql = "SELECT round_id FROM rounds WHERE event_id = ? AND round_order = ? LIMIT 1";
     try (Connection conn = dataSource.getConnection();
