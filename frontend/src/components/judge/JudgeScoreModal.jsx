@@ -34,7 +34,9 @@ function calcPreviewTotal(criteria, form) {
     const raw = form[c.criteriaId]?.score
     const val = parseFloat(raw)
     if (!Number.isFinite(val)) continue
-    total += val * ((Number(c.weight) || 0) / 100)
+    const maxScore = Number(c.maxScore)
+    if (!Number.isFinite(maxScore) || maxScore <= 0) continue
+    total += (val / maxScore) * (Number(c.weight) || 0)
   }
   return Math.round(total * 100) / 100
 }

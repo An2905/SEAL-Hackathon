@@ -20,6 +20,7 @@ import com.hackathon.hackathon.model.mapper.EventMapper;
 import com.hackathon.hackathon.repository.AssignmentRepository;
 import com.hackathon.hackathon.repository.CriteriaRepository;
 import com.hackathon.hackathon.repository.EventRepository;
+import com.hackathon.hackathon.repository.JudgeTeamAssignmentRepository;
 import com.hackathon.hackathon.repository.ScoreRepository;
 import io.jsonwebtoken.Claims;
 import java.util.ArrayList;
@@ -49,6 +50,8 @@ public class JudgeService {
   @Autowired private AssignmentRepository assignmentRepository;
 
   @Autowired private ScoreRepository scoreRepository;
+
+  @Autowired private JudgeTeamAssignmentRepository judgeTeamAssignmentRepository;
 
   @Autowired private MentorService mentorService;
 
@@ -253,6 +256,14 @@ public class JudgeService {
       throw new BadRequestException("Group does not belong to this event.");
     }
 
+    if (!judgeTeamAssignmentRepository.isJudgeAssignedToSubmission(
+        judgeId,
+        request.getSubmissionId().trim(),
+        cleanRoundId,
+        cleanGroupId)) {
+      throw new ForbiddenException("This submission is not assigned to you for scoring.");
+    }
+
     List<EventCriterion> criteriaList = criteriaRepository.findCriteriaByRoundId(cleanRoundId);
     if (criteriaList.isEmpty()) {
       throw new BadRequestException("No criteria configured for this round.");
@@ -303,7 +314,7 @@ public class JudgeService {
     double total = 0.0;
     for (ScoreDetailItemRequest detail : request.getDetails()) {
       EventCriterion criterion = criteriaMap.get(detail.getCriteriaId().trim());
-      total += detail.getScore() * (criterion.getWeight() / 100.0);
+      total += (detail.getScore() / criterion.getMaxScore()) * criterion.getWeight();
     }
 
     // 6. total_score = Σ(score × weight / 100), làm tròn 2 decimal

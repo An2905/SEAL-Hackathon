@@ -61,6 +61,17 @@ export default function JudgeDashboard() {
     [assignments, selectedAssignmentKey]
   )
 
+  const scoringSummary = useMemo(() => {
+    const submitted = teams.filter((team) => Boolean(team.submissionId))
+    const scored = submitted.filter((team) => team.scored).length
+    return {
+      assigned: teams.length,
+      submitted: submitted.length,
+      scored,
+      remaining: submitted.length - scored
+    }
+  }, [teams])
+
   const reloadTeams = useCallback(async (assignment) => {
     if (!assignment) {
       setTeams([])
@@ -289,6 +300,12 @@ export default function JudgeDashboard() {
             )}
             {!loadingTeams && teams.length > 0 && (
               <>
+                <div className='hint' style={{ marginBottom: 12 }}>
+                  Bạn có <strong>{scoringSummary.assigned}</strong> bài được phân công ·{' '}
+                  <strong>{scoringSummary.submitted}</strong> bài đã nộp ·{' '}
+                  <strong>{scoringSummary.scored}</strong> bài đã chấm · Còn{' '}
+                  <strong>{scoringSummary.remaining}</strong> bài chờ chấm
+                </div>
                 <div className='kv-list'>
                   {teams.slice((teamsPage - 1) * JUDGE_PAGE_SIZE, teamsPage * JUDGE_PAGE_SIZE).map((team) => (
                     <div className='kv' style={{ alignItems: 'flex-start' }} key={team.teamId || team.submissionId}>

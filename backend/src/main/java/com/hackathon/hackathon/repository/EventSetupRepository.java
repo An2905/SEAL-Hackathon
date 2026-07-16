@@ -622,11 +622,13 @@ public class EventSetupRepository {
   }
 
   public void deleteJudgeAssignmentsByGroup(String groupId) {
+    executeUpdate("DELETE FROM judge_team_assignments WHERE group_id = ?", groupId);
     String sql = "DELETE FROM judge_assignments WHERE group_id = ?";
     executeUpdate(sql, groupId);
   }
 
   public void deleteJudgeAssignmentsByRound(String roundId) {
+    executeUpdate("DELETE FROM judge_team_assignments WHERE round_id = ?", roundId);
     String sql = "DELETE FROM judge_assignments WHERE round_id = ?";
     executeUpdate(sql, roundId);
   }

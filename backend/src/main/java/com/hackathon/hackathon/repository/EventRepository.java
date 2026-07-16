@@ -15,7 +15,6 @@ import com.hackathon.hackathon.model.mapper.EventMapper;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -444,6 +443,26 @@ public class EventRepository {
   }
 
   public record RepoAccessSchedule(String eventId, boolean accessOpen) {}
+
+  public List<CompletedRoundSchedule> findCompletedRoundSchedules(String now) {
+    List<CompletedRoundSchedule> schedules = new ArrayList<>();
+    String sql =
+        "SELECT round_id FROM rounds WHERE end_date IS NOT NULL AND end_date <= ? ORDER BY end_date ASC";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, now);
+      try (ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+          schedules.add(new CompletedRoundSchedule(rs.getString("round_id")));
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
+    }
+    return schedules;
+  }
+
+  public record CompletedRoundSchedule(String roundId) {}
 
   public Optional<String> findNextRoundId(String eventId, int currentRoundOrder) {
     String sql = "SELECT round_id FROM rounds WHERE event_id = ? AND round_order = ? LIMIT 1";

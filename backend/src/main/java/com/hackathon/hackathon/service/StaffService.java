@@ -39,6 +39,7 @@ import com.hackathon.hackathon.model.mapper.UserMapper;
 import com.hackathon.hackathon.repository.AssignmentRepository;
 import com.hackathon.hackathon.repository.CriteriaRepository;
 import com.hackathon.hackathon.repository.EventRepository;
+import com.hackathon.hackathon.repository.JudgeTeamAssignmentRepository;
 import com.hackathon.hackathon.repository.ParticipantsProfileRepository;
 import com.hackathon.hackathon.repository.StaffAssignmentRepository;
 import com.hackathon.hackathon.repository.StaffEmailRepository;
@@ -58,7 +59,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.sql.Timestamp;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -85,6 +85,8 @@ public class StaffService {
   @Autowired private TeamRegistrationRepository teamRegistrationRepository;
 
   @Autowired private AssignmentRepository assignmentRepository;
+
+  @Autowired private JudgeTeamAssignmentRepository judgeTeamAssignmentRepository;
 
   @Autowired private AuthService authService;
 
@@ -417,14 +419,15 @@ public class StaffService {
           "Repository access can only be updated while a round is ongoing.");
     }
 
-    return updateEventRepoAccessInternal(eventId, grantAccess);
+    return updateEventRepoAccessInternal(eventId, grantAccess, false);
   }
 
   public MessageResponse updateEventRepoAccessAutomatically(String eventId, boolean grantAccess) {
-    return updateEventRepoAccessInternal(eventId, grantAccess);
+    return updateEventRepoAccessInternal(eventId, grantAccess, true);
   }
 
-  private MessageResponse updateEventRepoAccessInternal(String eventId, boolean grantAccess) {
+  private MessageResponse updateEventRepoAccessInternal(
+      String eventId, boolean grantAccess, boolean keepReadOnlyWhenClosed) {
 
     List<TeamRegistration> registrations = eventRepository.findTeamRegistrationsByEventId(eventId);
     int successCount = 0;
@@ -470,6 +473,8 @@ public class StaffService {
         try {
           if (grantAccess) {
             gitHubRepoService.addCollaboratorInternal(owner, repoName, username);
+          } else if (keepReadOnlyWhenClosed) {
+            gitHubRepoService.setReadOnlyCollaboratorInternal(owner, repoName, username);
           } else {
             gitHubRepoService.removeCollaboratorInternal(owner, repoName, username);
           }
@@ -617,6 +622,7 @@ public class StaffService {
     authService.validateRole(authHeader, "COORDINATOR");
     validateJudgeAssignmentKeys(eventId, judgeId, roundId, groupId);
     assertJudgeAssignmentInEvent(eventId, judgeId, roundId, groupId);
+    assertNoJudgeTeamAssignments(roundId, groupId);
 
     if (!staffAssignmentRepository.deleteJudgeAssignment(judgeId, roundId, groupId)) {
       throw new BadRequestException("Xóa phân công judge thất bại.");
@@ -642,6 +648,7 @@ public class StaffService {
     }
 
     assertJudgeAssignmentInEvent(eventId, oldJudgeId, oldRoundId, oldGroupId);
+    assertNoJudgeTeamAssignments(oldRoundId, oldGroupId);
     if (!eventRepository.roundBelongsToEvent(newRoundId, eventId)) {
       throw new BadRequestException("Vòng mới không thuộc sự kiện này.");
     }
@@ -671,6 +678,13 @@ public class StaffService {
   }
 
   // endregion
+
+  private void assertNoJudgeTeamAssignments(String roundId, String groupId) {
+    if (judgeTeamAssignmentRepository.hasAssignmentsForGroup(roundId, groupId)) {
+      throw new ConflictException(
+          "KhÃ´ng thá»ƒ thay Ä‘á»•i phÃ¢n cÃ´ng giÃ¡m kháº£o sau khi bÃ i thi Ä‘Ã£ Ä‘Æ°á»£c phÃ¢n cháº¥m.");
+    }
+  }
 
   private void validateMentorAssignmentKeys(
       String eventId, String roundId, String groupId, String mentorId) {

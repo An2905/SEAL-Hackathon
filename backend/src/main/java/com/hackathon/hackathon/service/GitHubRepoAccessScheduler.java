@@ -15,6 +15,7 @@ public class GitHubRepoAccessScheduler {
 
   @Autowired private EventRepository eventRepository;
   @Autowired private StaffService staffService;
+  @Autowired private JudgeRepositoryProvisioningService judgeRepositoryProvisioningService;
 
   private final Map<String, Boolean> previousAccessStates = new ConcurrentHashMap<>();
 
@@ -31,14 +32,24 @@ public class GitHubRepoAccessScheduler {
         staffService.updateEventRepoAccessAutomatically(schedule.eventId(), schedule.accessOpen());
         log.info(
             "Automatically {} repository access for event {}",
-            schedule.accessOpen() ? "granted" : "revoked",
+            schedule.accessOpen() ? "granted write access to" : "downgraded to read-only for",
             schedule.eventId());
       } catch (Exception e) {
         log.error(
             "Failed to automatically {} repository access for event {}",
-            schedule.accessOpen() ? "grant" : "revoke",
+            schedule.accessOpen() ? "grant write access to" : "downgrade to read-only for",
             schedule.eventId(),
             e);
+      }
+    }
+
+    for (EventRepository.CompletedRoundSchedule schedule : eventRepository.findCompletedRoundSchedules(now)) {
+      int provisioned = judgeRepositoryProvisioningService.provisionCompletedRound(schedule.roundId());
+      if (provisioned > 0) {
+        log.info(
+            "Provisioned {} read-only judge repository assignments for completed round {}",
+            provisioned,
+            schedule.roundId());
       }
     }
   }

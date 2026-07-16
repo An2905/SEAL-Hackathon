@@ -55,7 +55,16 @@ public class GitHubRepoService {
   }
 
   public Map<String, Object> addCollaboratorInternal(String owner, String repo, String username) {
-    Map<String, String> body = Map.of("permission", "push");
+    return setCollaboratorPermissionInternal(owner, repo, username, "push");
+  }
+
+  public Map<String, Object> setReadOnlyCollaboratorInternal(String owner, String repo, String username) {
+    return setCollaboratorPermissionInternal(owner, repo, username, "pull");
+  }
+
+  private Map<String, Object> setCollaboratorPermissionInternal(
+      String owner, String repo, String username, String permission) {
+    Map<String, String> body = Map.of("permission", permission);
     return restClient
         .put()
         .uri(config.getApiBaseUrl() + "/repos/" + owner + "/" + repo + "/collaborators/" + username)
