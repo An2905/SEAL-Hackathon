@@ -3707,6 +3707,10 @@ main {
   justify-content: flex-end;
 }
 
+.team-registrations-view-commits-btn {
+  margin-left: auto;
+}
+
 .team-registrations-list {
   margin-bottom: 0;
 }

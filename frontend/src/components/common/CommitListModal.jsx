@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Modal from './Modal'
 import { listCommits, getCommit } from '../../api/githubRepo'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 
 const PER_PAGE = 20
+const FILES_PER_PAGE = 30
 
 function shortSha(sha) {
   return String(sha || '').slice(0, 7)
@@ -32,34 +33,85 @@ function fileStatusColor(status) {
   return '#2563eb'
 }
 
-function CommitDetail({ owner, repo, sha, onBack }) {
+function commitsFromPageCache(pageCache) {
+  return Array.from(pageCache.keys())
+    .sort((a, b) => a - b)
+    .flatMap((page) => pageCache.get(page) ?? [])
+}
+
+function CommitDetail({ owner, repo, sha, detailCacheRef, onBack }) {
   const { showToast } = useToast()
-  const [detail, setDetail] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [filePage, setFilePage] = useState(1)
+  const cached = detailCacheRef.current.get(sha)
+  const [detail, setDetail] = useState(cached?.detail ?? null)
+  const [loading, setLoading] = useState(!cached?.detail)
+  const [error, setError] = useState(null)
+  const [filePage, setFilePage] = useState(cached?.filePage ?? 1)
   const [loadingMore, setLoadingMore] = useState(false)
 
-  const load = useCallback(async () => {
+  const updateCache = useCallback(
+    (nextDetail, nextFilePage) => {
+      detailCacheRef.current.set(sha, { detail: nextDetail, filePage: nextFilePage })
+    },
+    [detailCacheRef, sha]
+  )
+
+  const loadDetail = useCallback(async () => {
+    const hit = detailCacheRef.current.get(sha)
+    if (hit?.detail) {
+      setDetail(hit.detail)
+      setFilePage(hit.filePage ?? 1)
+      setLoading(false)
+      setError(null)
+      return
+    }
+
+    setLoading(true)
+    setError(null)
     try {
-      const data = await getCommit({ owner, repo, ref: sha, perPage: 30, page: 1 })
+      const data = await getCommit({ owner, repo, ref: sha, perPage: FILES_PER_PAGE, page: 1 })
       setDetail(data)
+      setFilePage(1)
+      updateCache(data, 1)
     } catch (err) {
-      showToast(localizeError(err.message), 'error')
+      const message = localizeError(err.message)
+      setError(message)
+      showToast(message, 'error')
     } finally {
       setLoading(false)
     }
-  }, [owner, repo, sha, showToast])
+  }, [owner, repo, sha, showToast, detailCacheRef, updateCache])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    loadDetail()
+  }, [loadDetail])
 
   const loadMoreFiles = async () => {
+    const next = filePage + 1
+    const fileCacheKey = `${sha}:files:${next}`
+    const filePageCache = detailCacheRef.current.get(fileCacheKey)
+    if (filePageCache) {
+      const merged = {
+        ...detail,
+        files: [...(detail?.files ?? []), ...filePageCache]
+      }
+      setDetail(merged)
+      setFilePage(next)
+      updateCache(merged, next)
+      return
+    }
+
     setLoadingMore(true)
     try {
-      const next = filePage + 1
-      const data = await getCommit({ owner, repo, ref: sha, perPage: 30, page: next })
+      const data = await getCommit({ owner, repo, ref: sha, perPage: FILES_PER_PAGE, page: next })
       const newFiles = data?.files ?? []
-      setDetail((prev) => ({ ...prev, files: [...(prev?.files ?? []), ...newFiles] }))
+      detailCacheRef.current.set(fileCacheKey, newFiles)
+      const merged = {
+        ...detail,
+        files: [...(detail?.files ?? []), ...newFiles]
+      }
+      setDetail(merged)
       setFilePage(next)
+      updateCache(merged, next)
     } catch (err) {
       showToast(localizeError(err.message), 'error')
     } finally {
@@ -77,26 +129,25 @@ function CommitDetail({ owner, repo, sha, onBack }) {
         ← Danh sách commit
       </button>
 
-      {loading && <p className='hint'>Đang tải...</p>}
+      {loading && <p className='hint'>Đang tải chi tiết commit...</p>}
+      {error && !loading && <p className='field-error'>{error}</p>}
 
-      {!loading && detail && (
+      {!loading && !error && detail && (
         <>
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
-              {commitData.message || '(no message)'}
-            </div>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{commitData.message || '(no message)'}</div>
             <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
               {commitData.author?.name} · {formatDate(commitData.author?.date)}
             </div>
-            <code style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4, display: 'block' }}>
-              {detail.sha}
-            </code>
+            <code style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4, display: 'block' }}>{detail.sha}</code>
           </div>
 
           <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
             <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>+{stats.additions ?? 0}</span>
             <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>−{stats.deletions ?? 0}</span>
-            <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{stats.total ?? 0} thay đổi · {files.length} file</span>
+            <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+              {stats.total ?? 0} thay đổi · {files.length} file
+            </span>
           </div>
 
           <div className='kv-list'>
@@ -124,7 +175,7 @@ function CommitDetail({ owner, repo, sha, onBack }) {
             ))}
           </div>
 
-          {files.length === 30 * filePage && (
+          {files.length === FILES_PER_PAGE * filePage && (
             <button
               type='button'
               className='btn btn-outline btn-sm'
@@ -141,39 +192,13 @@ function CommitDetail({ owner, repo, sha, onBack }) {
   )
 }
 
-function CommitList({ owner, repo, onSelect }) {
-  const { showToast } = useToast()
-  const [commits, setCommits] = useState([])
-  const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-  const [initialLoaded, setInitialLoaded] = useState(false)
-
-  const loadPage = useCallback(async (pageNum) => {
-    setLoading(true)
-    try {
-      const data = await listCommits({ owner, repo, perPage: PER_PAGE, page: pageNum })
-      const rows = Array.isArray(data) ? data : []
-      setCommits((prev) => [...prev, ...rows])
-      setPage(pageNum)
-      setHasMore(rows.length === PER_PAGE)
-    } catch (err) {
-      showToast(localizeError(err.message), 'error')
-    } finally {
-      setLoading(false)
-      setInitialLoaded(true)
-    }
-  }, [owner, repo, showToast])
-
-  useEffect(() => { loadPage(1) }, [owner, repo])
-
+function CommitList({ commits, page, hasMore, loading, error, initialLoaded, onSelect, onLoadMore }) {
   return (
     <div>
-      {!initialLoaded && <p className='hint'>Đang tải commit...</p>}
+      {!initialLoaded && loading && <p className='hint'>Đang tải commit...</p>}
+      {error && <p className='field-error'>{error}</p>}
 
-      {commits.length === 0 && initialLoaded && (
-        <p className='hint'>Không có commit nào.</p>
-      )}
+      {commits.length === 0 && initialLoaded && !loading && !error && <p className='hint'>Không có commit nào.</p>}
 
       <div className='kv-list'>
         {commits.map((c) => {
@@ -202,7 +227,15 @@ function CommitList({ owner, repo, onSelect }) {
                   {shortSha(sha)}
                 </code>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 500,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
                     {firstLine(msg) || '(no message)'}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
@@ -220,7 +253,7 @@ function CommitList({ owner, repo, onSelect }) {
           type='button'
           className='btn btn-outline btn-sm'
           style={{ marginTop: 10, width: '100%' }}
-          onClick={() => loadPage(page + 1)}
+          onClick={onLoadMore}
           disabled={loading}
         >
           {loading ? 'Đang tải...' : `Tải thêm ${PER_PAGE} commit`}
@@ -229,19 +262,154 @@ function CommitList({ owner, repo, onSelect }) {
 
       {!hasMore && commits.length > 0 && (
         <p className='hint' style={{ textAlign: 'center', marginTop: 8 }}>
-          Đã tải hết {commits.length} commit
+          Đã tải hết {commits.length} commit{page > 1 ? ` (${page} trang)` : ''}
         </p>
       )}
     </div>
   )
 }
 
-export default function CommitListModal({ isOpen, onClose, owner, repo, teamName }) {
+export default function CommitListModal({
+  isOpen,
+  onClose,
+  owner,
+  repo,
+  teamName,
+  sha: filterSha,
+  author,
+  since,
+  until
+}) {
+  const { showToast } = useToast()
   const [selectedSha, setSelectedSha] = useState(null)
 
-  const handleClose = () => {
+  const pageCacheRef = useRef(new Map())
+  const detailCacheRef = useRef(new Map())
+
+  const [commits, setCommits] = useState([])
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [initialLoaded, setInitialLoaded] = useState(false)
+
+  const filters = useMemo(
+    () => ({
+      sha: filterSha || undefined,
+      author: author || undefined,
+      since: since || undefined,
+      until: until || undefined
+    }),
+    [filterSha, author, since, until]
+  )
+
+  const filterKey = useMemo(() => JSON.stringify({ owner, repo, ...filters }), [owner, repo, filters])
+
+  const resetListState = useCallback(() => {
+    pageCacheRef.current.clear()
+    detailCacheRef.current.clear()
     setSelectedSha(null)
+    setCommits([])
+    setPage(0)
+    setHasMore(true)
+    setLoading(false)
+    setError(null)
+    setInitialLoaded(false)
+  }, [])
+
+  const syncCommitsFromCache = useCallback(() => {
+    setCommits(commitsFromPageCache(pageCacheRef.current))
+  }, [])
+
+  const loadPage = useCallback(
+    async (pageNum) => {
+      if (pageCacheRef.current.has(pageNum)) {
+        syncCommitsFromCache()
+        setPage(pageNum)
+        setHasMore((pageCacheRef.current.get(pageNum)?.length ?? 0) === PER_PAGE)
+        setInitialLoaded(true)
+        return
+      }
+
+      setLoading(true)
+      setError(null)
+      try {
+        const data = await listCommits({
+          owner,
+          repo,
+          ...filters,
+          perPage: PER_PAGE,
+          page: pageNum
+        })
+        const rows = Array.isArray(data) ? data : []
+        pageCacheRef.current.set(pageNum, rows)
+        syncCommitsFromCache()
+        setPage(pageNum)
+        setHasMore(rows.length === PER_PAGE)
+      } catch (err) {
+        const message = localizeError(err.message)
+        setError(message)
+        showToast(message, 'error')
+      } finally {
+        setLoading(false)
+        setInitialLoaded(true)
+      }
+    },
+    [owner, repo, filters, showToast, syncCommitsFromCache]
+  )
+
+  useEffect(() => {
+    if (!isOpen) {
+      resetListState()
+      return undefined
+    }
+
+    resetListState()
+
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const data = await listCommits({
+          owner,
+          repo,
+          ...filters,
+          perPage: PER_PAGE,
+          page: 1
+        })
+        if (cancelled) return
+        const rows = Array.isArray(data) ? data : []
+        pageCacheRef.current.set(1, rows)
+        setCommits(rows)
+        setPage(1)
+        setHasMore(rows.length === PER_PAGE)
+      } catch (err) {
+        if (cancelled) return
+        const message = localizeError(err.message)
+        setError(message)
+        showToast(message, 'error')
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+          setInitialLoaded(true)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, filterKey, owner, repo, filters, resetListState, showToast])
+
+  const handleClose = () => {
+    resetListState()
     onClose()
+  }
+
+  const handleLoadMore = () => {
+    if (loading || !hasMore) return
+    loadPage(page + 1)
   }
 
   return (
@@ -258,10 +426,20 @@ export default function CommitListModal({ isOpen, onClose, owner, repo, teamName
             owner={owner}
             repo={repo}
             sha={selectedSha}
+            detailCacheRef={detailCacheRef}
             onBack={() => setSelectedSha(null)}
           />
         ) : (
-          <CommitList owner={owner} repo={repo} onSelect={setSelectedSha} />
+          <CommitList
+            commits={commits}
+            page={page}
+            hasMore={hasMore}
+            loading={loading}
+            error={error}
+            initialLoaded={initialLoaded}
+            onSelect={setSelectedSha}
+            onLoadMore={handleLoadMore}
+          />
         )}
       </div>
     </Modal>

@@ -38,6 +38,7 @@ import {
 import FormField from '../../components/common/FormField'
 import LoadingButton from '../../components/common/LoadingButton'
 import { useToast } from '../../context/ToastContext'
+import { useAuth } from '../../context/AuthContext'
 import { localizeError } from '../../utils/errors'
 import {
   BUILDING_STATUS_OPTIONS,
@@ -1007,12 +1008,7 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
                   </LoadingButton>
                 </div>
                 <div className='event-board-modal-actions-right'>
-                  <LoadingButton
-                    loading={saving}
-                    type='submit'
-                    disabled={busy}
-                    className='btn btn-primary btn-sm'
-                  >
+                  <LoadingButton loading={saving} type='submit' disabled={busy} className='btn btn-primary btn-sm'>
                     Lưu
                   </LoadingButton>
                   <button
@@ -1276,15 +1272,46 @@ function githubStatusShortLabel(status) {
   return 'Chưa khởi tạo GitHub'
 }
 
+const COMMIT_VIEW_ROLES = new Set(['COORDINATOR', 'EXPERT_INTERNAL', 'EXPERT_EXTERNAL'])
+const REPO_NOT_LINKED_TOOLTIP = 'Repository chưa được tạo hoặc chưa liên kết GitHub.'
+
+function teamHasLinkedGitHubRepo(team) {
+  const status = String(team?.githubStatus ?? '').toUpperCase()
+  if (status !== 'SUCCESS') return false
+  return Boolean(parseGitHubRepoUrl(team?.githubRepoUrl))
+}
+
+function getTeamsWithLinkedRepos(teams) {
+  return (teams ?? []).filter(teamHasLinkedGitHubRepo)
+}
+
+function IconCommitHistory({ size = 14 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox='0 0 24 24'
+      fill='none'
+      stroke='currentColor'
+      strokeWidth='2'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+      aria-hidden='true'
+    >
+      <circle cx='12' cy='12' r='3' />
+      <line x1='12' y1='3' x2='12' y2='9' />
+      <line x1='12' y1='15' x2='12' y2='21' />
+    </svg>
+  )
+}
+
 function registrationMatches(a, b) {
   return normalizeRegistrationId(a) === normalizeRegistrationId(b)
 }
 
 function patchTeamRegistration(list, registrationId, updates) {
   if (!Array.isArray(list)) return list
-  return list.map((team) =>
-    registrationMatches(team.registrationId, registrationId) ? { ...team, ...updates } : team
-  )
+  return list.map((team) => (registrationMatches(team.registrationId, registrationId) ? { ...team, ...updates } : team))
 }
 
 function TeamRegistrationStatusPicker({ team, onUpdated }) {
@@ -1391,11 +1418,12 @@ function TeamRegistrationDetailModal({ team, isOpen, onClose, onTeamUpdated }) {
                   {member.fullName || '—'}
                 </span>
                 <span className='accounts-table-cell accounts-table-cell--muted'>{member.email || '—'}</span>
-                <span className='accounts-table-cell accounts-table-cell--muted'>
-                  {member.githubUsername || '—'}
-                </span>
+                <span className='accounts-table-cell accounts-table-cell--muted'>{member.githubUsername || '—'}</span>
                 <span className='accounts-table-cell accounts-table-cell--status'>
-                  <span className={`status-pill ${registrationStatusPillClass(member.status)}`} style={{ cursor: 'default' }}>
+                  <span
+                    className={`status-pill ${registrationStatusPillClass(member.status)}`}
+                    style={{ cursor: 'default' }}
+                  >
                     {teamStatusLabel(member.status)}
                   </span>
                 </span>
@@ -1568,9 +1596,20 @@ function GitHubStatusBadge({ team, onGitHubUpdated }) {
   )
 }
 
-function TeamRegistrationsBulkActions({ onBulkAccess, repoAccessAvailable, firstRoundStartTime }) {
-  if (!repoAccessAvailable) {
-    const availableAt = firstRoundStartTime ? formatEventDateTime(new Date(firstRoundStartTime)) : 'khi cấu hình vòng đầu tiên'
+function TeamRegistrationsBulkActions({
+  onBulkAccess,
+  repoAccessAvailable,
+  firstRoundStartTime,
+  onViewCommits,
+  viewCommitsDisabled
+}) {
+  const { auth } = useAuth()
+  const showViewCommits = COMMIT_VIEW_ROLES.has(auth.role)
+
+  if (!repoAccessAvailable && !showViewCommits) {
+    const availableAt = firstRoundStartTime
+      ? formatEventDateTime(new Date(firstRoundStartTime))
+      : 'khi cấu hình vòng đầu tiên'
     return (
       <span className='card-sub' style={{ margin: 0 }}>
         Quyền repository sẽ khả dụng từ {availableAt}.
@@ -1580,48 +1619,80 @@ function TeamRegistrationsBulkActions({ onBulkAccess, repoAccessAvailable, first
 
   return (
     <div className='team-registrations-bulk-actions'>
-      <button
-        type='button'
-        className='btn btn-outline btn-sm'
-        style={{
-          borderColor: '#22c55e',
-          color: '#16a34a',
-          padding: '6px 12px',
-          height: 'auto',
-          minHeight: 0
-        }}
-        onClick={() => onBulkAccess?.(true)}
-      >
-        Mở quyền làm bài (Tất cả)
-      </button>
-      <button
-        type='button'
-        className='btn btn-outline btn-sm'
-        style={{
-          borderColor: '#ef4444',
-          color: '#dc2626',
-          padding: '6px 12px',
-          height: 'auto',
-          minHeight: 0
-        }}
-        onClick={() => onBulkAccess?.(false)}
-      >
-        Khóa quyền làm bài (Tất cả)
-      </button>
+      {repoAccessAvailable ? (
+        <>
+          <button
+            type='button'
+            className='btn btn-outline btn-sm'
+            style={{
+              borderColor: '#22c55e',
+              color: '#16a34a',
+              padding: '6px 12px',
+              height: 'auto',
+              minHeight: 0
+            }}
+            onClick={() => onBulkAccess?.(true)}
+          >
+            Mở quyền làm bài (Tất cả)
+          </button>
+          <button
+            type='button'
+            className='btn btn-outline btn-sm'
+            style={{
+              borderColor: '#ef4444',
+              color: '#dc2626',
+              padding: '6px 12px',
+              height: 'auto',
+              minHeight: 0
+            }}
+            onClick={() => onBulkAccess?.(false)}
+          >
+            Khóa quyền làm bài (Tất cả)
+          </button>
+        </>
+      ) : (
+        <span className='card-sub' style={{ margin: 0 }}>
+          Quyền repository sẽ khả dụng từ{' '}
+          {firstRoundStartTime ? formatEventDateTime(new Date(firstRoundStartTime)) : 'khi cấu hình vòng đầu tiên'}.
+        </span>
+      )}
+      {showViewCommits && (
+        <button
+          type='button'
+          className='btn btn-outline btn-sm team-registrations-view-commits-btn'
+          style={{
+            borderColor: 'var(--accent,#2563eb)',
+            color: 'var(--accent,#2563eb)',
+            padding: '6px 12px',
+            height: 'auto',
+            minHeight: 0,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6
+          }}
+          onClick={onViewCommits}
+          disabled={viewCommitsDisabled}
+          title={viewCommitsDisabled ? REPO_NOT_LINKED_TOOLTIP : undefined}
+        >
+          <IconCommitHistory />
+          Xem Commits
+        </button>
+      )}
     </div>
   )
 }
 
-function TeamRegistrationsSection({
-  teams,
-  onTeamUpdated,
-  onBulkAccess,
-  repoAccessAvailable,
-  firstRoundStartTime
-}) {
+function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess, repoAccessAvailable, firstRoundStartTime }) {
   const [page, setPage] = useState(1)
   const [activeTeam, setActiveTeam] = useState(null)
   const [teamRows, setTeamRows] = useState(teams)
+  const [commitTeam, setCommitTeam] = useState(null)
+  const [commitModalOpen, setCommitModalOpen] = useState(false)
+  const [teamPickerOpen, setTeamPickerOpen] = useState(false)
+
+  const teamsWithLinkedRepos = useMemo(() => getTeamsWithLinkedRepos(teamRows), [teamRows])
+  const viewCommitsDisabled = teamsWithLinkedRepos.length === 0
+  const commitRepo = useMemo(() => (commitTeam ? parseGitHubRepoUrl(commitTeam.githubRepoUrl) : null), [commitTeam])
 
   useEffect(() => {
     setTeamRows(teams)
@@ -1641,11 +1712,7 @@ function TeamRegistrationsSection({
   )
 
   const paginatedTeams = useMemo(
-    () =>
-      sortedTeamRows.slice(
-        (page - 1) * TEAM_REGISTRATIONS_PAGE_SIZE,
-        page * TEAM_REGISTRATIONS_PAGE_SIZE
-      ),
+    () => sortedTeamRows.slice((page - 1) * TEAM_REGISTRATIONS_PAGE_SIZE, page * TEAM_REGISTRATIONS_PAGE_SIZE),
     [sortedTeamRows, page]
   )
 
@@ -1661,6 +1728,80 @@ function TeamRegistrationsSection({
     onTeamUpdated?.(registrationId, updates)
   }
 
+  const openCommitModalForTeam = (team) => {
+    setCommitTeam(team)
+    setCommitModalOpen(true)
+  }
+
+  const handleViewCommits = () => {
+    if (viewCommitsDisabled) return
+    if (teamsWithLinkedRepos.length === 1) {
+      openCommitModalForTeam(teamsWithLinkedRepos[0])
+      return
+    }
+    setTeamPickerOpen(true)
+  }
+
+  const handleSelectCommitTeam = (team) => {
+    setTeamPickerOpen(false)
+    openCommitModalForTeam(team)
+  }
+
+  const bulkActionsProps = {
+    onBulkAccess,
+    repoAccessAvailable,
+    firstRoundStartTime,
+    onViewCommits: handleViewCommits,
+    viewCommitsDisabled
+  }
+
+  const commitModals = (
+    <>
+      <Modal
+        isOpen={teamPickerOpen}
+        onClose={() => setTeamPickerOpen(false)}
+        title='Chọn đội'
+        subtitle='Chọn repository để xem lịch sử commit'
+      >
+        <div className='kv-list'>
+          {teamsWithLinkedRepos.map((team) => (
+            <button
+              key={team.registrationId || team.teamId}
+              type='button'
+              onClick={() => handleSelectCommitTeam(team)}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                background: 'none',
+                border: 'none',
+                borderBottom: '1px solid var(--border-soft, #f5f5f5)',
+                padding: '10px 0',
+                cursor: 'pointer'
+              }}
+            >
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{team.teamName || '—'}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{team.githubRepoUrl}</div>
+            </button>
+          ))}
+        </div>
+      </Modal>
+
+      {commitRepo && (
+        <CommitListModal
+          isOpen={commitModalOpen}
+          onClose={() => {
+            setCommitModalOpen(false)
+            setCommitTeam(null)
+          }}
+          owner={commitRepo.owner}
+          repo={commitRepo.repo}
+          teamName={commitTeam?.teamName}
+        />
+      )}
+    </>
+  )
+
   if (!teamRows.length) {
     return (
       <section className='criteria-manager'>
@@ -1669,14 +1810,11 @@ function TeamRegistrationsSection({
             <h3 className='section-title' style={{ margin: 0 }}>
               Đăng ký và tích hợp GitHub
             </h3>
-            <TeamRegistrationsBulkActions
-              onBulkAccess={onBulkAccess}
-              repoAccessAvailable={repoAccessAvailable}
-              firstRoundStartTime={firstRoundStartTime}
-            />
+            <TeamRegistrationsBulkActions {...bulkActionsProps} />
           </div>
         </div>
         <div className='empty-state'>Chưa có đội nào tham gia.</div>
+        {commitModals}
       </section>
     )
   }
@@ -1688,11 +1826,7 @@ function TeamRegistrationsSection({
           <h3 className='section-title' style={{ margin: 0 }}>
             Đăng ký và tích hợp GitHub
           </h3>
-          <TeamRegistrationsBulkActions
-            onBulkAccess={onBulkAccess}
-            repoAccessAvailable={repoAccessAvailable}
-            firstRoundStartTime={firstRoundStartTime}
-          />
+          <TeamRegistrationsBulkActions {...bulkActionsProps} />
         </div>
       </div>
 
@@ -1731,6 +1865,8 @@ function TeamRegistrationsSection({
         onClose={() => setActiveTeam(null)}
         onTeamUpdated={handleTeamUpdated}
       />
+
+      {commitModals}
     </section>
   )
 }
@@ -2770,7 +2906,6 @@ function EventDetailInfoPanel({ event, onUpdated }) {
           </select>
         )}
       </FormField>
-
     </form>
   )
 
