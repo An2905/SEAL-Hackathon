@@ -86,7 +86,7 @@ public class SecurityConfig {
   }
 
   @Bean
-  public ObjectMapper objectMapper() {
+  public static ObjectMapper objectMapper() {
     return new ObjectMapper();
   }
 
