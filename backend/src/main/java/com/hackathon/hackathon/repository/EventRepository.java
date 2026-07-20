@@ -236,7 +236,7 @@ public class EventRepository {
   public List<TeamRegistration> findTeamRegistrationsByEventId(String eventId) {
     List<TeamRegistration> registrations = new ArrayList<>();
     String sql =
-        "SELECT tr.registration_id, t.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url "
+        "SELECT tr.registration_id, t.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url, tr.github_team_slug "
             + "FROM team_registrations tr JOIN teams t ON tr.team_id = t.team_id WHERE tr.event_id = ?";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -255,7 +255,7 @@ public class EventRepository {
   public List<TeamRegistration> findAssignedTeamsInGroup(String groupId, String eventId) {
     List<TeamRegistration> registrations = new ArrayList<>();
     String sql =
-        "SELECT tr.registration_id, gt.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url "
+        "SELECT tr.registration_id, gt.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url, tr.github_team_slug "
             + "FROM group_teams gt "
             + "INNER JOIN teams t ON gt.team_id = t.team_id "
             + "INNER JOIN team_registrations tr ON tr.team_id = gt.team_id AND tr.event_id = ? "
@@ -279,7 +279,7 @@ public class EventRepository {
   public List<TeamRegistration> findAvailableTeamsForRound(String eventId, String roundId) {
     List<TeamRegistration> registrations = new ArrayList<>();
     String sql =
-        "SELECT tr.registration_id, tr.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url "
+        "SELECT tr.registration_id, tr.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url, tr.github_team_slug "
             + "FROM team_registrations tr "
             + "JOIN teams t ON tr.team_id = t.team_id "
             + "JOIN rounds curr ON curr.round_id = ? AND curr.event_id = ? "
@@ -342,7 +342,7 @@ public class EventRepository {
     List<TeamRegistration> registrations = new ArrayList<>();
     StringBuilder sql =
         new StringBuilder(
-            "SELECT tr.registration_id, tr.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url "
+            "SELECT tr.registration_id, tr.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url, tr.github_team_slug "
                 + "FROM team_registrations tr "
                 + "JOIN teams t ON tr.team_id = t.team_id "
                 + "JOIN rounds curr ON curr.round_id = ? AND curr.event_id = ? "

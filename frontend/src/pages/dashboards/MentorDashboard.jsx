@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
-import {
-  getAssignedEvents,
-  getAssignedTeams,
-  getGroupColleagues,
-  getMentorAssignments
-} from '../../api/mentor'
+import { getAssignedEvents, getAssignedTeams, getGroupColleagues, getMentorAssignments } from '../../api/mentor'
 import ExpertGroupColleaguesBoard from '../../components/expert/ExpertGroupColleaguesBoard'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -72,7 +67,14 @@ function EventListView({ events, onSelect }) {
           type='button'
           className='mentor-team-card'
           onClick={() => onSelect(ev.eventId)}
-          style={{ width: '100%', textAlign: 'left', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
+          style={{
+            width: '100%',
+            textAlign: 'left',
+            cursor: 'pointer',
+            background: 'none',
+            border: 'none',
+            padding: 0
+          }}
         >
           <div className='kv' style={{ alignItems: 'center' }}>
             <span style={{ minWidth: 0, flex: 1 }}>
@@ -253,7 +255,14 @@ function EventDetailView({
                   type='button'
                   className='mentor-team-card'
                   onClick={() => onTeamClick(team)}
-                  style={{ width: '100%', textAlign: 'left', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    background: 'none',
+                    border: 'none',
+                    padding: 0
+                  }}
                 >
                   <div className='kv' style={{ alignItems: 'flex-start' }}>
                     <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
@@ -283,7 +292,12 @@ function EventDetailView({
                 </button>
               ))}
             </div>
-            <Pagination total={teams.length} pageSize={PAGE_SIZE} currentPage={teamsPage} onChange={onTeamsPageChange} />
+            <Pagination
+              total={teams.length}
+              pageSize={PAGE_SIZE}
+              currentPage={teamsPage}
+              onChange={onTeamsPageChange}
+            />
           </>
         )}
       </div>
@@ -370,7 +384,6 @@ export default function MentorDashboard() {
     setTeamsPage(1)
     setLoadingColleagues(true)
     setErrorColleagues(null)
-
     ;(async () => {
       try {
         const rows = await getAssignedTeams({
@@ -389,7 +402,6 @@ export default function MentorDashboard() {
         if (!cancelled) setLoadingTeams(false)
       }
     })()
-
     ;(async () => {
       try {
         const data = await getGroupColleagues({

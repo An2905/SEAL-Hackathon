@@ -1,5 +1,11 @@
 import { apiFetch } from './client'
-import { normalizeEventId, countPendingTeams, mapEventRow, mapEventDetailRow, mergeTeamGitHubFields } from './normalizers'
+import {
+  normalizeEventId,
+  countPendingTeams,
+  mapEventRow,
+  mapEventDetailRow,
+  mergeTeamGitHubFields
+} from './normalizers'
 import { getCheckInPage } from './checkIn'
 
 // Re-export normalizers so existing callers can keep importing them from "./event".

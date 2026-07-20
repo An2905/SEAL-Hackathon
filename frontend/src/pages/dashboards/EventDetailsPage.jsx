@@ -1776,7 +1776,6 @@ function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess, repoAcce
         onClose={() => setActiveTeam(null)}
         onTeamUpdated={handleTeamUpdated}
       />
-
     </section>
   )
 }

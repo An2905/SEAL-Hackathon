@@ -13,7 +13,9 @@ export default function StaffProfilePage() {
   const [profileData, setProfileData] = useState(null)
 
   useEffect(() => {
-    getProfile().then(setProfileData).catch(() => {})
+    getProfile()
+      .then(setProfileData)
+      .catch(() => {})
   }, [])
 
   const isStudent = STUDENT_ROLES.includes(auth.role)

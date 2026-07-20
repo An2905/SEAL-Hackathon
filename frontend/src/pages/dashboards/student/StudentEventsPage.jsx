@@ -457,7 +457,9 @@ function JoinEventForm({ onSuccess, embedded = false }) {
       <div className='card-head'>
         <div className='card-title'>Đăng ký sự kiện</div>
       </div>
-      <p className='card-sub'>Chọn sự kiện đang mở đăng ký (sắp diễn ra). BTC sẽ duyệt và phân bảng sau khi đội đăng ký.</p>
+      <p className='card-sub'>
+        Chọn sự kiện đang mở đăng ký (sắp diễn ra). BTC sẽ duyệt và phân bảng sau khi đội đăng ký.
+      </p>
       {formBody}
     </div>
   )

@@ -347,7 +347,13 @@ export default function StaffAssignPage() {
 
       <div className='cards'>
         <AssignJudgeForm judges={judges} rounds={rounds} groups={groups} disabled={!ready} onAssigned={reloadDetail} />
-        <AssignMentorForm mentors={mentors} rounds={rounds} groups={groups} disabled={!ready} onAssigned={reloadDetail} />
+        <AssignMentorForm
+          mentors={mentors}
+          rounds={rounds}
+          groups={groups}
+          disabled={!ready}
+          onAssigned={reloadDetail}
+        />
       </div>
     </>
   )

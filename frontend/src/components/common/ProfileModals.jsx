@@ -8,7 +8,14 @@ import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 
-export function ProfileModal({ isOpen, onClose, showStudentFields = false, showStaffFields = false, profileData = null, onProfileUpdated }) {
+export function ProfileModal({
+  isOpen,
+  onClose,
+  showStudentFields = false,
+  showStaffFields = false,
+  profileData = null,
+  onProfileUpdated
+}) {
   const { auth, saveAuth } = useAuth()
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)

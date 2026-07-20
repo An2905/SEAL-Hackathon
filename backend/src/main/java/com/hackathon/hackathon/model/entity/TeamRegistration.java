@@ -13,4 +13,5 @@ public class TeamRegistration {
   private String githubStatus;
   private Long githubRepoId;
   private String githubRepoUrl;
+  private String githubTeamSlug;
 }

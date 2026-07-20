@@ -22,7 +22,7 @@ export default function StaffFilterEmailPage() {
     setResult(null)
     setCopied(false)
 
-    const keyword = (form.emailContains.trim() + form.nameContains.trim())
+    const keyword = form.emailContains.trim() + form.nameContains.trim()
     if (keyword.length < 2) {
       setValidationError('Nhập từ khóa ít nhất 2 ký tự (email hoặc tên).')
       return
@@ -101,7 +101,9 @@ export default function StaffFilterEmailPage() {
                 {result.recipients.map((r) => (
                   <div className='kv' key={r.userId || r.email} style={{ fontSize: 12 }}>
                     <span style={{ fontWeight: 600 }}>{r.fullName || '—'}</span>
-                    <span style={{ color: 'var(--text-dim)' }}>{r.email} · {r.userRole}</span>
+                    <span style={{ color: 'var(--text-dim)' }}>
+                      {r.email} · {r.userRole}
+                    </span>
                   </div>
                 ))}
               </div>

@@ -305,9 +305,8 @@ export default function JudgeDashboard() {
               <>
                 <div className='hint' style={{ marginBottom: 12 }}>
                   Bạn có <strong>{scoringSummary.assigned}</strong> bài được phân công ·{' '}
-                  <strong>{scoringSummary.submitted}</strong> bài đã nộp ·{' '}
-                  <strong>{scoringSummary.scored}</strong> bài đã chấm · Còn{' '}
-                  <strong>{scoringSummary.remaining}</strong> bài chờ chấm
+                  <strong>{scoringSummary.submitted}</strong> bài đã nộp · <strong>{scoringSummary.scored}</strong> bài
+                  đã chấm · Còn <strong>{scoringSummary.remaining}</strong> bài chờ chấm
                 </div>
                 <div className='kv-list'>
                   {teams.slice((teamsPage - 1) * JUDGE_PAGE_SIZE, teamsPage * JUDGE_PAGE_SIZE).map((team) => (

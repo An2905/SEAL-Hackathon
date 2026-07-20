@@ -91,6 +91,7 @@ public class EventMapper {
     registration.setGithubRepoId(
         rs.getObject("github_repo_id") != null ? rs.getLong("github_repo_id") : null);
     registration.setGithubRepoUrl(rs.getString("github_repo_url"));
+    registration.setGithubTeamSlug(rs.getString("github_team_slug"));
     return registration;
   }
 
@@ -182,6 +183,9 @@ public class EventMapper {
     response.setTeamId(registration.getTeamId());
     response.setTeamName(registration.getTeamName());
     response.setStatus(registration.getStatus());
+    response.setGithubStatus(registration.getGithubStatus());
+    response.setGithubRepoUrl(registration.getGithubRepoUrl());
+    response.setGithubTeamSlug(registration.getGithubTeamSlug());
     return response;
   }
 

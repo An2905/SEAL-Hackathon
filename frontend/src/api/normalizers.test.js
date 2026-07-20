@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  countPendingTeams,
-  mapAccountRow,
-  mapCount,
-  mapEventDetailRow,
-  mapEventRow,
-  normalizeId
-} from './normalizers'
+import { countPendingTeams, mapAccountRow, mapCount, mapEventDetailRow, mapEventRow, normalizeId } from './normalizers'
 
 describe('normalizeId', () => {
   it('returns empty string for nullish values', () => {
@@ -39,12 +32,7 @@ describe('mapCount', () => {
 
 describe('countPendingTeams', () => {
   it('counts only PENDING registrations (case-insensitive)', () => {
-    const teams = [
-      { status: 'PENDING' },
-      { status: 'pending' },
-      { status: 'APPROVED' },
-      { status: 'REJECTED' }
-    ]
+    const teams = [{ status: 'PENDING' }, { status: 'pending' }, { status: 'APPROVED' }, { status: 'REJECTED' }]
     expect(countPendingTeams(teams)).toBe('2')
   })
 

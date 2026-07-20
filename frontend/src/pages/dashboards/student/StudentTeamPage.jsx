@@ -307,11 +307,7 @@ export default function StudentTeamPage({
   return (
     <>
       {!githubStatus.loading && (!githubStatus.linked || !githubStatus.username) ? (
-        <GithubRequiredBanner
-          onConnect={onConnectGithub}
-          loading={oauthLoading}
-          isWarning={teamState === 'has-team'}
-        />
+        <GithubRequiredBanner onConnect={onConnectGithub} loading={oauthLoading} isWarning={teamState === 'has-team'} />
       ) : null}
 
       {teamState === 'loading' && (

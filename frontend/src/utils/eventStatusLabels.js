@@ -13,7 +13,9 @@ export const EVENT_STATUS_LABELS = {
 }
 
 export function normalizeEventStatus(status) {
-  return String(status ?? '').trim().toUpperCase()
+  return String(status ?? '')
+    .trim()
+    .toUpperCase()
 }
 
 export function eventStatusLabel(status) {

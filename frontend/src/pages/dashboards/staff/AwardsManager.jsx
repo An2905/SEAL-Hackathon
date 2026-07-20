@@ -96,13 +96,7 @@ function AwardCard({ award, onEdit, onDelete }) {
   )
 }
 
-export default function AwardsManager({
-  eventId,
-  awards = [],
-  onAwardCreated,
-  onAwardUpdated,
-  onAwardDeleted
-}) {
+export default function AwardsManager({ eventId, awards = [], onAwardCreated, onAwardUpdated, onAwardDeleted }) {
   const { showToast } = useToast()
   const [page, setPage] = useState(1)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -199,7 +193,12 @@ export default function AwardsManager({
       </div>
 
       {showAddForm ? (
-        <AwardForm saving={saving} onSubmit={handleCreate} onCancel={() => setShowAddForm(false)} submitLabel='Thêm giải thưởng' />
+        <AwardForm
+          saving={saving}
+          onSubmit={handleCreate}
+          onCancel={() => setShowAddForm(false)}
+          submitLabel='Thêm giải thưởng'
+        />
       ) : null}
 
       {sortedAwards.length === 0 && !showAddForm ? (
