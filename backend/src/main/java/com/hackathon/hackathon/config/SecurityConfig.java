@@ -86,6 +86,11 @@ public class SecurityConfig {
   }
 
   @Bean
+  public ObjectMapper objectMapper() {
+    return new ObjectMapper();
+  }
+
+  @Bean
   public BCryptPasswordEncoder passwordEncoder() {
     return new BCryptPasswordEncoder();
   }
