@@ -116,4 +116,18 @@ describe('apiFetch', () => {
     fetch.mockRejectedValue(new Error('offline'))
     await expect(apiFetch('/api/x', { auth: false })).rejects.toThrow('NETWORK')
   })
+
+  it('dispatches auth:token-expired on 401 for authenticated requests', async () => {
+    storage.hh_token = makeFutureJwt({ role: 'COORDINATOR' })
+    const dispatched = vi.fn()
+    vi.stubGlobal('window', { dispatchEvent: dispatched })
+    fetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => JSON.stringify({ message: 'Invalid or missing token.' })
+    })
+
+    await expect(apiFetch('/api/staff/events')).rejects.toThrow('TOKEN_EXPIRED')
+    expect(dispatched).toHaveBeenCalled()
+  })
 })

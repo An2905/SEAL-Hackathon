@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import FormField from '../../../components/common/FormField'
 import FormMessage from '../../../components/common/FormMessage'
 import LoadingState from '../../../components/common/LoadingState'
@@ -50,7 +50,7 @@ function EventAssignStatsPanel({ detail }) {
     </div>
   )
 }
-function AssignJudgeForm({ judges, rounds, groups, disabled }) {
+function AssignJudgeForm({ judges, rounds, groups, disabled, onAssigned }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
@@ -82,6 +82,7 @@ function AssignJudgeForm({ judges, rounds, groups, disabled }) {
       setMessage({ text: 'Đã phân công judge thành công!', type: 'success' })
       showToast('Đã phân công judge', 'success')
       setForm({ judgeId: '', roundId: '', groupId: '' })
+      await onAssigned?.()
     } catch (err) {
       setMessage({ text: localizeError(err.message), type: 'error' })
     } finally {
@@ -137,7 +138,7 @@ function AssignJudgeForm({ judges, rounds, groups, disabled }) {
   )
 }
 
-function AssignMentorForm({ mentors, rounds, groups, disabled }) {
+function AssignMentorForm({ mentors, rounds, groups, disabled, onAssigned }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
@@ -169,6 +170,7 @@ function AssignMentorForm({ mentors, rounds, groups, disabled }) {
       setMessage({ text: 'Đã phân công mentor thành công!', type: 'success' })
       showToast('Đã phân công mentor', 'success')
       setForm({ userId: '', roundId: '', groupId: '' })
+      await onAssigned?.()
     } catch (err) {
       setMessage({ text: localizeError(err.message), type: 'error' })
     } finally {
@@ -277,6 +279,16 @@ export default function StaffAssignPage() {
     }
   }, [eventId, showToast])
 
+  const reloadDetail = useCallback(async () => {
+    if (!eventId) return
+    try {
+      const d = await getEventDetail(eventId)
+      setDetail(d)
+    } catch (err) {
+      showToast(localizeError(err.message), 'error')
+    }
+  }, [eventId, showToast])
+
   const assignableEvents = useMemo(() => events.filter(isAssignableEvent), [events])
 
   useEffect(() => {
@@ -334,8 +346,8 @@ export default function StaffAssignPage() {
       </div>
 
       <div className='cards'>
-        <AssignJudgeForm judges={judges} rounds={rounds} groups={groups} disabled={!ready} />
-        <AssignMentorForm mentors={mentors} rounds={rounds} groups={groups} disabled={!ready} />
+        <AssignJudgeForm judges={judges} rounds={rounds} groups={groups} disabled={!ready} onAssigned={reloadDetail} />
+        <AssignMentorForm mentors={mentors} rounds={rounds} groups={groups} disabled={!ready} onAssigned={reloadDetail} />
       </div>
     </>
   )

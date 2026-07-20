@@ -119,6 +119,27 @@ function mapTeamRow(row) {
   }
 }
 
+/** Merge GitHub provisioning fields from check-in API into event detail teams. */
+export function mergeTeamGitHubFields(teams, checkInTeams) {
+  if (!Array.isArray(teams) || teams.length === 0) return teams
+  const githubByRegistration = new Map(
+    (Array.isArray(checkInTeams) ? checkInTeams : []).map((team) => [
+      normalizeRegistrationId(team.registrationId),
+      team
+    ])
+  )
+  return teams.map((team) => {
+    const github = githubByRegistration.get(normalizeRegistrationId(team.registrationId))
+    if (!github) return team
+    return {
+      ...team,
+      githubStatus: github.githubStatus ?? github.github_status ?? team.githubStatus ?? '',
+      githubRepoUrl: github.githubRepoUrl ?? github.github_repo_url ?? team.githubRepoUrl ?? '',
+      githubTeamSlug: github.githubTeamSlug ?? github.github_team_slug ?? team.githubTeamSlug ?? ''
+    }
+  })
+}
+
 function mapAssignedMentorRow(row) {
   const m = row && typeof row === 'object' ? row : {}
   return {

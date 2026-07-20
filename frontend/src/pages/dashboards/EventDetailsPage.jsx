@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import DashboardShell from './DashboardShell'
 import FormMessage from '../../components/common/FormMessage'
@@ -798,33 +798,36 @@ function EventBoardRoundDetailModal({ eventId, round, isOpen, onClose, onUpdated
     submissionDeadline: ''
   })
 
-  const loadDetail = useCallback(async () => {
-    if (!round?.roundId) return
-    setLoadingDetail(true)
-    setError('')
-    try {
-      const d = await getEventRoundDetail({
-        eventId,
-        roundId: round.roundId
-      })
-      setForm({
-        name: d.name || '',
-        roundOrder: d.roundOrder || '1',
-        winnersPerRound: String(d.winnersPerRound ?? 1),
-        startDate: toDatetimeLocalValue(d.startDate),
-        endDate: toDatetimeLocalValue(d.endDate),
-        submissionDeadline: toDatetimeLocalValue(d.submissionDeadline)
-      })
-    } catch (err) {
-      setError(localizeError(err.message))
-    } finally {
-      setLoadingDetail(false)
-    }
-  }, [eventId, round?.roundId])
-
   useEffect(() => {
-    if (isOpen && round) loadDetail()
-  }, [isOpen, round, loadDetail])
+    if (!isOpen || !round?.roundId) return undefined
+    let cancelled = false
+    ;(async () => {
+      setLoadingDetail(true)
+      setError('')
+      try {
+        const d = await getEventRoundDetail({
+          eventId,
+          roundId: round.roundId
+        })
+        if (cancelled) return
+        setForm({
+          name: d.name || '',
+          roundOrder: d.roundOrder || '1',
+          winnersPerRound: String(d.winnersPerRound ?? 1),
+          startDate: toDatetimeLocalValue(d.startDate),
+          endDate: toDatetimeLocalValue(d.endDate),
+          submissionDeadline: toDatetimeLocalValue(d.submissionDeadline)
+        })
+      } catch (err) {
+        if (!cancelled) setError(localizeError(err.message))
+      } finally {
+        if (!cancelled) setLoadingDetail(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, eventId, round?.roundId])
 
   const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
 
@@ -1311,6 +1314,7 @@ function patchTeamRegistration(list, registrationId, updates) {
 }
 
 function TeamRegistrationStatusPicker({ team, onUpdated }) {
+  const { showToast } = useToast()
   const [saving, setSaving] = useState(false)
   const currentStatus = String(team?.status ?? '')
     .trim()
@@ -1327,8 +1331,9 @@ function TeamRegistrationStatusPicker({ team, onUpdated }) {
     setSaving(true)
     try {
       await changeTeamRegistrationStatus({ registrationId: team.registrationId, status: next })
-    } catch {
+    } catch (err) {
       onUpdated?.(team.registrationId, { status: previousStatus })
+      showToast(localizeError(err.message), 'error')
     } finally {
       setSaving(false)
     }
@@ -1975,32 +1980,38 @@ function RoundStatItem({ eventId, round, onUpdated, onDeleted }) {
     submissionDeadline: toDatetimeLocalValue(round.submissionDeadline)
   })
 
-  const loadDetail = useCallback(async () => {
-    setLoadingDetail(true)
-    try {
-      const d = await getEventRoundDetail({
-        eventId,
-        roundId: round.roundId
-      })
-      setForm({
-        name: d.name || '',
-        roundOrder: d.roundOrder || '1',
-        winnersPerRound: String(d.winnersPerRound ?? 1),
-        startDate: toDatetimeLocalValue(d.startDate),
-        endDate: toDatetimeLocalValue(d.endDate),
-        submissionDeadline: toDatetimeLocalValue(d.submissionDeadline)
-      })
-    } catch (err) {
-      showToast(localizeError(err.message), 'error')
-      setEditOpen(false)
-    } finally {
-      setLoadingDetail(false)
-    }
-  }, [eventId, round.roundId, showToast])
-
   useEffect(() => {
-    if (editOpen) loadDetail()
-  }, [editOpen, loadDetail])
+    if (!editOpen) return undefined
+    let cancelled = false
+    ;(async () => {
+      setLoadingDetail(true)
+      try {
+        const d = await getEventRoundDetail({
+          eventId,
+          roundId: round.roundId
+        })
+        if (cancelled) return
+        setForm({
+          name: d.name || '',
+          roundOrder: d.roundOrder || '1',
+          winnersPerRound: String(d.winnersPerRound ?? 1),
+          startDate: toDatetimeLocalValue(d.startDate),
+          endDate: toDatetimeLocalValue(d.endDate),
+          submissionDeadline: toDatetimeLocalValue(d.submissionDeadline)
+        })
+      } catch (err) {
+        if (!cancelled) {
+          showToast(localizeError(err.message), 'error')
+          setEditOpen(false)
+        }
+      } finally {
+        if (!cancelled) setLoadingDetail(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [editOpen, eventId, round.roundId, showToast])
 
   const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
 
@@ -2872,6 +2883,7 @@ function EventDetailInfoPanel({ event, onUpdated }) {
 export default function EventDetailsPage() {
   const { eventId } = useParams()
   const { showToast } = useToast()
+  const loadRequestRef = useRef(0)
   const [event, setEvent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -2902,16 +2914,19 @@ export default function EventDetailsPage() {
   }
 
   const loadEvent = useCallback(async () => {
+    const requestId = ++loadRequestRef.current
     setLoading(true)
     setError(null)
     try {
-      const data = await getEventDetail(eventId)
+      const data = await getEventDetail(eventId, { includeGitHub: true })
+      if (requestId !== loadRequestRef.current) return
       setEvent(data)
     } catch (err) {
+      if (requestId !== loadRequestRef.current) return
       setError(localizeError(err.message))
       showToast('Không tải được chi tiết sự kiện', 'error')
     } finally {
-      setLoading(false)
+      if (requestId === loadRequestRef.current) setLoading(false)
     }
   }, [eventId, showToast])
 

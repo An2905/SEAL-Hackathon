@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef } from 'react'
+import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
 
 const ToastContext = createContext(null)
 
@@ -11,6 +11,8 @@ export function ToastProvider({ children }) {
     setToast({ message, type })
     timerRef.current = setTimeout(() => setToast(null), 3500)
   }, [])
+
+  useEffect(() => () => clearTimeout(timerRef.current), [])
 
   return (
     <ToastContext.Provider value={{ showToast }}>

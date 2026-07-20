@@ -27,6 +27,10 @@ function TeamInfoCard({ data, onRefresh, onMemberDeleted }) {
 
   const handleCopyEnroll = async () => {
     const code = data.enrollCode
+    if (!code) {
+      showToast('Chưa có mã enroll', 'error')
+      return
+    }
     try {
       await navigator.clipboard.writeText(code)
       showToast('Đã sao chép mã enroll: ' + code, 'success')

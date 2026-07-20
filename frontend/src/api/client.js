@@ -39,6 +39,11 @@ export async function apiFetch(path, { method = 'GET', body, auth = true } = {})
 
   const text = await response.text()
   if (!response.ok) {
+    if (response.status === 401 && auth) {
+      window.dispatchEvent(new Event('auth:token-expired'))
+      throw new Error('TOKEN_EXPIRED')
+    }
+
     // BE errors come back as JSON ({status, message, timestamp, errors}) via
     // GlobalExceptionHandler — extract the plain message so localizeError() can
     // match it against ERROR_MAP instead of showing the raw JSON blob.
@@ -94,6 +99,11 @@ export async function apiFetchBlob(path, { method = 'GET' } = {}) {
   }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      window.dispatchEvent(new Event('auth:token-expired'))
+      throw new Error('TOKEN_EXPIRED')
+    }
+
     const text = await response.text()
     let message = text
     if (text) {

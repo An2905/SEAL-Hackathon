@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import ExpertGroupColleaguesBoard from '../../components/expert/ExpertGroupColleaguesBoard'
 import {
@@ -55,6 +55,7 @@ export default function JudgeDashboard() {
   const [errorColleagues, setErrorColleagues] = useState(null)
 
   const [scoreTeam, setScoreTeam] = useState(null)
+  const teamsRequestRef = useRef(0)
 
   const selectedAssignment = useMemo(
     () => assignments.find((a) => assignmentKey(a) === selectedAssignmentKey) ?? null,
@@ -77,22 +78,24 @@ export default function JudgeDashboard() {
       setTeams([])
       return
     }
+    const requestId = ++teamsRequestRef.current
     setLoadingTeams(true)
     setErrorTeams(null)
     setTeamsPage(1)
     try {
-      setTeams(
-        await getTeamsToScore({
-          eventId: assignment.eventId,
-          roundId: assignment.roundId,
-          groupId: assignment.groupId
-        })
-      )
+      const data = await getTeamsToScore({
+        eventId: assignment.eventId,
+        roundId: assignment.roundId,
+        groupId: assignment.groupId
+      })
+      if (requestId !== teamsRequestRef.current) return
+      setTeams(data)
     } catch (err) {
+      if (requestId !== teamsRequestRef.current) return
       setTeams([])
       setErrorTeams(localizeError(err?.message))
     } finally {
-      setLoadingTeams(false)
+      if (requestId === teamsRequestRef.current) setLoadingTeams(false)
     }
   }, [])
 
