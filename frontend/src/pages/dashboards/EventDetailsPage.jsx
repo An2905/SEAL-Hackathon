@@ -2920,6 +2920,26 @@ export default function EventDetailsPage() {
       const data = await getEventDetail(eventId, { includeGitHub: true })
       if (requestId !== loadRequestRef.current) return
       setEvent(data)
+
+      const firstRound = [...(data.rounds ?? [])].sort(
+        (a, b) => Number(a.roundOrder ?? 0) - Number(b.roundOrder ?? 0)
+      )[0]
+      if (firstRound?.roundId) {
+        try {
+          const fillResult = await autoFillRoundGroups({
+            eventId,
+            roundId: firstRound.roundId
+          })
+          if (requestId !== loadRequestRef.current) return
+          if (fillResult.assignedCount > 0) {
+            setEvent(await getEventDetail(eventId, { includeGitHub: true }))
+            if (requestId !== loadRequestRef.current) return
+            showToast(fillResult.message, 'success')
+          }
+        } catch {
+          // Bỏ qua nếu auto-fill không chạy được (vd. chưa có bảng)
+        }
+      }
     } catch (err) {
       if (requestId !== loadRequestRef.current) return
       setError(localizeError(err.message))
