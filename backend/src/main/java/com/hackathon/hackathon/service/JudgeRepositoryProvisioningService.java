@@ -21,11 +21,11 @@ public class JudgeRepositoryProvisioningService {
   @Autowired private GitHubAppConfig gitHubAppConfig;
 
   /**
-   * Gives each team in a completed round to exactly one assigned judge. Within each group the
-   * allocation is round-robin, so workloads differ by at most one team. An assignment is saved
-   * only after GitHub accepted the read-only collaborator invitation, allowing safe retries.
+   * Gives each team in a round to exactly one assigned judge. Within each group the allocation is
+   * round-robin, so workloads differ by at most one team. An assignment is saved only after GitHub
+   * accepted the read-only collaborator invitation, allowing safe retries.
    */
-  public int provisionCompletedRound(String roundId) {
+  public int provisionRoundForJudging(String roundId) {
     List<JudgeTeamAssignmentRepository.UnassignedTeam> teams =
         judgeTeamAssignmentRepository.findUnassignedTeams(roundId);
     Map<String, List<String>> judgesByGroup = new HashMap<>();
@@ -85,6 +85,43 @@ public class JudgeRepositoryProvisioningService {
       }
     }
     return provisioned;
+  }
+
+  /** Removes judge read access from team repositories when a round ends. */
+  public int revokeJudgesFromRound(String roundId) {
+    int revoked = 0;
+    String owner = gitHubAppConfig.getOrganization();
+    if (owner == null || owner.isBlank()) {
+      log.warn("Cannot revoke judge access for round {}: organization not configured", roundId);
+      return 0;
+    }
+
+    for (JudgeTeamAssignmentRepository.JudgeRepoAssignment assignment :
+        judgeTeamAssignmentRepository.findAssignmentsForRound(roundId)) {
+      String username =
+          assignment.githubUsername() == null ? "" : assignment.githubUsername().trim();
+      if (username.isEmpty()) {
+        continue;
+      }
+
+      String repoName = extractRepoName(assignment.githubRepoUrl());
+      if (repoName.isEmpty()) {
+        continue;
+      }
+
+      try {
+        gitHubRepoService.removeCollaboratorInternal(owner, repoName, username);
+        revoked++;
+      } catch (Exception e) {
+        log.warn(
+            "Could not remove judge {} from team {} repository for round {}: {}",
+            assignment.judgeId(),
+            assignment.teamId(),
+            roundId,
+            e.getMessage());
+      }
+    }
+    return revoked;
   }
 
   private String extractRepoName(String repoUrl) {

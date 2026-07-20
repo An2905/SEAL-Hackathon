@@ -1,4 +1,4 @@
-import { apiFetch } from './client'
+import { apiFetch, apiFetchBlob } from './client'
 import {
   normalizeEventId,
   normalizeAccountUserId,
@@ -77,11 +77,10 @@ export async function changeEventStatus({ eventId, newStatus }) {
   const nextStatus = String(newStatus ?? '')
     .trim()
     .toUpperCase()
-  const text = await apiFetch('/api/staff/events/status', {
+  await apiFetch('/api/staff/events/status', {
     method: 'PUT',
     body: { eventId: id, newStatus: nextStatus }
   })
-  if (!/event status updated successfully/i.test(text)) throw new Error(text)
   return true
 }
 
@@ -118,11 +117,10 @@ export async function changeAccountStatus({ userId, status }) {
   const nextStatus = String(status ?? '')
     .trim()
     .toUpperCase()
-  const text = await apiFetch('/api/staff/change-status', {
+  await apiFetch('/api/staff/change-status', {
     method: 'PUT',
     body: { userId: id, status: nextStatus }
   })
-  if (!/account status updated successfully/i.test(text)) throw new Error(text)
   return true
 }
 
@@ -137,23 +135,10 @@ export async function changeTeamRegistrationStatus({ registrationId, status }) {
   const nextStatus = String(status ?? '')
     .trim()
     .toUpperCase()
-  const text = await apiFetch('/api/staff/team-registration/status', {
+  await apiFetch('/api/staff/team-registration/status', {
     method: 'PUT',
     body: { registrationId: id, status: nextStatus }
   })
-  let message = text
-  try {
-    const parsed = JSON.parse(text)
-    if (parsed && typeof parsed.message === 'string') message = parsed.message
-  } catch {
-    // Plain-text response — keep raw text.
-  }
-  if (
-    !/registration status updated successfully/i.test(message) &&
-    !/cập nhật trạng thái đăng ký.*thành công/i.test(message)
-  ) {
-    throw new Error(message || 'Cập nhật trạng thái thất bại')
-  }
   return true
 }
 
@@ -179,7 +164,7 @@ export async function getTeamMembers(teamId) {
 }
 
 // POST /api/staff/assign/judge
-// Body: { judgeId, roundId, groupId }
+// Body: { userId, roundId, groupId } — BE AssignJudgeRequest uses userId (judge's user id).
 export async function assignJudge({ judgeId, roundId, groupId }) {
   const jId = normalizeAccountUserId(judgeId)
   const rId = normalizeId(roundId)
@@ -189,11 +174,10 @@ export async function assignJudge({ judgeId, roundId, groupId }) {
   if (!rId) throw new Error('Vui lòng chọn vòng')
   if (!gId) throw new Error('Vui lòng chọn bảng')
 
-  const text = await apiFetch('/api/staff/assign/judge', {
+  await apiFetch('/api/staff/assign/judge', {
     method: 'POST',
-    body: { judgeId: jId, roundId: rId, groupId: gId }
+    body: { userId: jId, roundId: rId, groupId: gId }
   })
-  if (!/judge assigned successfully/i.test(text)) throw new Error(text)
   return true
 }
 
@@ -208,42 +192,16 @@ export async function assignMentor({ userId, roundId, groupId }) {
   if (!rId) throw new Error('Vui lòng chọn vòng')
   if (!gId) throw new Error('Vui lòng chọn bảng')
 
-  const text = await apiFetch('/api/staff/assign/mentor', {
+  await apiFetch('/api/staff/assign/mentor', {
     method: 'POST',
     body: { userId: uId, roundId: rId, groupId: gId }
   })
-  if (!/mentor assigned successfully/i.test(text)) throw new Error(text)
   return true
 }
 
-// GET /api/staff/events/export
-// Response: file Excel binary (.xlsx), header Content-Disposition: attachment; filename=events.xlsx
-// KHÔNG dùng apiFetch vì response không phải JSON/text — dùng fetch + blob.
+// GET /api/staff/events/export — binary .xlsx via apiFetchBlob (respects VITE_API_BASE).
 export async function exportEventsExcel() {
-  const token = localStorage.getItem('hh_token')
-  const headers = { 'Content-Type': 'application/json' }
-  if (token && token !== 'null' && token !== 'undefined') {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
-  let response
-  try {
-    response = await fetch('/api/staff/events/export', {
-      method: 'GET',
-      headers,
-      credentials: 'include'
-    })
-  } catch {
-    throw new Error('NETWORK')
-  }
-
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(text || `HTTP_${response.status}`)
-  }
-
-  // Trả về Blob để caller tự tạo download link
-  return await response.blob()
+  return apiFetchBlob('/api/staff/events/export', { method: 'GET' })
 }
 
 // POST /api/github/registrations/{registrationId}/retry

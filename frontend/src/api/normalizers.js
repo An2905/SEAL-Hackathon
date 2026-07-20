@@ -63,7 +63,8 @@ export function mapEventRow(row) {
     startDate: r.startDate ?? r.start_date ?? '',
     endDate: r.endDate ?? r.end_date ?? '',
     status: r.status ?? '',
-    createdAt: r.createdAt ?? r.created_at ?? ''
+    createdAt: r.createdAt ?? r.created_at ?? '',
+    pendingTeams: String(r.pendingTeams ?? r.pending_teams ?? '0')
   }
 }
 

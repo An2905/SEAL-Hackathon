@@ -24,6 +24,7 @@ import com.hackathon.hackathon.security.JwtUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpSession;
 import java.security.SecureRandom;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,21 @@ public class AuthService {
   private static final String[] AUTHENTICATED_ROLES = {
     "COORDINATOR", "EXPERT_INTERNAL", "EXPERT_EXTERNAL", "STUDENT_FPT", "STUDENT_EXTERNAL"
   };
+
+  private static final int OTP_SEND_MAX_PER_WINDOW = 3;
+  private static final long OTP_SEND_WINDOW_MS = 15 * 60 * 1000L;
+  private static final int OTP_VERIFY_MAX_ATTEMPTS = 5;
+  private static final String OTP_VERIFY_ATTEMPTS_ATTR = "OTP_VERIFY_ATTEMPTS";
+
+  private static final String RESET_OTP_SENT_MESSAGE =
+      "If the email exists, an OTP was sent. Please check your inbox (valid for 5 minutes).";
+
+  private final ConcurrentHashMap<String, OtpSendWindow> otpSendLimits = new ConcurrentHashMap<>();
+
+  private static final class OtpSendWindow {
+    int count;
+    long windowStartMs;
+  }
 
   @Autowired private CaptchaService captchaService;
 
@@ -77,7 +93,55 @@ public class AuthService {
       throw new ForbiddenException("Forbidden access.");
     }
 
+    String email = claims.getSubject();
+    if (email != null && !email.isBlank()) {
+      userRepository
+          .findByEmail(email.trim())
+          .ifPresent(
+              user -> {
+                if (!"APPROVED".equalsIgnoreCase(user.getStatus())) {
+                  throw new UnauthorizedException("Access Denied: Account is not approved.");
+                }
+              });
+    }
+
     return claims;
+  }
+
+  private void enforceOtpSendRateLimit(String email) {
+    String key = email.trim().toLowerCase();
+    long now = System.currentTimeMillis();
+    otpSendLimits.compute(
+        key,
+        (k, window) -> {
+          if (window == null || now - window.windowStartMs > OTP_SEND_WINDOW_MS) {
+            OtpSendWindow fresh = new OtpSendWindow();
+            fresh.count = 1;
+            fresh.windowStartMs = now;
+            return fresh;
+          }
+          if (window.count >= OTP_SEND_MAX_PER_WINDOW) {
+            throw new BadRequestException(
+                "Too many OTP requests. Please wait before requesting another code.");
+          }
+          window.count++;
+          return window;
+        });
+  }
+
+  private void resetOtpVerifyAttempts(HttpSession session) {
+    session.removeAttribute(OTP_VERIFY_ATTEMPTS_ATTR);
+  }
+
+  private void recordFailedOtpVerify(HttpSession session) {
+    Integer attempts = (Integer) session.getAttribute(OTP_VERIFY_ATTEMPTS_ATTR);
+    int next = attempts == null ? 1 : attempts + 1;
+    session.setAttribute(OTP_VERIFY_ATTEMPTS_ATTR, next);
+    if (next >= OTP_VERIFY_MAX_ATTEMPTS) {
+      session.invalidate();
+      throw new BadRequestException(
+          "Too many invalid OTP attempts. Please request a new OTP.");
+    }
   }
 
   private void requireNonBlank(String value, String fieldName) {
@@ -386,9 +450,11 @@ public class AuthService {
       ResetPasswordOtpRequest request, HttpSession session) {
     String email = request.getEmail();
     requireValidEmail(email);
+    enforceOtpSendRateLimit(email);
 
     if (!checkEmail(email)) {
-      throw new BadRequestException("Email not found.");
+      // Avoid email enumeration — same response whether or not the account exists.
+      return new MessageResponse(RESET_OTP_SENT_MESSAGE);
     }
 
     String otp = generateOtp();
@@ -403,8 +469,9 @@ public class AuthService {
     session.setAttribute("OTP_CODE", otp);
     session.setAttribute("OTP_EXPIRE", expireTime);
     session.setAttribute("OTP_EMAIL", email);
+    resetOtpVerifyAttempts(session);
 
-    return new MessageResponse("OTP sent to email. Please check your inbox (Valid for 5 minutes).");
+    return new MessageResponse(RESET_OTP_SENT_MESSAGE);
   }
 
   // #endregion
@@ -425,6 +492,7 @@ public class AuthService {
     }
 
     if (!sessionOtp.equals(request.getOtp())) {
+      recordFailedOtpVerify(session);
       throw new BadRequestException("Invalid OTP. Please try again.");
     }
 
@@ -449,6 +517,7 @@ public class AuthService {
     String email = request.getEmail();
 
     requireValidEmail(email);
+    enforceOtpSendRateLimit(email);
     requireNonBlank(request.getPassword(), "Password");
     requireNonBlank(request.getFullName(), "Full name");
     requireNonBlank(request.getUniversity(), "University");
@@ -474,6 +543,7 @@ public class AuthService {
     session.setAttribute("REG_OTP_CODE", otp);
     session.setAttribute("REG_OTP_EXPIRE", expireTime);
     session.setAttribute("REG_DATA", request);
+    resetOtpVerifyAttempts(session);
 
     return new MessageResponse("OTP sent to email. Please verify to complete registration.");
   }
@@ -496,6 +566,7 @@ public class AuthService {
     }
 
     if (!sessionOtp.equals(request.getOtp())) {
+      recordFailedOtpVerify(session);
       throw new BadRequestException("Invalid OTP. Please try again.");
     }
 

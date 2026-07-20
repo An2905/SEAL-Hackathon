@@ -375,8 +375,6 @@ public class EventService {
   public List<EventSummaryResponse> getAllEvents(String authHeader, String status) {
     authService.validateRole(authHeader, "COORDINATOR");
 
-    syncAutoEventStatuses();
-
     String statusFilter = (status == null) ? "" : status.trim().toUpperCase();
     List<EventSummaryResponse> events = new ArrayList<>();
     for (Event event : eventRepository.findAllByStatus(statusFilter)) {
@@ -386,8 +384,6 @@ public class EventService {
   }
 
   public List<EventSummaryResponse> getPublicEvents() {
-    syncAutoEventStatuses();
-
     List<EventSummaryResponse> events = new ArrayList<>();
     for (Event event : eventRepository.findPublicEvents()) {
       events.add(eventMapper.toSummaryResponse(event));
@@ -402,8 +398,6 @@ public class EventService {
       throw new BadRequestException("Event ID cannot be empty.");
     }
     eventId = eventId.trim();
-
-    syncAutoEventStatusForEvent(eventId);
 
     Event event =
         eventRepository
@@ -702,6 +696,19 @@ public class EventService {
       throw new BadRequestException("Vòng đấu không thuộc sự kiện này.");
     }
     return doAutoFillRoundGroups(eid, rid, true, false);
+  }
+
+  /** Called by the round lifecycle scheduler (no auth). */
+  public void autoFillRoundGroupsForLifecycle(String eventId, String roundId) {
+    String eid = trim(eventId);
+    String rid = trim(roundId);
+    if (eid.isEmpty() || rid.isEmpty()) {
+      return;
+    }
+    if (!eventRepository.existsById(eid) || !eventRepository.roundBelongsToEvent(rid, eid)) {
+      return;
+    }
+    doAutoFillRoundGroups(eid, rid, false, false);
   }
 
   private void tryAutoFillOnCheckIn(String eventId, String teamId) {

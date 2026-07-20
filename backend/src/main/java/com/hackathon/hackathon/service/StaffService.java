@@ -41,6 +41,7 @@ import com.hackathon.hackathon.repository.CriteriaRepository;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.JudgeTeamAssignmentRepository;
 import com.hackathon.hackathon.repository.ParticipantsProfileRepository;
+import com.hackathon.hackathon.repository.RoundLifecycleRepository;
 import com.hackathon.hackathon.repository.StaffAssignmentRepository;
 import com.hackathon.hackathon.repository.StaffEmailRepository;
 import com.hackathon.hackathon.repository.StudentProfileRepository;
@@ -87,6 +88,8 @@ public class StaffService {
   @Autowired private AssignmentRepository assignmentRepository;
 
   @Autowired private JudgeTeamAssignmentRepository judgeTeamAssignmentRepository;
+
+  @Autowired private RoundLifecycleRepository roundLifecycleRepository;
 
   @Autowired private AuthService authService;
 
@@ -424,6 +427,90 @@ public class StaffService {
 
   public MessageResponse updateEventRepoAccessAutomatically(String eventId, boolean grantAccess) {
     return updateEventRepoAccessInternal(eventId, grantAccess, true);
+  }
+
+  /**
+   * Updates GitHub access for teams participating in a specific round. When revoking, teams are
+   * downgraded to read-only instead of being removed from the repository.
+   *
+   * @return number of member-repo updates that succeeded
+   */
+  public int updateRoundTeamRepoAccess(
+      String roundId, boolean grantAccess, boolean keepReadOnlyWhenClosed) {
+    int successCount = 0;
+    for (RoundLifecycleRepository.RoundTeamRepo team :
+        roundLifecycleRepository.findApprovedTeamsInRound(roundId)) {
+      successCount +=
+          updateTeamMembersRepoAccess(
+              team.githubRepoUrl(), team.teamId(), grantAccess, keepReadOnlyWhenClosed);
+    }
+    return successCount;
+  }
+
+  private int updateTeamMembersRepoAccess(
+      String repoUrl, String teamId, boolean grantAccess, boolean keepReadOnlyWhenClosed) {
+    if (repoUrl == null || repoUrl.isBlank()) {
+      return 0;
+    }
+
+    String owner = gitHubAppConfig.getOrganization();
+    String repoName = extractRepoName(repoUrl);
+    if (repoName.isEmpty()) {
+      return 0;
+    }
+
+    if (owner == null || owner.isBlank()) {
+      String temp = repoUrl.replace("https://github.com/", "");
+      String[] parts = temp.split("/");
+      if (parts.length >= 2) {
+        owner = parts[0];
+      } else {
+        return 0;
+      }
+    }
+
+    int successCount = 0;
+    List<User> members = teamRepository.findTeamMembersByTeamId(teamId);
+    for (User member : members) {
+      String username = member.getGithubUsername();
+      if (username == null || username.isBlank()) {
+        continue;
+      }
+
+      try {
+        if (grantAccess) {
+          gitHubRepoService.addCollaboratorInternal(owner, repoName, username);
+        } else if (keepReadOnlyWhenClosed) {
+          gitHubRepoService.setReadOnlyCollaboratorInternal(owner, repoName, username);
+        } else {
+          gitHubRepoService.removeCollaboratorInternal(owner, repoName, username);
+        }
+        successCount++;
+      } catch (Exception e) {
+        System.err.println(
+            "[DEBUG] Round repo access: failed for user "
+                + username
+                + " in repo "
+                + repoName
+                + ": "
+                + e.getMessage());
+      }
+    }
+    return successCount;
+  }
+
+  private String extractRepoName(String repoUrl) {
+    if (repoUrl == null || repoUrl.isBlank()) {
+      return "";
+    }
+    String cleanUrl = repoUrl.trim();
+    int queryIndex = cleanUrl.indexOf('?');
+    if (queryIndex >= 0) {
+      cleanUrl = cleanUrl.substring(0, queryIndex);
+    }
+    int lastSlash = cleanUrl.lastIndexOf('/');
+    String repoName = lastSlash >= 0 ? cleanUrl.substring(lastSlash + 1) : cleanUrl;
+    return repoName.endsWith(".git") ? repoName.substring(0, repoName.length() - 4) : repoName;
   }
 
   private MessageResponse updateEventRepoAccessInternal(

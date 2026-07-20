@@ -124,6 +124,34 @@ public class JudgeTeamAssignmentRepository {
     executeDelete("DELETE FROM judge_team_assignments WHERE round_id = ?", roundId);
   }
 
+  public List<JudgeRepoAssignment> findAssignmentsForRound(String roundId) {
+    List<JudgeRepoAssignment> assignments = new ArrayList<>();
+    String sql =
+        "SELECT jta.judge_id, jta.team_id, u.github_username, tr.github_repo_url "
+            + "FROM judge_team_assignments jta "
+            + "JOIN rounds r ON r.round_id = jta.round_id "
+            + "JOIN team_registrations tr ON tr.team_id = jta.team_id AND tr.event_id = r.event_id "
+            + "JOIN users u ON u.user_id = jta.judge_id "
+            + "WHERE jta.round_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, roundId);
+      try (ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+          assignments.add(
+              new JudgeRepoAssignment(
+                  rs.getString("judge_id"),
+                  rs.getString("team_id"),
+                  rs.getString("github_username"),
+                  rs.getString("github_repo_url")));
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Could not load judge repo assignments.", e);
+    }
+    return assignments;
+  }
+
   private void executeDelete(String sql, String id) {
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -135,4 +163,7 @@ public class JudgeTeamAssignmentRepository {
   }
 
   public record UnassignedTeam(String groupId, String teamId, String githubRepoUrl) {}
+
+  public record JudgeRepoAssignment(
+      String judgeId, String teamId, String githubUsername, String githubRepoUrl) {}
 }

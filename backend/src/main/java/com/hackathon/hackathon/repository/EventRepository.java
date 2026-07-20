@@ -127,10 +127,17 @@ public class EventRepository {
     List<Event> events = new ArrayList<>();
     boolean filterAll =
         (statusFilter == null || statusFilter.isEmpty() || "ALL".equals(statusFilter));
+    String baseSelect =
+        "SELECT e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at, "
+            + "COUNT(DISTINCT CASE WHEN tr.status = 'PENDING' THEN tr.team_id END) AS pending_teams "
+            + "FROM events e "
+            + "LEFT JOIN team_registrations tr ON e.event_id = tr.event_id ";
+    String groupBy =
+        "GROUP BY e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at ";
     String sql =
         filterAll
-            ? "SELECT event_id, title, description, start_date, end_date, status, created_at FROM events"
-            : "SELECT event_id, title, description, start_date, end_date, status, created_at FROM events WHERE status = ?";
+            ? baseSelect + groupBy
+            : baseSelect + "WHERE e.status = ? " + groupBy;
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       if (!filterAll) {

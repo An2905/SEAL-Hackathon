@@ -1281,10 +1281,6 @@ function teamHasLinkedGitHubRepo(team) {
   return Boolean(parseGitHubRepoUrl(team?.githubRepoUrl))
 }
 
-function getTeamsWithLinkedRepos(teams) {
-  return (teams ?? []).filter(teamHasLinkedGitHubRepo)
-}
-
 function IconCommitHistory({ size = 14 }) {
   return (
     <svg
@@ -1358,9 +1354,15 @@ function TeamRegistrationStatusPicker({ team, onUpdated }) {
 }
 
 function TeamRegistrationDetailModal({ team, isOpen, onClose, onTeamUpdated }) {
+  const { auth } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [members, setMembers] = useState([])
+  const [commitModalOpen, setCommitModalOpen] = useState(false)
+
+  const showViewCommits = COMMIT_VIEW_ROLES.has(auth.role)
+  const canViewCommits = Boolean(team && teamHasLinkedGitHubRepo(team))
+  const parsedRepo = team ? parseGitHubRepoUrl(team.githubRepoUrl) : null
 
   const loadMembers = useCallback(async () => {
     if (!team?.teamId) return
@@ -1432,6 +1434,47 @@ function TeamRegistrationDetailModal({ team, isOpen, onClose, onTeamUpdated }) {
           </div>
         </div>
       )}
+
+      {showViewCommits && (
+        <div className='team-registration-detail-commits'>
+          <button
+            type='button'
+            className='btn btn-outline btn-sm team-registrations-view-commits-btn'
+            style={{
+              borderColor: 'var(--accent,#2563eb)',
+              color: 'var(--accent,#2563eb)',
+              padding: '8px 14px',
+              height: 'auto',
+              minHeight: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              marginTop: 16
+            }}
+            onClick={() => setCommitModalOpen(true)}
+            disabled={!canViewCommits}
+            title={!canViewCommits ? REPO_NOT_LINKED_TOOLTIP : undefined}
+          >
+            <IconCommitHistory />
+            Xem Commits
+          </button>
+          {!canViewCommits && (
+            <p className='hint' style={{ marginTop: 8, marginBottom: 0 }}>
+              {REPO_NOT_LINKED_TOOLTIP}
+            </p>
+          )}
+        </div>
+      )}
+
+      {parsedRepo && (
+        <CommitListModal
+          isOpen={commitModalOpen}
+          onClose={() => setCommitModalOpen(false)}
+          owner={parsedRepo.owner}
+          repo={parsedRepo.repo}
+          teamName={team?.teamName}
+        />
+      )}
     </Modal>
   )
 }
@@ -1439,8 +1482,6 @@ function TeamRegistrationDetailModal({ team, isOpen, onClose, onTeamUpdated }) {
 function GitHubStatusBadge({ team, onGitHubUpdated }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
-  const [commitModalOpen, setCommitModalOpen] = useState(false)
-  const parsedRepo = parseGitHubRepoUrl(team.githubRepoUrl)
 
   const handleRetry = async () => {
     if (!team.registrationId) return
@@ -1490,26 +1531,7 @@ function GitHubStatusBadge({ team, onGitHubUpdated }) {
               Repo
             </a>
           )}
-          {parsedRepo && (
-            <button
-              type='button'
-              className='btn btn-outline btn-sm'
-              style={{ fontSize: 11, padding: '2px 8px' }}
-              onClick={() => setCommitModalOpen(true)}
-            >
-              Commits
-            </button>
-          )}
         </div>
-        {parsedRepo && (
-          <CommitListModal
-            isOpen={commitModalOpen}
-            onClose={() => setCommitModalOpen(false)}
-            owner={parsedRepo.owner}
-            repo={parsedRepo.repo}
-            teamName={team.teamName}
-          />
-        )}
       </>
     )
   }
@@ -1596,17 +1618,8 @@ function GitHubStatusBadge({ team, onGitHubUpdated }) {
   )
 }
 
-function TeamRegistrationsBulkActions({
-  onBulkAccess,
-  repoAccessAvailable,
-  firstRoundStartTime,
-  onViewCommits,
-  viewCommitsDisabled
-}) {
-  const { auth } = useAuth()
-  const showViewCommits = COMMIT_VIEW_ROLES.has(auth.role)
-
-  if (!repoAccessAvailable && !showViewCommits) {
+function TeamRegistrationsBulkActions({ onBulkAccess, repoAccessAvailable, firstRoundStartTime }) {
+  if (!repoAccessAvailable) {
     const availableAt = firstRoundStartTime
       ? formatEventDateTime(new Date(firstRoundStartTime))
       : 'khi cấu hình vòng đầu tiên'
@@ -1619,65 +1632,34 @@ function TeamRegistrationsBulkActions({
 
   return (
     <div className='team-registrations-bulk-actions'>
-      {repoAccessAvailable ? (
-        <>
-          <button
-            type='button'
-            className='btn btn-outline btn-sm'
-            style={{
-              borderColor: '#22c55e',
-              color: '#16a34a',
-              padding: '6px 12px',
-              height: 'auto',
-              minHeight: 0
-            }}
-            onClick={() => onBulkAccess?.(true)}
-          >
-            Mở quyền làm bài (Tất cả)
-          </button>
-          <button
-            type='button'
-            className='btn btn-outline btn-sm'
-            style={{
-              borderColor: '#ef4444',
-              color: '#dc2626',
-              padding: '6px 12px',
-              height: 'auto',
-              minHeight: 0
-            }}
-            onClick={() => onBulkAccess?.(false)}
-          >
-            Khóa quyền làm bài (Tất cả)
-          </button>
-        </>
-      ) : (
-        <span className='card-sub' style={{ margin: 0 }}>
-          Quyền repository sẽ khả dụng từ{' '}
-          {firstRoundStartTime ? formatEventDateTime(new Date(firstRoundStartTime)) : 'khi cấu hình vòng đầu tiên'}.
-        </span>
-      )}
-      {showViewCommits && (
-        <button
-          type='button'
-          className='btn btn-outline btn-sm team-registrations-view-commits-btn'
-          style={{
-            borderColor: 'var(--accent,#2563eb)',
-            color: 'var(--accent,#2563eb)',
-            padding: '6px 12px',
-            height: 'auto',
-            minHeight: 0,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6
-          }}
-          onClick={onViewCommits}
-          disabled={viewCommitsDisabled}
-          title={viewCommitsDisabled ? REPO_NOT_LINKED_TOOLTIP : undefined}
-        >
-          <IconCommitHistory />
-          Xem Commits
-        </button>
-      )}
+      <button
+        type='button'
+        className='btn btn-outline btn-sm'
+        style={{
+          borderColor: '#22c55e',
+          color: '#16a34a',
+          padding: '6px 12px',
+          height: 'auto',
+          minHeight: 0
+        }}
+        onClick={() => onBulkAccess?.(true)}
+      >
+        Mở quyền làm bài (Tất cả)
+      </button>
+      <button
+        type='button'
+        className='btn btn-outline btn-sm'
+        style={{
+          borderColor: '#ef4444',
+          color: '#dc2626',
+          padding: '6px 12px',
+          height: 'auto',
+          minHeight: 0
+        }}
+        onClick={() => onBulkAccess?.(false)}
+      >
+        Khóa quyền làm bài (Tất cả)
+      </button>
     </div>
   )
 }
@@ -1686,13 +1668,6 @@ function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess, repoAcce
   const [page, setPage] = useState(1)
   const [activeTeam, setActiveTeam] = useState(null)
   const [teamRows, setTeamRows] = useState(teams)
-  const [commitTeam, setCommitTeam] = useState(null)
-  const [commitModalOpen, setCommitModalOpen] = useState(false)
-  const [teamPickerOpen, setTeamPickerOpen] = useState(false)
-
-  const teamsWithLinkedRepos = useMemo(() => getTeamsWithLinkedRepos(teamRows), [teamRows])
-  const viewCommitsDisabled = teamsWithLinkedRepos.length === 0
-  const commitRepo = useMemo(() => (commitTeam ? parseGitHubRepoUrl(commitTeam.githubRepoUrl) : null), [commitTeam])
 
   useEffect(() => {
     setTeamRows(teams)
@@ -1728,79 +1703,11 @@ function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess, repoAcce
     onTeamUpdated?.(registrationId, updates)
   }
 
-  const openCommitModalForTeam = (team) => {
-    setCommitTeam(team)
-    setCommitModalOpen(true)
-  }
-
-  const handleViewCommits = () => {
-    if (viewCommitsDisabled) return
-    if (teamsWithLinkedRepos.length === 1) {
-      openCommitModalForTeam(teamsWithLinkedRepos[0])
-      return
-    }
-    setTeamPickerOpen(true)
-  }
-
-  const handleSelectCommitTeam = (team) => {
-    setTeamPickerOpen(false)
-    openCommitModalForTeam(team)
-  }
-
   const bulkActionsProps = {
     onBulkAccess,
     repoAccessAvailable,
-    firstRoundStartTime,
-    onViewCommits: handleViewCommits,
-    viewCommitsDisabled
+    firstRoundStartTime
   }
-
-  const commitModals = (
-    <>
-      <Modal
-        isOpen={teamPickerOpen}
-        onClose={() => setTeamPickerOpen(false)}
-        title='Chọn đội'
-        subtitle='Chọn repository để xem lịch sử commit'
-      >
-        <div className='kv-list'>
-          {teamsWithLinkedRepos.map((team) => (
-            <button
-              key={team.registrationId || team.teamId}
-              type='button'
-              onClick={() => handleSelectCommitTeam(team)}
-              style={{
-                display: 'block',
-                width: '100%',
-                textAlign: 'left',
-                background: 'none',
-                border: 'none',
-                borderBottom: '1px solid var(--border-soft, #f5f5f5)',
-                padding: '10px 0',
-                cursor: 'pointer'
-              }}
-            >
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{team.teamName || '—'}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{team.githubRepoUrl}</div>
-            </button>
-          ))}
-        </div>
-      </Modal>
-
-      {commitRepo && (
-        <CommitListModal
-          isOpen={commitModalOpen}
-          onClose={() => {
-            setCommitModalOpen(false)
-            setCommitTeam(null)
-          }}
-          owner={commitRepo.owner}
-          repo={commitRepo.repo}
-          teamName={commitTeam?.teamName}
-        />
-      )}
-    </>
-  )
 
   if (!teamRows.length) {
     return (
@@ -1814,7 +1721,6 @@ function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess, repoAcce
           </div>
         </div>
         <div className='empty-state'>Chưa có đội nào tham gia.</div>
-        {commitModals}
       </section>
     )
   }
@@ -1866,7 +1772,6 @@ function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess, repoAcce
         onTeamUpdated={handleTeamUpdated}
       />
 
-      {commitModals}
     </section>
   )
 }
@@ -3002,24 +2907,6 @@ export default function EventDetailsPage() {
     try {
       const data = await getEventDetail(eventId)
       setEvent(data)
-
-      const firstRound = [...(data.rounds ?? [])].sort(
-        (a, b) => Number(a.roundOrder ?? 0) - Number(b.roundOrder ?? 0)
-      )[0]
-      if (firstRound?.roundId) {
-        try {
-          const fillResult = await autoFillRoundGroups({
-            eventId,
-            roundId: firstRound.roundId
-          })
-          if (fillResult.assignedCount > 0) {
-            setEvent(await getEventDetail(eventId))
-            showToast(fillResult.message, 'success')
-          }
-        } catch {
-          // Bỏ qua nếu auto-fill không chạy được (vd. chưa có bảng)
-        }
-      }
     } catch (err) {
       setError(localizeError(err.message))
       showToast('Không tải được chi tiết sự kiện', 'error')

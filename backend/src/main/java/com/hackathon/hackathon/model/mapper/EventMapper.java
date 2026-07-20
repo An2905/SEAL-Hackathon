@@ -30,6 +30,11 @@ public class EventMapper {
     event.setEndDate(rs.getString("end_date"));
     event.setStatus(rs.getString("status"));
     event.setCreatedAt(rs.getString("created_at"));
+    try {
+      event.setPendingTeams(rs.getString("pending_teams"));
+    } catch (SQLException ignored) {
+      event.setPendingTeams("0");
+    }
     return event;
   }
 
@@ -108,6 +113,7 @@ public class EventMapper {
     response.setEndDate(event.getEndDate());
     response.setStatus(event.getStatus());
     response.setCreatedAt(event.getCreatedAt());
+    response.setPendingTeams(event.getPendingTeams() != null ? event.getPendingTeams() : "0");
     return response;
   }
 

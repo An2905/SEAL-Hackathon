@@ -27,22 +27,14 @@ export async function getEventDetail(eventId) {
   }
 }
 
-// Enrich a list of events with their pending-team counts (fetched in parallel).
-// FIX: Thêm field `pendingTeamsError: true` khi fetch thất bại, để UI phân biệt
-// được "thực sự 0 pending" với "fetch bị lỗi mạng / auth / server".
+// pendingTeams is included in GET /api/staff/events — no N× detail fetch needed.
 export async function attachPendingTeamsToEvents(events) {
   if (!Array.isArray(events) || events.length === 0) return []
-
-  return Promise.all(
-    events.map(async (ev) => {
-      try {
-        const detail = await getEventDetail(ev.eventId)
-        return { ...ev, pendingTeams: countPendingTeams(detail.teams), pendingTeamsError: false }
-      } catch {
-        return { ...ev, pendingTeams: '0', pendingTeamsError: true }
-      }
-    })
-  )
+  return events.map((ev) => ({
+    ...ev,
+    pendingTeams: ev.pendingTeams ?? '0',
+    pendingTeamsError: false
+  }))
 }
 
 // GET /api/staff/events?status=...

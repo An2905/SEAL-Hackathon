@@ -450,6 +450,22 @@ CREATE TABLE `round_groups` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `round_lifecycle_milestones`
+--
+
+DROP TABLE IF EXISTS `round_lifecycle_milestones`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `round_lifecycle_milestones` (
+  `round_id` varchar(36) NOT NULL,
+  `milestone` varchar(50) NOT NULL,
+  `processed_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`round_id`,`milestone`),
+  CONSTRAINT `fk_rlm_round` FOREIGN KEY (`round_id`) REFERENCES `rounds` (`round_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `round_winners`
 --
 

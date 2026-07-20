@@ -16,5 +16,7 @@ public class EventSummaryResponse {
 
   private String status;
 
+  private String pendingTeams;
+
   private String createdAt;
 }

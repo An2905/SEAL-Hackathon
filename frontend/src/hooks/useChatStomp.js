@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import { getWebSocketUrl } from '../api/chat'
+import { isTokenExpired } from '../utils/jwt'
 
 export function useChatStomp({ roomId, onMessage }) {
   const clientRef = useRef(null)
@@ -16,7 +17,12 @@ export function useChatStomp({ roomId, onMessage }) {
     if (!roomId) return undefined
 
     const token = localStorage.getItem('hh_token')
-    if (!token || token === 'null') return undefined
+    if (!token || token === 'null' || token === 'undefined' || isTokenExpired(token)) {
+      if (isTokenExpired(token)) {
+        window.dispatchEvent(new Event('auth:token-expired'))
+      }
+      return undefined
+    }
 
     const client = new Client({
       webSocketFactory: () => new SockJS(getWebSocketUrl()),

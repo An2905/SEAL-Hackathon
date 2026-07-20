@@ -58,6 +58,60 @@ export async function apiFetch(path, { method = 'GET', body, auth = true } = {})
   return text
 }
 
+/** Extract `message` from MessageResponse JSON or return plain text. */
+export function parseMessageResponse(text) {
+  if (!text) return ''
+  try {
+    const parsed = JSON.parse(text)
+    if (parsed && typeof parsed.message === 'string') return parsed.message
+  } catch {
+    // Plain-text response — keep raw text.
+  }
+  return text
+}
+
+/** Binary download with the same auth/base URL rules as apiFetch. */
+export async function apiFetchBlob(path, { method = 'GET' } = {}) {
+  const headers = {}
+  const token = localStorage.getItem('hh_token')
+  if (token && token !== 'null' && token !== 'undefined') {
+    if (isTokenExpired(token)) {
+      window.dispatchEvent(new Event('auth:token-expired'))
+      throw new Error('TOKEN_EXPIRED')
+    }
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  let response
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers,
+      credentials: 'include'
+    })
+  } catch {
+    throw new Error('NETWORK')
+  }
+
+  if (!response.ok) {
+    const text = await response.text()
+    let message = text
+    if (text) {
+      try {
+        const parsed = JSON.parse(text)
+        if (parsed && typeof parsed.message === 'string' && parsed.message) {
+          message = parsed.message
+        }
+      } catch {
+        // keep raw text
+      }
+    }
+    throw new Error(message || `HTTP_${response.status}`)
+  }
+
+  return response.blob()
+}
+
 // Parse the /api/auth/login response. The BE returns JSON
 // ({ "message": "Login success", "token": "<jwt>" }); we also tolerate the
 // legacy plain-text form ("Login success ... Token: x Role: y"). The role is
