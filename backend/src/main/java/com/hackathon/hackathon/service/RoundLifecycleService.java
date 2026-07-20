@@ -21,6 +21,15 @@ public class RoundLifecycleService {
 
   public void processDueMilestones(String now) {
     for (RoundLifecycleRepository.RoundSchedule round :
+        roundLifecycleRepository.findRoundsDueToStart(now)) {
+      try {
+        processRoundStart(round, now);
+      } catch (Exception e) {
+        log.error("Failed to process round start for round {}", round.roundId(), e);
+      }
+    }
+
+    for (RoundLifecycleRepository.RoundSchedule round :
         roundLifecycleRepository.findRoundsDueForSubmissionClose(now)) {
       try {
         processSubmissionDeadline(round);
@@ -35,15 +44,6 @@ public class RoundLifecycleService {
         processRoundEnd(round);
       } catch (Exception e) {
         log.error("Failed to process round end for round {}", round.roundId(), e);
-      }
-    }
-
-    for (RoundLifecycleRepository.RoundSchedule round :
-        roundLifecycleRepository.findRoundsDueToStart(now)) {
-      try {
-        processRoundStart(round, now);
-      } catch (Exception e) {
-        log.error("Failed to process round start for round {}", round.roundId(), e);
       }
     }
   }
