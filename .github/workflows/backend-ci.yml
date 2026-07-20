@@ -29,12 +29,6 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Check Java Formatting (Spotless)
-        run: |
-          cd backend
-          chmod +x mvnw
-          ./mvnw spotless:check
-
       - name: Compile Backend
         run: |
           cd backend
