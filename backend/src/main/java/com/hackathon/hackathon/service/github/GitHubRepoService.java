@@ -2,9 +2,12 @@ package com.hackathon.hackathon.service.github;
 
 import com.hackathon.hackathon.config.GitHubAppConfig;
 import com.hackathon.hackathon.exception.BadRequestException;
+import com.hackathon.hackathon.exception.ForbiddenException;
 import com.hackathon.hackathon.service.AuthService;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 @Service
 @Slf4j
@@ -122,14 +126,48 @@ public class GitHubRepoService {
       int perPage,
       int page) {
     String url = buildCommitsUrl(owner, repo, sha, author, since, until, perPage, page);
-    return restClient
-        .get()
-        .uri(url)
-        .header("Authorization", "Bearer " + tokenService.getInstallationToken())
-        .header("Accept", "application/vnd.github+json")
-        .header("X-GitHub-Api-Version", "2026-03-10")
-        .retrieve()
-        .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+    try {
+      List<Map<String, Object>> body =
+          restClient
+              .get()
+              // Pre-built URL (already has query string) — use URI.create to avoid
+              // UriTemplate re-encoding of '?' / '&' / encoded values.
+              .uri(URI.create(url))
+              .header("Authorization", "Bearer " + tokenService.getInstallationToken())
+              .header("Accept", "application/vnd.github+json")
+              .header("X-GitHub-Api-Version", "2026-03-10")
+              .retrieve()
+              .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+      return body != null ? body : Collections.emptyList();
+    } catch (RestClientResponseException e) {
+      int status = e.getStatusCode().value();
+      String githubBody = e.getResponseBodyAsString();
+      // GitHub returns 409 when the git repository has no commits yet (empty repo).
+      // Provisioning creates repos without auto_init, so this is a normal case.
+      if (status == 409) {
+        log.info(
+            "GitHub repo {}/{} has no commits yet (empty repository). Returning empty list.",
+            owner,
+            repo);
+        return Collections.emptyList();
+      }
+      log.error(
+          "GitHub list commits failed for {}/{}: status={}, body={}",
+          owner,
+          repo,
+          status,
+          githubBody);
+      if (status == 404) {
+        throw new BadRequestException(
+            "Repository not found or GitHub App cannot access it: " + owner + "/" + repo);
+      }
+      if (status == 403) {
+        throw new ForbiddenException(
+            "GitHub App lacks permission to list commits (Contents: Read required).");
+      }
+      throw new BadRequestException(
+          "Failed to list commits from GitHub (HTTP " + status + ").");
+    }
   }
 
   public List<Map<String, Object>> listRepoCommits(

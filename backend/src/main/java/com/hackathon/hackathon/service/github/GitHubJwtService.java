@@ -45,11 +45,33 @@ public class GitHubJwtService {
       return null;
     }
     String pem = raw.trim();
+    if ((pem.startsWith("\"") && pem.endsWith("\""))
+        || (pem.startsWith("'") && pem.endsWith("'"))) {
+      pem = pem.substring(1, pem.length() - 1).trim();
+    }
     // Railway / .env often stores PEM as a single line with literal \n
     if (pem.contains("\\n")) {
       pem = pem.replace("\\n", "\n");
     }
+    // Some .env stores the entire PEM file as one base64 blob (no BEGIN header)
+    if (!pem.contains("BEGIN ") && looksLikeBase64(pem)) {
+      try {
+        String decoded = new String(Base64.getDecoder().decode(pem.replaceAll("\\s", "")));
+        if (decoded.contains("BEGIN ")) {
+          pem = decoded;
+        }
+      } catch (IllegalArgumentException ignored) {
+        // keep original; getPrivateKey will fail with a clearer error
+      }
+    }
     return pem;
+  }
+
+  private static boolean looksLikeBase64(String value) {
+    if (value.isBlank() || value.length() < 64) {
+      return false;
+    }
+    return value.replaceAll("\\s", "").matches("^[A-Za-z0-9+/=]+$");
   }
 
   private PrivateKey getPrivateKey(String pemContent) throws Exception {
