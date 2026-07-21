@@ -53,15 +53,64 @@ public class RoundLifecycleRepository {
         "SELECT r.round_id, r.event_id, r.round_order, r.winners_per_round, "
             + "r.start_date, r.submission_deadline, r.end_date "
             + "FROM rounds r "
-            + "WHERE r.start_date IS NOT NULL AND r.start_date <= ? "
+            + "JOIN events e ON e.event_id = r.event_id "
+            + "WHERE e.status = 'ONGOING' "
+            + "AND r.start_date IS NOT NULL AND r.start_date <= ? "
             + "AND NOT EXISTS ("
             + "SELECT 1 FROM round_lifecycle_milestones m "
             + "WHERE m.round_id = r.round_id AND m.milestone = '"
             + MILESTONE_STARTED
             + "'"
             + ") "
+            + "AND ("
+            + "r.round_order = 1 "
+            + "OR EXISTS ("
+            + "SELECT 1 FROM rounds prev "
+            + "WHERE prev.event_id = r.event_id "
+            + "AND prev.round_order = r.round_order - 1 "
+            + "AND EXISTS ("
+            + "SELECT 1 FROM round_lifecycle_milestones m "
+            + "WHERE m.round_id = prev.round_id AND m.milestone = '"
+            + MILESTONE_ENDED
+            + "'"
+            + ") "
+            + "AND ("
+            + "SELECT COUNT(*) FROM round_winners rw "
+            + "WHERE rw.round_id = prev.round_id"
+            + ") >= prev.winners_per_round"
+            + ")"
+            + ") "
             + "ORDER BY r.start_date ASC",
         now);
+  }
+
+  public boolean arePreviousRoundWinnersAssigned(String eventId, int roundOrder, String roundId) {
+    if (roundOrder <= 1) {
+      return true;
+    }
+
+    String sql =
+        "SELECT NOT EXISTS ("
+            + "SELECT 1 FROM round_winners rw "
+            + "JOIN rounds prev ON prev.round_id = rw.round_id "
+            + "WHERE prev.event_id = ? "
+            + "AND prev.round_order = ? "
+            + "AND NOT EXISTS ("
+            + "SELECT 1 FROM group_teams gt "
+            + "WHERE gt.round_id = ? AND gt.team_id = rw.team_id"
+            + ")"
+            + ") AS all_assigned";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      ps.setInt(2, roundOrder - 1);
+      ps.setString(3, roundId);
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next() && rs.getInt("all_assigned") == 1;
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Could not verify next-round winner assignments.", e);
+    }
   }
 
   public List<RoundSchedule> findRoundsDueForSubmissionClose(String now) {
@@ -163,6 +212,36 @@ public class RoundLifecycleRepository {
     return teams;
   }
 
+  public ScoringProgress getScoringProgress(String roundId) {
+    String sql =
+        "SELECT "
+            + "COUNT(DISTINCT s.submission_id) AS submission_count, "
+            + "COUNT(DISTINCT jta.assignment_id) AS judge_assignment_count, "
+            + "COUNT(DISTINCT CASE WHEN sc.score_id IS NOT NULL THEN s.submission_id END) "
+            + "AS scored_submission_count "
+            + "FROM submissions s "
+            + "LEFT JOIN judge_team_assignments jta "
+            + "ON jta.round_id = s.round_id AND jta.team_id = s.team_id "
+            + "LEFT JOIN scores sc "
+            + "ON sc.submission_id = s.submission_id AND sc.judge_id = jta.judge_id "
+            + "WHERE s.round_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, roundId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return new ScoringProgress(
+              rs.getInt("submission_count"),
+              rs.getInt("judge_assignment_count"),
+              rs.getInt("scored_submission_count"));
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Could not load round scoring progress.", e);
+    }
+    return new ScoringProgress(0, 0, 0);
+  }
+
   private List<RoundSchedule> findRounds(String sql, String... params) {
     List<RoundSchedule> rounds = new ArrayList<>();
     try (Connection conn = dataSource.getConnection();
@@ -197,6 +276,24 @@ public class RoundLifecycleRepository {
       String startDate,
       String submissionDeadline,
       String endDate) {}
+
+  public record ScoringProgress(
+      int submissionCount, int judgeAssignmentCount, int scoredSubmissionCount) {
+
+    public boolean isComplete() {
+      return submissionCount == 0
+          || (judgeAssignmentCount == submissionCount
+              && scoredSubmissionCount == submissionCount);
+    }
+
+    public int unassignedSubmissionCount() {
+      return Math.max(0, submissionCount - judgeAssignmentCount);
+    }
+
+    public int unscoredSubmissionCount() {
+      return Math.max(0, submissionCount - scoredSubmissionCount);
+    }
+  }
 
   public record RoundTeamRepo(String teamId, String groupId, String githubRepoUrl) {}
 }

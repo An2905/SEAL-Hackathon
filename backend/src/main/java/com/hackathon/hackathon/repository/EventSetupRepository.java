@@ -425,6 +425,104 @@ public class EventSetupRepository {
     public int winnersPerRound;
   }
 
+  public List<GroupStaffingGap> findGroupStaffingGaps(String eventId) {
+    List<GroupStaffingGap> gaps = new ArrayList<>();
+    String sql =
+        "SELECT r.round_id, r.name AS round_name, rg.group_id, rg.name AS group_name, "
+            + "CASE WHEN COUNT(DISTINCT ja.assignment_id) = 0 THEN 1 ELSE 0 END AS missing_judge, "
+            + "CASE WHEN COUNT(DISTINCT ma.assignment_id) = 0 THEN 1 ELSE 0 END AS missing_mentor "
+            + "FROM rounds r "
+            + "JOIN round_groups rg ON rg.round_id = r.round_id "
+            + "LEFT JOIN judge_assignments ja "
+            + "ON ja.round_id = r.round_id AND ja.group_id = rg.group_id "
+            + "LEFT JOIN mentor_assignments ma "
+            + "ON ma.round_id = r.round_id AND ma.group_id = rg.group_id "
+            + "WHERE r.event_id = ? "
+            + "GROUP BY r.round_id, r.name, rg.group_id, rg.name "
+            + "HAVING COUNT(DISTINCT ja.assignment_id) = 0 "
+            + "OR COUNT(DISTINCT ma.assignment_id) = 0 "
+            + "ORDER BY r.round_order ASC, rg.name ASC";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+          gaps.add(
+              new GroupStaffingGap(
+                  rs.getString("round_id"),
+                  rs.getString("round_name"),
+                  rs.getString("group_id"),
+                  rs.getString("group_name"),
+                  rs.getInt("missing_judge") == 1,
+                  rs.getInt("missing_mentor") == 1));
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Could not validate group staffing.", e);
+    }
+    return gaps;
+  }
+
+  public List<JudgeGithubGap> findJudgesWithoutGithubUsername(String eventId) {
+    List<JudgeGithubGap> gaps = new ArrayList<>();
+    String sql =
+        "SELECT DISTINCT u.user_id, u.full_name, u.email "
+            + "FROM judge_assignments ja "
+            + "JOIN rounds r ON r.round_id = ja.round_id "
+            + "JOIN users u ON u.user_id = ja.judge_id "
+            + "WHERE r.event_id = ? "
+            + "AND (u.github_username IS NULL OR TRIM(u.github_username) = '') "
+            + "ORDER BY u.full_name ASC, u.email ASC";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+          gaps.add(
+              new JudgeGithubGap(
+                  rs.getString("user_id"), rs.getString("full_name"), rs.getString("email")));
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Could not validate judge GitHub accounts.", e);
+    }
+    return gaps;
+  }
+
+  public record GroupStaffingGap(
+      String roundId,
+      String roundName,
+      String groupId,
+      String groupName,
+      boolean missingJudge,
+      boolean missingMentor) {}
+
+  public record JudgeGithubGap(String judgeId, String fullName, String email) {}
+
+  public List<RoundReference> findFirstRoundsReadyForRosterReconciliation() {
+    List<RoundReference> rounds = new ArrayList<>();
+    String sql =
+        "SELECT r.event_id, r.round_id "
+            + "FROM rounds r "
+            + "JOIN events e ON e.event_id = r.event_id "
+            + "WHERE r.round_order = 1 "
+            + "AND e.status = 'UPCOMING' "
+            + "AND EXISTS (SELECT 1 FROM round_groups rg WHERE rg.round_id = r.round_id) "
+            + "ORDER BY e.start_date ASC, r.round_id ASC";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql);
+        ResultSet rs = ps.executeQuery()) {
+      while (rs.next()) {
+        rounds.add(new RoundReference(rs.getString("event_id"), rs.getString("round_id")));
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Could not load first rounds for roster reconciliation.", e);
+    }
+    return rounds;
+  }
+
+  public record RoundReference(String eventId, String roundId) {}
+
   public int findNextRoundOrder(String eventId) {
     String sql =
         "SELECT IFNULL(MAX(round_order), 0) + 1 AS next_order FROM rounds WHERE event_id = ?";

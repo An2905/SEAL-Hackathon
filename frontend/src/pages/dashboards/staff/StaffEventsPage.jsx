@@ -162,13 +162,15 @@ export default function StaffEventsPage() {
               >
                 Chi tiết
               </Link>
-              <Link
-                to={`/staff/events/${ev.eventId}/check-in`}
-                className='btn btn-outline'
-                style={{ fontSize: 12, padding: '5px 12px' }}
-              >
-                Check-in
-              </Link>
+              {ev.status === 'UPCOMING' && (
+                <Link
+                  to={`/staff/events/${ev.eventId}/check-in`}
+                  className='btn btn-outline'
+                  style={{ fontSize: 12, padding: '5px 12px' }}
+                >
+                  Check-in
+                </Link>
+              )}
               {canManuallyChangeEventStatus(ev.status) ? (
                 <select
                   value={ev.status}

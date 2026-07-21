@@ -385,6 +385,35 @@ CREATE TABLE `judge_team_assignments` (
   CONSTRAINT `fk_jta_group` FOREIGN KEY (`group_id`) REFERENCES `round_groups` (`group_id`),
   CONSTRAINT `fk_jta_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`team_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `github_repository_access_tasks` (
+  `task_id` varchar(36) NOT NULL,
+  `round_id` varchar(36) NOT NULL,
+  `group_id` varchar(36) DEFAULT NULL,
+  `team_id` varchar(36) NOT NULL,
+  `user_id` varchar(36) NOT NULL,
+  `github_repo_url` varchar(255) NOT NULL,
+  `operation` varchar(30) NOT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'PENDING',
+  `attempt_count` int NOT NULL DEFAULT '0',
+  `last_error` text,
+  `next_retry_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `completed_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`task_id`),
+  UNIQUE KEY `uq_github_access_task` (`round_id`,`team_id`,`user_id`,`operation`),
+  KEY `idx_github_access_task_retry` (`status`,`next_retry_at`),
+  KEY `idx_github_access_task_round` (`round_id`),
+  CONSTRAINT `fk_github_access_task_round`
+    FOREIGN KEY (`round_id`) REFERENCES `rounds` (`round_id`),
+  CONSTRAINT `fk_github_access_task_group`
+    FOREIGN KEY (`group_id`) REFERENCES `round_groups` (`group_id`),
+  CONSTRAINT `fk_github_access_task_team`
+    FOREIGN KEY (`team_id`) REFERENCES `teams` (`team_id`),
+  CONSTRAINT `fk_github_access_task_user`
+    FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

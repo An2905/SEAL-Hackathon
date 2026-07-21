@@ -116,6 +116,22 @@ public class JudgeTeamAssignmentRepository {
     }
   }
 
+  public boolean hasTeamAssignment(String roundId, String teamId) {
+    String sql =
+        "SELECT 1 FROM judge_team_assignments "
+            + "WHERE round_id = ? AND team_id = ? LIMIT 1";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, roundId);
+      ps.setString(2, teamId);
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Could not check judge-team assignment.", e);
+    }
+  }
+
   public void deleteByGroup(String groupId) {
     executeDelete("DELETE FROM judge_team_assignments WHERE group_id = ?", groupId);
   }

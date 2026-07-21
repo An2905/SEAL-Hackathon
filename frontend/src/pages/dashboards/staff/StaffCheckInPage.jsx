@@ -78,7 +78,7 @@ function isTeamPartiallyChecked(team) {
   return checkedCount > 0 && checkedCount < members.length
 }
 
-function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }) {
+function TeamAccordionItem({ team, eventId, checkInOpen, onTeamUpdated, busyKey, setBusyKey }) {
   const { showToast } = useToast()
   const [open, setOpen] = useState(false)
   const [membersPage, setMembersPage] = useState(1)
@@ -161,7 +161,7 @@ function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }
   return (
     <div className={`checkin-team-item${open ? ' is-open' : ''}`}>
       <div className='checkin-team-header'>
-        <label
+        {checkInOpen && <label
           className='checkin-checkbox-label'
           onClick={(e) => e.stopPropagation()}
           title={allChecked ? 'Bỏ check-in cả đội' : 'Check-in cả đội'}
@@ -174,7 +174,7 @@ function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }
             disabled={teamBusy || members.length === 0 || Boolean(busyKey)}
             onChange={handleTeamCheck}
           />
-        </label>
+        </label>}
 
         <button
           type='button'
@@ -287,7 +287,7 @@ function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }
                   const memberBusy = busyKey === `member:${team.teamId}:${m.userId}`
                   return (
                     <div className='kv checkin-member-row' key={m.userId} style={{ alignItems: 'flex-start' }}>
-                      <label className='checkin-checkbox-label'>
+                      {checkInOpen && <label className='checkin-checkbox-label'>
                         <input
                           type='checkbox'
                           className='checkin-checkbox'
@@ -302,7 +302,7 @@ function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }
                             }
                           }}
                         />
-                      </label>
+                      </label>}
                       <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
                         <div style={{ fontWeight: 600, color: 'var(--text)' }}>
                           {m.fullName || '—'}
@@ -470,6 +470,13 @@ export default function StaffCheckInPage() {
           chuyển <strong>APPROVED</strong>; nếu <strong>chưa đủ</strong> sẽ là <strong>PENDING</strong>.
         </p>
 
+        {page && !page.checkInOpen && (
+          <FormMessage
+            message='Check-in đã đóng vì sự kiện đã bắt đầu. Danh sách dưới đây chỉ để theo dõi.'
+            type='info'
+          />
+        )}
+
         {error && <FormMessage message={error} type='error' />}
 
         {loading && <LoadingState text='Đang tải danh sách đội…' />}
@@ -510,6 +517,7 @@ export default function StaffCheckInPage() {
                       key={team.teamId || team.registrationId}
                       team={team}
                       eventId={eventId}
+                      checkInOpen={page.checkInOpen}
                       onTeamUpdated={handleTeamUpdated}
                       busyKey={busyKey}
                       setBusyKey={setBusyKey}

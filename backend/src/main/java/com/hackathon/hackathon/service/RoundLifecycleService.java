@@ -15,8 +15,7 @@ public class RoundLifecycleService {
   @Autowired private RoundLifecycleRepository roundLifecycleRepository;
   @Autowired private SubmissionRepository submissionRepository;
   @Autowired private RoundWinnerRepository roundWinnerRepository;
-  @Autowired private StaffService staffService;
-  @Autowired private JudgeRepositoryProvisioningService judgeRepositoryProvisioningService;
+  @Autowired private GitHubRepositoryAccessTaskService gitHubRepositoryAccessTaskService;
   @Autowired private EventService eventService;
 
   public void processDueMilestones(String now) {
@@ -51,9 +50,18 @@ public class RoundLifecycleService {
   private void processRoundStart(RoundLifecycleRepository.RoundSchedule round, String now) {
     eventService.autoFillRoundGroupsForLifecycle(round.eventId(), round.roundId());
 
+    if (!roundLifecycleRepository.arePreviousRoundWinnersAssigned(
+        round.eventId(), round.roundOrder(), round.roundId())) {
+      log.warn(
+          "Round {} is due but cannot start because not all previous-round winners are assigned",
+          round.roundId());
+      return;
+    }
+
     int granted = 0;
     if (isWriteWindowOpen(round, now)) {
-      granted = staffService.updateRoundTeamRepoAccess(round.roundId(), true, true);
+      granted =
+          gitHubRepositoryAccessTaskService.enqueueTeamAccessForRound(round.roundId(), true);
     }
 
     roundLifecycleRepository.markMilestone(
@@ -65,9 +73,10 @@ public class RoundLifecycleService {
   }
 
   private void processSubmissionDeadline(RoundLifecycleRepository.RoundSchedule round) {
-    int readOnly = staffService.updateRoundTeamRepoAccess(round.roundId(), false, true);
+    int readOnly =
+        gitHubRepositoryAccessTaskService.enqueueTeamAccessForRound(round.roundId(), false);
     int submissions = submissionRepository.createSubmissionsForRound(round.roundId());
-    int judges = judgeRepositoryProvisioningService.provisionRoundForJudging(round.roundId());
+    int judges = gitHubRepositoryAccessTaskService.enqueueJudgeReadAccessForRound(round.roundId());
 
     roundLifecycleRepository.markMilestone(
         round.roundId(), RoundLifecycleRepository.MILESTONE_SUBMISSION_CLOSED);
@@ -80,7 +89,16 @@ public class RoundLifecycleService {
   }
 
   private void processRoundEnd(RoundLifecycleRepository.RoundSchedule round) {
-    int revoked = judgeRepositoryProvisioningService.revokeJudgesFromRound(round.roundId());
+    RoundLifecycleRepository.ScoringProgress progress =
+        roundLifecycleRepository.getScoringProgress(round.roundId());
+    if (!progress.isComplete()) {
+      log.warn(
+          "Round {} cannot end yet: {} submission(s) have no judge and {} submission(s) are unscored",
+          round.roundId(),
+          progress.unassignedSubmissionCount(),
+          progress.unscoredSubmissionCount());
+      return;
+    }
 
     Optional<String> nextRoundId =
         roundLifecycleRepository.findNextRoundId(round.eventId(), round.roundOrder());
@@ -88,12 +106,26 @@ public class RoundLifecycleService {
         roundWinnerRepository.finalizeWinnersForRound(
             round.roundId(), round.winnersPerRound(), nextRoundId);
 
+    if (nextRoundId.isPresent()) {
+      eventService.autoFillRoundGroupsForLifecycle(round.eventId(), nextRoundId.get());
+    }
+
+    int queuedForRemoval =
+        gitHubRepositoryAccessTaskService.enqueueJudgeRemovalForRound(round.roundId());
+    if (gitHubRepositoryAccessTaskService.hasOutstandingJudgeRemovalTasks(round.roundId())) {
+      log.info(
+          "Round {} winner(s) finalized; waiting for {} queued Judge removal task(s)",
+          round.roundId(),
+          queuedForRemoval);
+      return;
+    }
+
     roundLifecycleRepository.markMilestone(
         round.roundId(), RoundLifecycleRepository.MILESTONE_ENDED);
     log.info(
-        "Round {} ended: revoked {} judge repo accesses, finalized {} winners",
+        "Round {} ended: {} submissions scored, {} winners finalized, all Judge accesses revoked",
         round.roundId(),
-        revoked,
+        progress.scoredSubmissionCount(),
         winners);
   }
 

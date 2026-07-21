@@ -21,6 +21,7 @@ import com.hackathon.hackathon.repository.AssignmentRepository;
 import com.hackathon.hackathon.repository.CriteriaRepository;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.JudgeTeamAssignmentRepository;
+import com.hackathon.hackathon.repository.RoundLifecycleRepository;
 import com.hackathon.hackathon.repository.ScoreRepository;
 import io.jsonwebtoken.Claims;
 import java.util.ArrayList;
@@ -52,6 +53,8 @@ public class JudgeService {
   @Autowired private ScoreRepository scoreRepository;
 
   @Autowired private JudgeTeamAssignmentRepository judgeTeamAssignmentRepository;
+
+  @Autowired private RoundLifecycleRepository roundLifecycleRepository;
 
   @Autowired private MentorService mentorService;
 
@@ -242,6 +245,11 @@ public class JudgeService {
     String cleanEventId = request.getEventId().trim();
     String cleanRoundId = request.getRoundId().trim();
     String cleanGroupId = request.getGroupId().trim();
+
+    if (roundLifecycleRepository.isMilestoneProcessed(
+        cleanRoundId, RoundLifecycleRepository.MILESTONE_ENDED)) {
+      throw new ConflictException("Round đã kết thúc; không thể tạo hoặc sửa điểm.");
+    }
 
     // 1. Judge assign đúng round + group
     if (!assignmentRepository.judgeAssignmentExists(judgeId, cleanRoundId, cleanGroupId)) {

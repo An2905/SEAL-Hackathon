@@ -58,6 +58,7 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -69,6 +70,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientResponseException;
 
 @Service
+@Slf4j
 public class EventService {
 
   @Autowired private AuthService authService;
@@ -506,6 +508,15 @@ public class EventService {
       throw new BadRequestException("Tạo bảng đấu thất bại.");
     }
 
+    boolean isFirstRound =
+        eventSetupRepository
+            .findRoundByEventAndId(eventId, roundId)
+            .map(round -> round.roundOrder == 1)
+            .orElse(false);
+    if (isFirstRound) {
+      doAutoFillRoundGroups(eventId, roundId, false, true);
+    }
+
     String roundName =
         eventRepository.findRoundsByEventId(eventId).stream()
             .filter(r -> roundId.equals(r.getRoundId()))
@@ -708,7 +719,31 @@ public class EventService {
     if (!eventRepository.existsById(eid) || !eventRepository.roundBelongsToEvent(rid, eid)) {
       return;
     }
-    doAutoFillRoundGroups(eid, rid, false, false);
+    boolean requireFullCheckIn =
+        eventSetupRepository
+            .findRoundByEventAndId(eid, rid)
+            .map(round -> round.roundOrder == 1)
+            .orElse(false);
+    doAutoFillRoundGroups(eid, rid, false, requireFullCheckIn);
+  }
+
+  /**
+   * Backfills Round 1 groups for teams that are already approved and fully checked in.
+   * The group_teams unique flow makes this operation safe to run repeatedly.
+   */
+  public void reconcileFirstRoundRosters() {
+    for (EventSetupRepository.RoundReference round :
+        eventSetupRepository.findFirstRoundsReadyForRosterReconciliation()) {
+      try {
+        doAutoFillRoundGroups(round.eventId(), round.roundId(), false, true);
+      } catch (Exception e) {
+        log.error(
+            "Could not reconcile Round 1 roster for event {} and round {}",
+            round.eventId(),
+            round.roundId(),
+            e);
+      }
+    }
   }
 
   private void tryAutoFillOnCheckIn(String eventId, String teamId) {
@@ -1239,10 +1274,18 @@ public class EventService {
     authService.validateRole(authHeader, "COORDINATOR");
     String cleanEventId = requireCheckInEventId(eventId);
     requireCheckInEventExists(cleanEventId);
+    EventSetupRow event =
+        eventSetupRepository
+            .findEventById(cleanEventId)
+            .orElseThrow(() -> new BadRequestException("Event not found."));
 
     CheckInPageResponse response = new CheckInPageResponse();
     response.setEventId(cleanEventId);
     response.setEventTitle(checkInRepository.findEventTitle(cleanEventId).orElse("—"));
+    response.setCheckInOpen(
+        "UPCOMING".equalsIgnoreCase(event.status)
+            && event.startDate != null
+            && event.startDate.after(Timestamp.valueOf(VietnamTime.nowForDatabase())));
     response.setTeams(checkInRepository.findTeamsForCheckIn(cleanEventId));
     return response;
   }
@@ -1258,6 +1301,7 @@ public class EventService {
     String eventId = requireCheckInEventId(request.getEventId());
     String teamId = requireCheckInTeamId(request.getTeamId());
     requireCheckInEventExists(eventId);
+    requireCheckInWindowOpen(eventId);
     requireCheckInRegistration(eventId, teamId);
 
     String oldStatus =
@@ -1295,6 +1339,7 @@ public class EventService {
     String teamId = requireCheckInTeamId(request.getTeamId());
     String userId = requireCheckInMemberUserId(request.getUserId());
     requireCheckInEventExists(eventId);
+    requireCheckInWindowOpen(eventId);
     requireCheckInRegistration(eventId, teamId);
 
     String oldStatus =
@@ -1335,6 +1380,22 @@ public class EventService {
       throw new BadRequestException("Team ID is required.");
     }
     return clean;
+  }
+
+  private void requireCheckInWindowOpen(String eventId) {
+    EventSetupRow event =
+        eventSetupRepository
+            .findEventById(eventId)
+            .orElseThrow(() -> new BadRequestException("Không tìm thấy sự kiện."));
+
+    if (!"UPCOMING".equalsIgnoreCase(event.status)) {
+      throw new ConflictException("Chỉ được check-in khi sự kiện đang ở trạng thái UPCOMING.");
+    }
+
+    if (event.startDate == null
+        || !event.startDate.after(Timestamp.valueOf(VietnamTime.nowForDatabase()))) {
+      throw new ConflictException("Đã đến giờ bắt đầu sự kiện; check-in đã đóng.");
+    }
   }
 
   private String requireCheckInMemberUserId(String userId) {
@@ -1539,6 +1600,65 @@ public class EventService {
       throw new BadRequestException(
           "Khi sự kiện có giới hạn số đội, mọi bảng đấu phải có số đội tối đa.");
     }
+
+    validateGitHubSetupForUpcoming();
+    validateGroupStaffingForUpcoming(eventId);
+  }
+
+  private void validateGitHubSetupForUpcoming() {
+    if (isBlank(gitHubAppConfig.getOrganization())
+        || isBlank(gitHubAppConfig.getInstallationId())
+        || isBlank(gitHubAppConfig.getPrivateKey())) {
+      throw new BadRequestException(
+          "GitHub App chưa được cấu hình đầy đủ (organization, installation ID hoặc private key).");
+    }
+  }
+
+  private void validateGroupStaffingForUpcoming(String eventId) {
+    List<EventSetupRepository.GroupStaffingGap> staffingGaps =
+        eventSetupRepository.findGroupStaffingGaps(eventId);
+    if (!staffingGaps.isEmpty()) {
+      List<String> labels = new ArrayList<>();
+      for (EventSetupRepository.GroupStaffingGap gap : staffingGaps) {
+        List<String> missing = new ArrayList<>();
+        if (gap.missingJudge()) {
+          missing.add("Judge");
+        }
+        if (gap.missingMentor()) {
+          missing.add("Mentor");
+        }
+        labels.add(
+            "Vòng \""
+                + gap.roundName()
+                + "\", bảng \""
+                + gap.groupName()
+                + "\": thiếu "
+                + String.join(" và ", missing));
+      }
+      throw new BadRequestException(
+          "Phải phân công đủ nhân sự trước khi chuyển UPCOMING: "
+              + String.join("; ", labels));
+    }
+
+    List<EventSetupRepository.JudgeGithubGap> githubGaps =
+        eventSetupRepository.findJudgesWithoutGithubUsername(eventId);
+    if (!githubGaps.isEmpty()) {
+      List<String> judges = new ArrayList<>();
+      for (EventSetupRepository.JudgeGithubGap judge : githubGaps) {
+        String label =
+            judge.fullName() == null || judge.fullName().isBlank()
+                ? judge.judgeId()
+                : judge.fullName();
+        judges.add(label);
+      }
+      throw new BadRequestException(
+          "Các Judge sau chưa liên kết GitHub nên chưa thể được mời vào repository: "
+              + String.join(", ", judges));
+    }
+  }
+
+  private boolean isBlank(String value) {
+    return value == null || value.isBlank();
   }
 
   private EventSetupRow mergeEventForUpcomingValidation(

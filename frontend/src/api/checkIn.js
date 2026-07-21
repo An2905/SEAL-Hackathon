@@ -43,6 +43,7 @@ export async function getCheckInPage(eventId) {
   return {
     eventId: data.eventId ?? data.event_id ?? id,
     eventTitle: data.eventTitle ?? data.event_title ?? '',
+    checkInOpen: Boolean(data.checkInOpen ?? data.check_in_open),
     teams: Array.isArray(data.teams) ? data.teams.map(mapTeam) : []
   }
 }
