@@ -60,6 +60,12 @@ function RoleSwitcher({ navLinks }) {
  * For multi-tab dashboards, the active tab is persisted in the URL as
  * `?tab=<key>` via useSearchParams, so the back/forward buttons and
  * shareable links work as expected.
+ *
+ * Optional nested-route support (e.g. staff event detail):
+ *   forcedTabKey     — highlight this tab while showing overrideContent
+ *   overrideContent  — render instead of the active tab's content
+ *   onForcedTabChange — called when a tab is clicked while forcedTabKey is set
+ *                       (so the host can navigate off the nested route)
  */
 export default function DashboardLayout({
   roleLabel,
@@ -70,15 +76,26 @@ export default function DashboardLayout({
   className = '',
   tabs,
   navLinks,
-  children
+  children,
+  forcedTabKey,
+  overrideContent,
+  onForcedTabChange
 }) {
   const tabList = tabs?.length ? tabs : [{ key: '_root', label: '', content: children }]
   const [searchParams, setSearchParams] = useSearchParams()
 
   const requestedTab = searchParams.get('tab')
-  const activeTab = tabList.some((tab) => tab.key === requestedTab) ? requestedTab : tabList[0].key
+  const activeTab = forcedTabKey
+    ? forcedTabKey
+    : tabList.some((tab) => tab.key === requestedTab)
+      ? requestedTab
+      : tabList[0].key
 
   const setActiveTab = (key) => {
+    if (forcedTabKey && onForcedTabChange) {
+      onForcedTabChange(key)
+      return
+    }
     const next = new URLSearchParams(searchParams)
     if (key === tabList[0].key) next.delete('tab')
     else next.set('tab', key)
@@ -102,7 +119,7 @@ export default function DashboardLayout({
       <ModuleContainer>
         <DashboardHeader title={moduleTitle} subtitle={moduleSubtitle} />
         <RoleSwitcher navLinks={navLinks} />
-        {active.content}
+        {overrideContent ?? active.content}
       </ModuleContainer>
 
       <SiteFooter />

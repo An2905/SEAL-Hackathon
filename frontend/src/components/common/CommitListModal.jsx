@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Modal from './Modal'
+import Pagination from './Pagination'
 import { listCommits, getCommit } from '../../api/githubRepo'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
@@ -33,10 +34,33 @@ function fileStatusColor(status) {
   return '#2563eb'
 }
 
-function commitsFromPageCache(pageCache) {
-  return Array.from(pageCache.keys())
-    .sort((a, b) => a - b)
-    .flatMap((page) => pageCache.get(page) ?? [])
+/** Exact total once a short page is known; otherwise total is unknown. */
+function resolvePagerState(pageCache, currentPage, currentRows) {
+  let lastShortPage = null
+  let maxPage = 0
+  for (const [p, rows] of pageCache.entries()) {
+    maxPage = Math.max(maxPage, p)
+    if ((rows?.length ?? 0) < PER_PAGE) {
+      lastShortPage = lastShortPage == null ? p : Math.max(lastShortPage, p)
+    }
+  }
+  if ((currentRows?.length ?? 0) < PER_PAGE) {
+    lastShortPage = lastShortPage == null ? currentPage : Math.max(lastShortPage, currentPage)
+  }
+
+  if (lastShortPage != null) {
+    let total = 0
+    for (let p = 1; p <= lastShortPage; p++) {
+      total += pageCache.get(p)?.length ?? 0
+    }
+    return { total, totalKnown: true, hasNext: false }
+  }
+
+  return {
+    total: Math.max(maxPage, currentPage) * PER_PAGE,
+    totalKnown: false,
+    hasNext: true
+  }
 }
 
 function CommitDetail({ owner, repo, sha, detailCacheRef, onBack }) {
@@ -135,7 +159,9 @@ function CommitDetail({ owner, repo, sha, detailCacheRef, onBack }) {
       {!loading && !error && detail && (
         <>
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{commitData.message || '(no message)'}</div>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
+              {commitData.message || '(Không có nội dung)'}
+            </div>
             <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
               {commitData.author?.name} · {formatDate(commitData.author?.date)}
             </div>
@@ -192,7 +218,18 @@ function CommitDetail({ owner, repo, sha, detailCacheRef, onBack }) {
   )
 }
 
-function CommitList({ commits, page, hasMore, loading, error, initialLoaded, onSelect, onLoadMore }) {
+function CommitList({
+  commits,
+  page,
+  pagerTotal,
+  totalKnown,
+  hasNext,
+  loading,
+  error,
+  initialLoaded,
+  onSelect,
+  onPageChange
+}) {
   return (
     <div>
       {!initialLoaded && loading && <p className='hint'>Đang tải commit...</p>}
@@ -200,7 +237,7 @@ function CommitList({ commits, page, hasMore, loading, error, initialLoaded, onS
 
       {commits.length === 0 && initialLoaded && !loading && !error && <p className='hint'>Không có commit nào.</p>}
 
-      <div className='kv-list'>
+      <div className='kv-list' style={{ opacity: loading && initialLoaded ? 0.55 : 1 }}>
         {commits.map((c) => {
           const sha = c.sha ?? ''
           const msg = c.commit?.message ?? ''
@@ -236,7 +273,7 @@ function CommitList({ commits, page, hasMore, loading, error, initialLoaded, onS
                       whiteSpace: 'nowrap'
                     }}
                   >
-                    {firstLine(msg) || '(no message)'}
+                    {firstLine(msg) || '(Không có nội dung)'}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
                     {authorName} · {formatDate(date)}
@@ -248,22 +285,18 @@ function CommitList({ commits, page, hasMore, loading, error, initialLoaded, onS
         })}
       </div>
 
-      {hasMore && (
-        <button
-          type='button'
-          className='btn btn-outline btn-sm'
-          style={{ marginTop: 10, width: '100%' }}
-          onClick={onLoadMore}
-          disabled={loading}
-        >
-          {loading ? 'Đang tải...' : `Tải thêm ${PER_PAGE} commit`}
-        </button>
-      )}
-
-      {!hasMore && commits.length > 0 && (
-        <p className='hint' style={{ textAlign: 'center', marginTop: 8 }}>
-          Đã tải hết {commits.length} commit{page > 1 ? ` (${page} trang)` : ''}
-        </p>
+      {initialLoaded && !error && (commits.length > 0 || pagerTotal > 0) && (
+        <Pagination
+          total={pagerTotal}
+          pageSize={PER_PAGE}
+          currentPage={Math.max(1, page)}
+          onChange={onPageChange}
+          itemLabel='commit'
+          showSinglePageSummary
+          totalKnown={totalKnown}
+          hasNext={hasNext}
+          pageItemCount={commits.length}
+        />
       )}
     </div>
   )
@@ -287,8 +320,10 @@ export default function CommitListModal({
   const detailCacheRef = useRef(new Map())
 
   const [commits, setCommits] = useState([])
-  const [page, setPage] = useState(0)
-  const [hasMore, setHasMore] = useState(true)
+  const [page, setPage] = useState(1)
+  const [pagerTotal, setPagerTotal] = useState(0)
+  const [totalKnown, setTotalKnown] = useState(false)
+  const [hasNext, setHasNext] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [initialLoaded, setInitialLoaded] = useState(false)
@@ -310,23 +345,30 @@ export default function CommitListModal({
     detailCacheRef.current.clear()
     setSelectedSha(null)
     setCommits([])
-    setPage(0)
-    setHasMore(true)
+    setPage(1)
+    setPagerTotal(0)
+    setTotalKnown(false)
+    setHasNext(false)
     setLoading(false)
     setError(null)
     setInitialLoaded(false)
   }, [])
 
-  const syncCommitsFromCache = useCallback(() => {
-    setCommits(commitsFromPageCache(pageCacheRef.current))
+  const applyPageState = useCallback((pageNum, rows) => {
+    setCommits(rows)
+    setPage(pageNum)
+    const pager = resolvePagerState(pageCacheRef.current, pageNum, rows)
+    setPagerTotal(pager.total)
+    setTotalKnown(pager.totalKnown)
+    setHasNext(pager.hasNext)
   }, [])
 
   const loadPage = useCallback(
     async (pageNum) => {
+      if (pageNum < 1) return
+
       if (pageCacheRef.current.has(pageNum)) {
-        syncCommitsFromCache()
-        setPage(pageNum)
-        setHasMore((pageCacheRef.current.get(pageNum)?.length ?? 0) === PER_PAGE)
+        applyPageState(pageNum, pageCacheRef.current.get(pageNum) ?? [])
         setInitialLoaded(true)
         return
       }
@@ -343,9 +385,7 @@ export default function CommitListModal({
         })
         const rows = Array.isArray(data) ? data : []
         pageCacheRef.current.set(pageNum, rows)
-        syncCommitsFromCache()
-        setPage(pageNum)
-        setHasMore(rows.length === PER_PAGE)
+        applyPageState(pageNum, rows)
       } catch (err) {
         const message = localizeError(err.message)
         setError(message)
@@ -355,7 +395,7 @@ export default function CommitListModal({
         setInitialLoaded(true)
       }
     },
-    [owner, repo, filters, showToast, syncCommitsFromCache]
+    [owner, repo, filters, showToast, applyPageState]
   )
 
   useEffect(() => {
@@ -381,9 +421,7 @@ export default function CommitListModal({
         if (cancelled) return
         const rows = Array.isArray(data) ? data : []
         pageCacheRef.current.set(1, rows)
-        setCommits(rows)
-        setPage(1)
-        setHasMore(rows.length === PER_PAGE)
+        applyPageState(1, rows)
       } catch (err) {
         if (cancelled) return
         const message = localizeError(err.message)
@@ -400,16 +438,16 @@ export default function CommitListModal({
     return () => {
       cancelled = true
     }
-  }, [isOpen, filterKey, owner, repo, filters, resetListState, showToast])
+  }, [isOpen, filterKey, owner, repo, filters, resetListState, showToast, applyPageState])
 
   const handleClose = () => {
     resetListState()
     onClose()
   }
 
-  const handleLoadMore = () => {
-    if (loading || !hasMore) return
-    loadPage(page + 1)
+  const handlePageChange = (nextPage) => {
+    if (loading || nextPage === page) return
+    loadPage(nextPage)
   }
 
   return (
@@ -433,12 +471,14 @@ export default function CommitListModal({
           <CommitList
             commits={commits}
             page={page}
-            hasMore={hasMore}
+            pagerTotal={pagerTotal}
+            totalKnown={totalKnown}
+            hasNext={hasNext}
             loading={loading}
             error={error}
             initialLoaded={initialLoaded}
             onSelect={setSelectedSha}
-            onLoadMore={handleLoadMore}
+            onPageChange={handlePageChange}
           />
         )}
       </div>

@@ -62,7 +62,7 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ErrorResponse> handleException(Exception ex) {
     log.error("Unhandled exception", ex);
-    return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error");
+    return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi máy chủ. Vui lòng thử lại sau.");
   }
 
   private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String message) {

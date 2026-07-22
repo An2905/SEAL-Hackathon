@@ -36,7 +36,7 @@ export default function App() {
               }
             />
 
-            {/* Staff area — tabs are handled internally by StaffLayout */}
+            {/* Staff area — tabs in StaffLayout; event detail is a nested child */}
             <Route
               path='/staff'
               element={
@@ -44,17 +44,9 @@ export default function App() {
                   <StaffLayout />
                 </RequireRole>
               }
-            />
-
-            {/* Event detail is a standalone full page (own shell) */}
-            <Route
-              path='/staff/events/:eventId'
-              element={
-                <RequireRole role='Staff'>
-                  <EventDetailsPage />
-                </RequireRole>
-              }
-            />
+            >
+              <Route path='events/:eventId' element={<EventDetailsPage />} />
+            </Route>
 
             <Route
               path='/staff/events/:eventId/check-in'

@@ -1,3 +1,4 @@
+import { useNavigate, useOutlet } from 'react-router-dom'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import StaffAccountsPage from './StaffAccountsPage'
 import StaffEventsPage from './StaffEventsPage'
@@ -14,5 +15,23 @@ const TABS = [
 ]
 
 export default function StaffLayout() {
-  return <DashboardLayout roleLabel='Nhân viên' showStaffFields tabs={TABS} />
+  const navigate = useNavigate()
+  const nestedPage = useOutlet()
+  const onEventSubPage = Boolean(nestedPage)
+
+  return (
+    <DashboardLayout
+      roleLabel='Nhân viên'
+      showStaffFields
+      tabs={TABS}
+      forcedTabKey={onEventSubPage ? 'events' : undefined}
+      overrideContent={onEventSubPage ? nestedPage : undefined}
+      moduleTitle={onEventSubPage ? 'Chi tiết sự kiện' : undefined}
+      moduleSubtitle={onEventSubPage ? 'Thông tin đầy đủ của hackathon.' : undefined}
+      onForcedTabChange={(key) => {
+        if (key === 'events') navigate('/staff')
+        else navigate(`/staff?tab=${encodeURIComponent(key)}`)
+      }}
+    />
+  )
 }

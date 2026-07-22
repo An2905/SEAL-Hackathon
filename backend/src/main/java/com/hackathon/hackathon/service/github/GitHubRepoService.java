@@ -159,14 +159,17 @@ public class GitHubRepoService {
           githubBody);
       if (status == 404) {
         throw new BadRequestException(
-            "Repository not found or GitHub App cannot access it: " + owner + "/" + repo);
+            "Không tìm thấy repository hoặc GitHub App không có quyền truy cập: "
+                + owner
+                + "/"
+                + repo);
       }
       if (status == 403) {
         throw new ForbiddenException(
-            "GitHub App lacks permission to list commits (Contents: Read required).");
+            "GitHub App thiếu quyền xem commit (cần Contents: Read).");
       }
       throw new BadRequestException(
-          "Failed to list commits from GitHub (HTTP " + status + ").");
+          "Không lấy được danh sách commit từ GitHub (HTTP " + status + ").");
     }
   }
 
@@ -185,10 +188,10 @@ public class GitHubRepoService {
     int resolvedPerPage = perPage == null ? 20 : perPage;
     int resolvedPage = page == null ? 1 : page;
     if (resolvedPerPage < 1 || resolvedPerPage > 100) {
-      throw new BadRequestException("per_page must be between 1 and 100.");
+      throw new BadRequestException("per_page phải từ 1 đến 100.");
     }
     if (resolvedPage < 1) {
-      throw new BadRequestException("page must be at least 1.");
+      throw new BadRequestException("page phải từ 1 trở lên.");
     }
 
     return listRepoCommitsInternal(
@@ -200,14 +203,34 @@ public class GitHubRepoService {
   public Map<String, Object> getRepoCommitInternal(
       String owner, String repo, String ref, int perPage, int page) {
     String url = buildGetCommitUrl(owner, repo, ref, perPage, page);
-    return restClient
-        .get()
-        .uri(url)
-        .header("Authorization", "Bearer " + tokenService.getInstallationToken())
-        .header("Accept", "application/vnd.github+json")
-        .header("X-GitHub-Api-Version", "2026-03-10")
-        .retrieve()
-        .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+    try {
+      return restClient
+          .get()
+          .uri(URI.create(url))
+          .header("Authorization", "Bearer " + tokenService.getInstallationToken())
+          .header("Accept", "application/vnd.github+json")
+          .header("X-GitHub-Api-Version", "2026-03-10")
+          .retrieve()
+          .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+    } catch (RestClientResponseException e) {
+      int status = e.getStatusCode().value();
+      log.error(
+          "GitHub get commit failed for {}/{}@{}: status={}, body={}",
+          owner,
+          repo,
+          ref,
+          status,
+          e.getResponseBodyAsString());
+      if (status == 404) {
+        throw new BadRequestException("Không tìm thấy commit hoặc repository.");
+      }
+      if (status == 403) {
+        throw new ForbiddenException(
+            "GitHub App thiếu quyền xem chi tiết commit (cần Contents: Read).");
+      }
+      throw new BadRequestException(
+          "Không lấy được chi tiết commit từ GitHub (HTTP " + status + ").");
+    }
   }
 
   public Map<String, Object> getRepoCommit(
@@ -215,16 +238,16 @@ public class GitHubRepoService {
     authService.validateRole(authHeader, "COORDINATOR", "EXPERT_INTERNAL", "EXPERT_EXTERNAL");
 
     if (ref == null || ref.isBlank()) {
-      throw new BadRequestException("ref is required.");
+      throw new BadRequestException("Thiếu mã commit (ref).");
     }
 
     int resolvedPerPage = perPage == null ? 30 : perPage;
     int resolvedPage = page == null ? 1 : page;
     if (resolvedPerPage < 1 || resolvedPerPage > 100) {
-      throw new BadRequestException("per_page must be between 1 and 100.");
+      throw new BadRequestException("per_page phải từ 1 đến 100.");
     }
     if (resolvedPage < 1) {
-      throw new BadRequestException("page must be at least 1.");
+      throw new BadRequestException("page phải từ 1 trở lên.");
     }
 
     return getRepoCommitInternal(owner, repo, ref.trim(), resolvedPerPage, resolvedPage);
