@@ -6,7 +6,6 @@ import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { eventStatusLabel } from '../../utils/eventStatusLabels'
 import { localizeError } from '../../utils/errors'
-import { vietnameseRoleLabel } from '../../utils/roleLabels'
 import Pagination from '../../components/common/Pagination'
 import LoadingState from '../../components/common/LoadingState'
 import Modal from '../../components/common/Modal'
@@ -426,7 +425,6 @@ export default function MentorDashboard() {
   }, [selectedAssignment, teamStatusFilter])
 
   const isDualRole = auth.role === 'EXPERT_INTERNAL'
-  const roleLabel = vietnameseRoleLabel(auth.role)
   const navLinks = isDualRole
     ? [
         { label: 'Mentor', to: '/mentor' },
@@ -438,11 +436,8 @@ export default function MentorDashboard() {
 
   return (
     <DashboardLayout
-      roleLabel={roleLabel}
       moduleTitle='Khu vực Mentor'
       moduleSubtitle='Khách được phân công mentor — đồng hành cùng các đội thí sinh.'
-      showStaffFields
-      className='dashboard-shell--mentor-zone'
       navLinks={navLinks}
     >
       {selectedEventId === null ? (

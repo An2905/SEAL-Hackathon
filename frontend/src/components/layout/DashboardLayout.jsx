@@ -1,6 +1,4 @@
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom'
-import TopBar from './TopBar'
-import SiteFooter from './SiteFooter'
 import ModuleContainer from '../dashboard/ModuleContainer'
 import DashboardHeader from '../dashboard/DashboardHeader'
 import TabNav from '../dashboard/TabNav'
@@ -49,31 +47,16 @@ function RoleSwitcher({ navLinks }) {
 }
 
 /**
- * DashboardLayout
+ * DashboardLayout — page content under MainLayout.
  *
- * Shared shell for all role dashboards: TopBar + optional TabNav +
- * ModuleContainer (optional DashboardHeader + active tab content) + SiteFooter.
+ * TopBar / SiteFooter live in MainLayout. This component only renders
+ * optional role TabNav (e.g. student) + ModuleContainer content.
  *
- * Pass `tabs` (array of `{ key, label, content }`) for multi-tab dashboards,
- * or omit it and pass `children` directly for a single-tab dashboard.
- *
- * For multi-tab dashboards, the active tab is persisted in the URL as
- * `?tab=<key>` via useSearchParams, so the back/forward buttons and
- * shareable links work as expected.
- *
- * Optional nested-route support (e.g. staff event detail):
- *   forcedTabKey     — highlight this tab while showing overrideContent
- *   overrideContent  — render instead of the active tab's content
- *   onForcedTabChange — called when a tab is clicked while forcedTabKey is set
- *                       (so the host can navigate off the nested route)
+ * For multi-tab dashboards, the active tab is persisted as `?tab=<key>`.
  */
 export default function DashboardLayout({
-  roleLabel,
   moduleTitle,
   moduleSubtitle,
-  showStudentFields = false,
-  showStaffFields = false,
-  className = '',
   tabs,
   navLinks,
   children,
@@ -103,26 +86,17 @@ export default function DashboardLayout({
   }
 
   const active = tabList.find((tab) => tab.key === activeTab) || tabList[0]
-  const hasProfileTab = tabList.some((tab) => tab.key === 'profile')
+  const showTabNav = tabList.length > 1 && tabList.some((tab) => tab.label)
 
   return (
-    <div className={`dashboard-shell${className ? ` ${className}` : ''}`}>
-      <TopBar
-        roleLabel={roleLabel}
-        onNavigateProfile={hasProfileTab ? () => setActiveTab('profile') : undefined}
-        showStudentFields={showStudentFields}
-        showStaffFields={showStaffFields}
-      />
-
-      <TabNav tabs={tabList} activeKey={activeTab} onChange={setActiveTab} />
+    <>
+      {showTabNav && <TabNav tabs={tabList} activeKey={activeTab} onChange={setActiveTab} />}
 
       <ModuleContainer>
         <DashboardHeader title={moduleTitle} subtitle={moduleSubtitle} />
         <RoleSwitcher navLinks={navLinks} />
         {overrideContent ?? active.content}
       </ModuleContainer>
-
-      <SiteFooter />
-    </div>
+    </>
   )
 }

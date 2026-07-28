@@ -1727,7 +1727,7 @@ function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess, repoAcce
         <div className='criteria-manager-head'>
           <div className='team-registrations-title-row'>
             <h3 className='section-title' style={{ margin: 0 }}>
-              Đăng ký và tích hợp GitHub
+              GitHub
             </h3>
             <TeamRegistrationsBulkActions {...bulkActionsProps} />
           </div>
@@ -1742,7 +1742,7 @@ function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess, repoAcce
       <div className='criteria-manager-head'>
         <div className='team-registrations-title-row'>
           <h3 className='section-title' style={{ margin: 0 }}>
-            Đăng ký và tích hợp GitHub
+            GitHub
           </h3>
           <TeamRegistrationsBulkActions {...bulkActionsProps} />
         </div>

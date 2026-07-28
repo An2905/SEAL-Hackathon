@@ -23,13 +23,7 @@ export default function StaffProfilePage() {
   const displayName = auth.fullName || auth.email || '—'
 
   return (
-    <DashboardLayout
-      roleLabel={roleLabel}
-      moduleTitle='Hồ sơ của tôi'
-      moduleSubtitle='Quản lý thông tin tài khoản và bảo mật'
-      showStudentFields={isStudent}
-      showStaffFields={!isStudent}
-    >
+    <DashboardLayout moduleTitle='Hồ sơ của tôi' moduleSubtitle='Quản lý thông tin tài khoản và bảo mật'>
       <div style={sectionStyle}>
         <div style={sectionHeaderStyle}>
           <span style={sectionTitleStyle}>Thông tin cá nhân</span>

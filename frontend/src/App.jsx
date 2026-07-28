@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
 import HomePage from './pages/HomePage'
+import MainLayout from './layouts/MainLayout'
 import RequireRole from './guards/RequireRole'
 import RequireAuth from './guards/RequireAuth'
 import LoadingState from './components/common/LoadingState'
@@ -25,66 +26,68 @@ export default function App() {
       <ToastProvider>
         <Suspense fallback={<RouteLoading />}>
           <Routes>
+            {/* Public landing — no dashboard Navbar */}
             <Route path='/' element={<HomePage />} />
 
-            <Route
-              path='/student'
-              element={
-                <RequireRole role='Student'>
-                  <StudentDashboard />
-                </RequireRole>
-              }
-            />
+            {/* Authenticated app chrome (Navbar + footer) via MainLayout */}
+            <Route element={<MainLayout />}>
+              <Route
+                path='/student'
+                element={
+                  <RequireRole role='Student'>
+                    <StudentDashboard />
+                  </RequireRole>
+                }
+              />
 
-            {/* Staff area — tabs in StaffLayout; event detail is a nested child */}
-            <Route
-              path='/staff'
-              element={
-                <RequireRole role='Staff'>
-                  <StaffLayout />
-                </RequireRole>
-              }
-            >
-              <Route path='events/:eventId' element={<EventDetailsPage />} />
+              <Route
+                path='/staff'
+                element={
+                  <RequireRole role='Staff'>
+                    <StaffLayout />
+                  </RequireRole>
+                }
+              >
+                <Route path='events/:eventId' element={<EventDetailsPage />} />
+              </Route>
+
+              <Route
+                path='/staff/events/:eventId/check-in'
+                element={
+                  <RequireRole role='Staff'>
+                    <StaffCheckInPage />
+                  </RequireRole>
+                }
+              />
+
+              <Route
+                path='/mentor'
+                element={
+                  <RequireRole role='Mentor'>
+                    <MentorDashboard />
+                  </RequireRole>
+                }
+              />
+
+              <Route
+                path='/judge'
+                element={
+                  <RequireRole role='Judge'>
+                    <JudgeDashboard />
+                  </RequireRole>
+                }
+              />
+
+              <Route
+                path='/profile'
+                element={
+                  <RequireAuth>
+                    <ProfilePage />
+                  </RequireAuth>
+                }
+              />
             </Route>
 
-            <Route
-              path='/staff/events/:eventId/check-in'
-              element={
-                <RequireRole role='Staff'>
-                  <StaffCheckInPage />
-                </RequireRole>
-              }
-            />
-
-            <Route
-              path='/mentor'
-              element={
-                <RequireRole role='Mentor'>
-                  <MentorDashboard />
-                </RequireRole>
-              }
-            />
-
-            <Route
-              path='/judge'
-              element={
-                <RequireRole role='Judge'>
-                  <JudgeDashboard />
-                </RequireRole>
-              }
-            />
-
-            <Route
-              path='/profile'
-              element={
-                <RequireAuth>
-                  <ProfilePage />
-                </RequireAuth>
-              }
-            />
-
-            {/* Catch-all */}
             <Route path='*' element={<Navigate to='/' replace />} />
           </Routes>
         </Suspense>
