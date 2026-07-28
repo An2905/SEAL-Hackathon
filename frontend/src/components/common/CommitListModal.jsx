@@ -218,20 +218,9 @@ function CommitDetail({ owner, repo, sha, detailCacheRef, onBack }) {
   )
 }
 
-function CommitList({
-  commits,
-  page,
-  pagerTotal,
-  totalKnown,
-  hasNext,
-  loading,
-  error,
-  initialLoaded,
-  onSelect,
-  onPageChange
-}) {
+function CommitList({ commits, loading, error, initialLoaded, onSelect }) {
   return (
-    <div>
+    <>
       {!initialLoaded && loading && <p className='hint'>Đang tải commit...</p>}
       {error && <p className='field-error'>{error}</p>}
 
@@ -284,21 +273,7 @@ function CommitList({
           )
         })}
       </div>
-
-      {initialLoaded && !error && (commits.length > 0 || pagerTotal > 0) && (
-        <Pagination
-          total={pagerTotal}
-          pageSize={PER_PAGE}
-          currentPage={Math.max(1, page)}
-          onChange={onPageChange}
-          itemLabel='commit'
-          showSinglePageSummary
-          totalKnown={totalKnown}
-          hasNext={hasNext}
-          pageItemCount={commits.length}
-        />
-      )}
-    </div>
+    </>
   )
 }
 
@@ -450,36 +425,53 @@ export default function CommitListModal({
     loadPage(nextPage)
   }
 
+  const showPaginationFooter =
+    !selectedSha && initialLoaded && !error && (commits.length > 0 || pagerTotal > 0)
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
       title={selectedSha ? `Commit ${shortSha(selectedSha)}` : 'Danh sách commit'}
       subtitle={`${owner}/${repo}${teamName ? ` · ${teamName}` : ''}`}
-      className='modal-wide'
+      className='modal-wide modal-commit-list'
     >
-      <div style={{ maxHeight: '65vh', overflowY: 'auto', paddingRight: 4 }}>
-        {selectedSha ? (
-          <CommitDetail
-            owner={owner}
-            repo={repo}
-            sha={selectedSha}
-            detailCacheRef={detailCacheRef}
-            onBack={() => setSelectedSha(null)}
-          />
-        ) : (
-          <CommitList
-            commits={commits}
-            page={page}
-            pagerTotal={pagerTotal}
-            totalKnown={totalKnown}
-            hasNext={hasNext}
-            loading={loading}
-            error={error}
-            initialLoaded={initialLoaded}
-            onSelect={setSelectedSha}
-            onPageChange={handlePageChange}
-          />
+      <div className='modal-commit-list-body'>
+        <div className='modal-commit-list-scroll'>
+          {selectedSha ? (
+            <CommitDetail
+              owner={owner}
+              repo={repo}
+              sha={selectedSha}
+              detailCacheRef={detailCacheRef}
+              onBack={() => setSelectedSha(null)}
+            />
+          ) : (
+            <CommitList
+              commits={commits}
+              loading={loading}
+              error={error}
+              initialLoaded={initialLoaded}
+              onSelect={setSelectedSha}
+            />
+          )}
+        </div>
+
+        {showPaginationFooter && (
+          <div className='modal-commit-list-footer'>
+            <Pagination
+              className='modal-commit-list-pagination'
+              total={pagerTotal}
+              pageSize={PER_PAGE}
+              currentPage={Math.max(1, page)}
+              onChange={handlePageChange}
+              itemLabel='commit'
+              showSinglePageSummary
+              totalKnown={totalKnown}
+              hasNext={hasNext}
+              pageItemCount={commits.length}
+            />
+          </div>
         )}
       </div>
     </Modal>
