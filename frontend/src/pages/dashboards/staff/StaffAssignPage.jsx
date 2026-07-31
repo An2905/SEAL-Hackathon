@@ -9,7 +9,7 @@ import { useToast } from '../../../context/ToastContext'
 import { localizeError } from '../../../utils/errors'
 import { eventStatusLabel } from '../../../utils/eventStatusLabels'
 
-const EXCLUDED_EVENT_STATUSES = new Set(['BUILDING', 'COMPLETED'])
+const EXCLUDED_EVENT_STATUSES = new Set(['COMPLETED'])
 
 function isAssignableEvent(event) {
   const status = String(event?.status ?? '')
@@ -314,7 +314,7 @@ export default function StaffAssignPage() {
           <div>
             <div className='card-title'>Chọn sự kiện</div>
             <p className='card-sub' style={{ margin: '4px 0 0' }}>
-              {assignableEvents.length} sự kiện khả dụng (trừ đang thiết lập & đã kết thúc)
+              {assignableEvents.length} sự kiện khả dụng (trừ đã kết thúc)
             </p>
           </div>
         </div>
