@@ -34,6 +34,21 @@ public class RoundLifecycleRepository {
     }
   }
 
+  public boolean isRoundEndReached(String roundId, String now) {
+    String sql =
+        "SELECT 1 FROM rounds WHERE round_id = ? AND end_date IS NOT NULL AND end_date <= ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, roundId);
+      ps.setString(2, now);
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Could not verify round end time.", e);
+    }
+  }
+
   public void markMilestone(String roundId, String milestone) {
     String sql =
         "INSERT INTO round_lifecycle_milestones (round_id, milestone, processed_at) VALUES (?, ?, NOW()) "

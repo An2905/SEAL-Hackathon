@@ -25,12 +25,17 @@ import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpSession;
 import java.security.SecureRandom;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
+  private static final Logger log = LoggerFactory.getLogger(AuthService.class);
+
   private static final String[] AUTHENTICATED_ROLES = {
     "COORDINATOR", "EXPERT_INTERNAL", "EXPERT_EXTERNAL", "STUDENT_FPT", "STUDENT_EXTERNAL"
   };
@@ -548,6 +553,7 @@ public class AuthService {
     return new MessageResponse("OTP sent to email. Please verify to complete registration.");
   }
 
+  @Transactional
   public MessageResponse verifyAndRegister(
       VerifyStudentRegisterRequest request, HttpSession session) {
     String sessionOtp = (String) session.getAttribute("REG_OTP_CODE");
@@ -579,16 +585,21 @@ public class AuthService {
             ? "STUDENT_FPT"
             : "STUDENT_EXTERNAL";
 
-    String userId =
-        userRepository.insertStudentUser(
-            regData.getFullName(), regData.getEmail(), encoder.encode(regData.getPassword()), role);
+    try {
+      String userId =
+          userRepository.insertStudentUser(
+              regData.getFullName(), regData.getEmail(), encoder.encode(regData.getPassword()), role);
 
-    if (userId == null) {
-      throw new BadRequestException("Database error while creating user.");
-    }
+      if (userId == null) {
+        throw new BadRequestException("Database error while creating user.");
+      }
 
-    if (!studentProfileRepository.insert(userId, regData.getStudentId(), regData.getUniversity())) {
-      throw new BadRequestException("Database error while creating profile.");
+      if (!studentProfileRepository.insert(userId, regData.getStudentId(), regData.getUniversity())) {
+        throw new BadRequestException("Database error while creating profile.");
+      }
+    } catch (RuntimeException ex) {
+      log.error("Student registration database operation failed for {}", regData.getEmail(), ex);
+      throw ex;
     }
 
     session.removeAttribute("REG_OTP_CODE");

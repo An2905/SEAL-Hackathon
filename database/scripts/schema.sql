@@ -24,46 +24,6 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'b424a162-5f1e-11f1-82ff-dc4628233c63:1-513';
 
 --
--- Table structure for table `announcements`
---
-
-DROP TABLE IF EXISTS `announcements`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `announcements` (
-  `announcement_id` varchar(36) NOT NULL,
-  `event_id` varchar(36) NOT NULL,
-  `title` varchar(200) NOT NULL,
-  `content` longtext NOT NULL,
-  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`announcement_id`),
-  KEY `idx_ann_event` (`event_id`),
-  CONSTRAINT `fk_ann_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `audit_logs`
---
-
-DROP TABLE IF EXISTS `audit_logs`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `audit_logs` (
-  `log_id` varchar(36) NOT NULL,
-  `user_id` varchar(36) NOT NULL,
-  `action` varchar(100) NOT NULL,
-  `entity_type` varchar(100) DEFAULT NULL,
-  `entity_id` varchar(36) DEFAULT NULL,
-  `description` longtext,
-  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`log_id`),
-  KEY `idx_al_user` (`user_id`),
-  CONSTRAINT `fk_al_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Table structure for table `awards`
 --
 
@@ -82,83 +42,6 @@ CREATE TABLE `awards` (
   KEY `fk_aw_team` (`team_id`),
   CONSTRAINT `fk_aw_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`),
   CONSTRAINT `fk_aw_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`team_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `chat_messages`
---
-
-DROP TABLE IF EXISTS `chat_messages`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `chat_messages` (
-  `message_id` varchar(36) NOT NULL,
-  `room_id` varchar(36) NOT NULL,
-  `sender_id` varchar(36) NOT NULL,
-  `content` text NOT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`message_id`),
-  KEY `idx_cm_room` (`room_id`),
-  KEY `idx_cm_room_created` (`room_id`,`created_at`),
-  KEY `fk_cm_sender` (`sender_id`),
-  CONSTRAINT `fk_cm_room` FOREIGN KEY (`room_id`) REFERENCES `chat_rooms` (`room_id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_cm_sender` FOREIGN KEY (`sender_id`) REFERENCES `users` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `chat_room_members`
---
-
-DROP TABLE IF EXISTS `chat_room_members`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `chat_room_members` (
-  `room_member_id` varchar(36) NOT NULL,
-  `room_id` varchar(36) NOT NULL,
-  `user_id` varchar(36) NOT NULL,
-  `joined_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`room_member_id`),
-  UNIQUE KEY `uq_crm_room_user` (`room_id`,`user_id`),
-  KEY `idx_crm_user` (`user_id`),
-  CONSTRAINT `fk_crm_room` FOREIGN KEY (`room_id`) REFERENCES `chat_rooms` (`room_id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_crm_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `chat_rooms`
---
-
-DROP TABLE IF EXISTS `chat_rooms`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `chat_rooms` (
-  `room_id` varchar(36) NOT NULL,
-  `event_id` varchar(36) NOT NULL,
-  `round_id` varchar(36) NOT NULL,
-  `group_id` varchar(36) NOT NULL,
-  `team_id` varchar(36) NOT NULL,
-  `mentor_id` varchar(36) NOT NULL,
-  `created_by` varchar(36) NOT NULL,
-  `status` varchar(20) NOT NULL DEFAULT 'ACTIVE',
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `closed_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`room_id`),
-  UNIQUE KEY `uq_chat_room` (`team_id`,`mentor_id`,`round_id`),
-  KEY `idx_cr_event` (`event_id`),
-  KEY `idx_cr_group` (`group_id`),
-  KEY `idx_cr_mentor` (`mentor_id`),
-  KEY `fk_cr_round` (`round_id`),
-  KEY `fk_cr_created_by` (`created_by`),
-  CONSTRAINT `fk_cr_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`),
-  CONSTRAINT `fk_cr_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`),
-  CONSTRAINT `fk_cr_group` FOREIGN KEY (`group_id`) REFERENCES `round_groups` (`group_id`),
-  CONSTRAINT `fk_cr_mentor` FOREIGN KEY (`mentor_id`) REFERENCES `users` (`user_id`),
-  CONSTRAINT `fk_cr_round` FOREIGN KEY (`round_id`) REFERENCES `rounds` (`round_id`),
-  CONSTRAINT `fk_cr_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`team_id`),
-  CONSTRAINT `chk_cr_status` CHECK ((`status` in (_utf8mb4'ACTIVE',_utf8mb4'CLOSED')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -186,42 +69,6 @@ CREATE TABLE `check_ins` (
   CONSTRAINT `fk_ci_staff` FOREIGN KEY (`checked_by`) REFERENCES `users` (`user_id`),
   CONSTRAINT `fk_ci_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`team_id`),
   CONSTRAINT `fk_ci_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `criteria_template_items`
---
-
-DROP TABLE IF EXISTS `criteria_template_items`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `criteria_template_items` (
-  `item_id` varchar(36) NOT NULL,
-  `template_id` varchar(36) NOT NULL,
-  `criterion_name` varchar(100) NOT NULL,
-  `weight` decimal(5,2) NOT NULL,
-  `max_score` decimal(5,2) NOT NULL,
-  `description` longtext,
-  PRIMARY KEY (`item_id`),
-  KEY `idx_cti_template` (`template_id`),
-  CONSTRAINT `fk_cti_template` FOREIGN KEY (`template_id`) REFERENCES `criteria_templates` (`template_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `criteria_templates`
---
-
-DROP TABLE IF EXISTS `criteria_templates`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `criteria_templates` (
-  `template_id` varchar(36) NOT NULL,
-  `name` varchar(100) NOT NULL,
-  `description` longtext,
-  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`template_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

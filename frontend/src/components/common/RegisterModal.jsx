@@ -8,6 +8,7 @@ import { getAllUniversities } from '../../api/university'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 import { useRecaptcha } from '../../hooks/useRecaptcha'
+import { isValidEmail } from '../../utils/formValidation'
 
 const EMPTY_FORM = {
   fullName: '',
@@ -70,9 +71,17 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
   const handleSubmitInfo = async (e) => {
     e.preventDefault()
     setMessage(null)
-    const { fullName, email, university, studentId, password } = form
+    const fullName = form.fullName.trim()
+    const email = form.email.trim()
+    const university = form.university.trim()
+    const studentId = form.studentId.trim()
+    const { password } = form
     if (!fullName || !email || !university || !studentId || !password) {
       setMessage({ text: 'Vui lòng nhập đầy đủ thông tin', type: 'error' })
+      return
+    }
+    if (!isValidEmail(email)) {
+      setMessage({ text: 'Email không đúng định dạng', type: 'error' })
       return
     }
     if (password.length < 6) {
@@ -82,7 +91,7 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
     setLoading(true)
     try {
       const captchaToken = await getInfoCaptcha()
-      await sendRegisterOtp({ ...form, captchaToken })
+      await sendRegisterOtp({ ...form, fullName, email, university, studentId, captchaToken })
       setStep('otp')
       setMessage({
         text: 'Đã gửi mã OTP tới email. Vui lòng kiểm tra hộp thư.',

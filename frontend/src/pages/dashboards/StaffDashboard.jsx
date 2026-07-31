@@ -211,7 +211,11 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
       setMessage({ text: 'Vui lòng nhập tên sự kiện', type: 'error' })
       return
     }
-    if (form.startDate && form.endDate && form.startDate > form.endDate) {
+    if (!form.startDate || !form.endDate) {
+      setMessage({ text: 'Vui lòng nhập ngày bắt đầu và ngày kết thúc', type: 'error' })
+      return
+    }
+    if (form.startDate > form.endDate) {
       setMessage({ text: 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc', type: 'error' })
       return
     }
@@ -231,8 +235,8 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
       const created = await createEvent({
         title,
         description: form.description,
-        startDate: form.startDate || null,
-        endDate: form.endDate || null,
+        startDate: form.startDate,
+        endDate: form.endDate,
         maxTeams,
         numRounds,
         githubTemplateRepo: form.githubTemplateRepo
@@ -291,10 +295,26 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
           />
         </FormField>
         <FormField label='Ngày bắt đầu'>
-          <input type='datetime-local' name='startDate' value={form.startDate} onChange={handle} disabled={loading} />
+          <input
+            type='datetime-local'
+            name='startDate'
+            value={form.startDate}
+            onChange={handle}
+            max={form.endDate || undefined}
+            required
+            disabled={loading}
+          />
         </FormField>
         <FormField label='Ngày kết thúc'>
-          <input type='datetime-local' name='endDate' value={form.endDate} onChange={handle} disabled={loading} />
+          <input
+            type='datetime-local'
+            name='endDate'
+            value={form.endDate}
+            onChange={handle}
+            min={form.startDate || undefined}
+            required
+            disabled={loading}
+          />
         </FormField>
         <FormField label='Số đội tối đa'>
           <input

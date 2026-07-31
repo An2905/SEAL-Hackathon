@@ -1,7 +1,6 @@
 package com.hackathon.hackathon.service;
 
 import com.hackathon.hackathon.config.GitHubAppConfig;
-import com.hackathon.hackathon.event.TeamApprovedEvent;
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
@@ -37,6 +36,7 @@ import com.hackathon.hackathon.model.entity.User;
 import com.hackathon.hackathon.model.mapper.CriteriaMapper;
 import com.hackathon.hackathon.model.mapper.UserMapper;
 import com.hackathon.hackathon.repository.AssignmentRepository;
+import com.hackathon.hackathon.repository.CheckInRepository;
 import com.hackathon.hackathon.repository.CriteriaRepository;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.JudgeTeamAssignmentRepository;
@@ -62,7 +62,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -71,7 +70,7 @@ public class StaffService {
   @Autowired private BCryptPasswordEncoder encoder;
 
   @Autowired private UserRepository userRepository;
-  @Autowired private ApplicationEventPublisher eventPublisher;
+  @Autowired private CheckInRepository checkInRepository;
 
   @Autowired private ParticipantsProfileRepository participantsProfileRepository;
 
@@ -268,15 +267,8 @@ public class StaffService {
     }
 
     if (status.equals("APPROVED")) {
-      try {
-        eventPublisher.publishEvent(
-            new TeamApprovedEvent(
-                this, registrationId, registration.getEventId(), registration.getTeamId()));
-      } catch (Exception e) {
-        e.printStackTrace();
-        teamRegistrationRepository.updateGithubStatus(registrationId, "FAILED");
-        throw e;
-      }
+      eventService.triggerGitHubProvisioningAfterFullCheckIn(
+          registrationId, registration.getEventId(), registration.getTeamId());
       eventService.syncAutoFillAfterTeamEligible(
           registration.getEventId(), registration.getTeamId());
     }
@@ -323,15 +315,13 @@ public class StaffService {
           "Không thể thử lại: Trạng thái GitHub không ở trạng thái FAILED.");
     }
 
-    teamRegistrationRepository.updateGithubStatus(registrationId, "PENDING");
-
-    try {
-      eventPublisher.publishEvent(
-          new TeamApprovedEvent(this, registrationId, tr.getEventId(), tr.getTeamId()));
-    } catch (Exception e) {
-      teamRegistrationRepository.updateGithubStatus(registrationId, "FAILED");
-      throw e;
+    if (!checkInRepository.isTeamFullyCheckedIn(tr.getEventId(), tr.getTeamId())) {
+      throw new BadRequestException(
+          "KhÃ´ng thá»ƒ thá»­ láº¡i: Ä‘á»™i pháº£i check-in Ä‘á»§ thÃ nh viÃªn trÆ°á»›c.");
     }
+    teamRegistrationRepository.updateGithubStatus(registrationId, "PENDING");
+    eventService.triggerGitHubProvisioningAfterFullCheckIn(
+        registrationId, tr.getEventId(), tr.getTeamId());
 
     return new MessageResponse("Đã kích hoạt lại tiến trình cấp phát GitHub thành công.");
   }

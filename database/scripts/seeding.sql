@@ -24,25 +24,6 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'b424a162-5f1e-11f1-82ff-dc4628233c63:1-513';
 
 --
--- Dumping data for table `announcements`
---
-
-LOCK TABLES `announcements` WRITE;
-/*!40000 ALTER TABLE `announcements` DISABLE KEYS */;
-INSERT INTO `announcements` VALUES ('4bcff92a-98fe-409c-a11e-210a501d4ed6','20000000-0000-4000-8000-000000000001','1','2','2026-06-06 16:28:47'),('c0000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','Welcome to FPT AI Hackathon 2026','Registration is now officially open.','2026-05-27 17:11:33'),('c0000000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000001','Semi Final Schedule','The semi final round will start on June 10.','2026-05-27 17:11:33'),('c0000000-0000-4000-8000-000000000003','20000000-0000-4000-8000-000000000002','Science Event Opening','Welcome all participants to FPT Science.','2026-05-27 17:11:33'),('c0000000-0000-4000-8000-000000000004','20000000-0000-4000-8000-000000000002','Presentation Reminder','Please prepare your presentation slides carefully.','2026-05-27 17:11:33'),('c0000000-0000-4000-8000-000000000005','20000000-0000-4000-8000-000000000003','FPT Tech Launch','Prototype submissions are required before August 5.','2026-05-27 17:11:33'),('c0000000-0000-4000-8000-000000000006','20000000-0000-4000-8000-000000000003','Final Evaluation','Final judging session will be held onsite.','2026-05-27 17:11:33');
-/*!40000 ALTER TABLE `announcements` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Dumping data for table `audit_logs`
---
-
-LOCK TABLES `audit_logs` WRITE;
-/*!40000 ALTER TABLE `audit_logs` DISABLE KEYS */;
-/*!40000 ALTER TABLE `audit_logs` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Dumping data for table `awards`
 --
 
@@ -53,57 +34,12 @@ INSERT INTO `awards` VALUES ('d0000000-0000-4000-8000-000000000002','20000000-00
 UNLOCK TABLES;
 
 --
--- Dumping data for table `chat_messages`
---
-
-LOCK TABLES `chat_messages` WRITE;
-/*!40000 ALTER TABLE `chat_messages` DISABLE KEYS */;
-/*!40000 ALTER TABLE `chat_messages` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Dumping data for table `chat_room_members`
---
-
-LOCK TABLES `chat_room_members` WRITE;
-/*!40000 ALTER TABLE `chat_room_members` DISABLE KEYS */;
-/*!40000 ALTER TABLE `chat_room_members` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Dumping data for table `chat_rooms`
---
-
-LOCK TABLES `chat_rooms` WRITE;
-/*!40000 ALTER TABLE `chat_rooms` DISABLE KEYS */;
-/*!40000 ALTER TABLE `chat_rooms` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Dumping data for table `check_ins`
 --
 
 LOCK TABLES `check_ins` WRITE;
 /*!40000 ALTER TABLE `check_ins` DISABLE KEYS */;
 /*!40000 ALTER TABLE `check_ins` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Dumping data for table `criteria_template_items`
---
-
-LOCK TABLES `criteria_template_items` WRITE;
-/*!40000 ALTER TABLE `criteria_template_items` DISABLE KEYS */;
-/*!40000 ALTER TABLE `criteria_template_items` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Dumping data for table `criteria_templates`
---
-
-LOCK TABLES `criteria_templates` WRITE;
-/*!40000 ALTER TABLE `criteria_templates` DISABLE KEYS */;
-/*!40000 ALTER TABLE `criteria_templates` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --

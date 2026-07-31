@@ -23,6 +23,7 @@ import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.JudgeTeamAssignmentRepository;
 import com.hackathon.hackathon.repository.RoundLifecycleRepository;
 import com.hackathon.hackathon.repository.ScoreRepository;
+import com.hackathon.hackathon.util.VietnamTime;
 import io.jsonwebtoken.Claims;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -161,6 +162,7 @@ public class JudgeService {
       throw new BadRequestException("Group does not belong to this event.");
     }
 
+    validateScoringWindow(cleanRoundId);
     return scoreRepository.findTeamsToScore(cleanEventId, cleanRoundId, cleanGroupId, cleanJudgeId);
   }
 
@@ -256,6 +258,8 @@ public class JudgeService {
       throw new ForbiddenException("You are not assigned to this round and group.");
     }
 
+    validateScoringWindow(cleanRoundId);
+
     // Validate relationships
     if (!eventRepository.roundBelongsToEvent(cleanRoundId, cleanEventId)) {
       throw new BadRequestException("Round does not belong to this event.");
@@ -309,6 +313,16 @@ public class JudgeService {
       if (!processedCriteria.add(critId)) {
         throw new BadRequestException("Duplicate criterion ID " + critId + " in request details.");
       }
+    }
+  }
+
+  private void validateScoringWindow(String roundId) {
+    if (!roundLifecycleRepository.isMilestoneProcessed(
+        roundId, RoundLifecycleRepository.MILESTONE_SUBMISSION_CLOSED)) {
+      throw new ConflictException("Scoring opens after the submission deadline.");
+    }
+    if (roundLifecycleRepository.isRoundEndReached(roundId, VietnamTime.nowForDatabase())) {
+      throw new ConflictException("This round has ended; scoring is closed.");
     }
   }
 

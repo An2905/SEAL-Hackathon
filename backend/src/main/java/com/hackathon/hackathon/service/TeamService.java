@@ -25,6 +25,7 @@ import com.hackathon.hackathon.model.mapper.EventMapper;
 import com.hackathon.hackathon.model.mapper.TeamMapper;
 import com.hackathon.hackathon.repository.EliminationRepository;
 import com.hackathon.hackathon.repository.EventRepository;
+import com.hackathon.hackathon.repository.EventSetupRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.repository.TeamRepository;
 import com.hackathon.hackathon.repository.UserRepository;
@@ -47,6 +48,8 @@ public class TeamService {
   @Autowired private TeamMapper teamMapper;
 
   @Autowired private EventRepository eventRepository;
+
+  @Autowired private EventSetupRepository eventSetupRepository;
 
   @Autowired private TeamRegistrationRepository teamRegistrationRepository;
 
@@ -213,6 +216,13 @@ public class TeamService {
     }
 
     if (!teamRegistrationRepository.insert(eventId, teamId, "PENDING")) {
+      if (eventSetupRepository
+          .findEventById(eventId)
+          .map(event -> event.maxTeams != null
+              && eventSetupRepository.countTeamRegistrationsByEventId(eventId) >= event.maxTeams)
+          .orElse(false)) {
+        throw new ConflictException("This event has reached its maximum number of teams.");
+      }
       throw new BadRequestException("Join event failed.");
     }
 

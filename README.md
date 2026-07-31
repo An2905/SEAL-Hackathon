@@ -3,7 +3,7 @@
 [![Backend CI](https://github.com/nmt2103/SEAL-Hackathon/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/An2905/SEAL-Hackathon/actions/workflows/backend-ci.yml)
 [![Frontend CI](https://github.com/nmt2103/SEAL-Hackathon/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/An2905/SEAL-Hackathon/actions/workflows/frontend-ci.yml)
 
-A comprehensive, production-ready monorepo platform designed to automate event coordination, team registration, mentoring, real-time communication, and academic research-based grading for the annual Software Engineering Agile League (SEAL) hackathon.
+A comprehensive, production-ready monorepo platform designed to automate event coordination, team registration, mentoring, and academic research-based grading for the annual Software Engineering Agile League (SEAL) hackathon.
 
 ***
 
@@ -13,7 +13,7 @@ A comprehensive, production-ready monorepo platform designed to automate event c
 
 The system serves a dual purpose:
 
-1. **Competition Management:** Seamlessly administers user profiles, event configurations, group stages, project submissions, and real-time chat.
+1. **Competition Management:** Seamlessly administers user profiles, event configurations, group stages, and project submissions.
 2. **Academic Research Support:** Collects granular scoring data to enable Research-Based Learning (RBL) focusing on inter-rater reliability among judges.
 
 ***

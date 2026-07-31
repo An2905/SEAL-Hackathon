@@ -46,20 +46,31 @@ export function ProfileModal({
   const handleSubmit = async (e) => {
     e.preventDefault()
     setMessage(null)
+    const fullName = form.fullName.trim()
+    const phone = form.phone.trim()
+    if (!fullName) {
+      setMessage({ text: 'Vui lòng nhập họ và tên', type: 'error' })
+      return
+    }
+    if (showStaffFields && !/^(?:\+84|0)\d{9}$/.test(phone)) {
+      setMessage({ text: 'Số điện thoại không hợp lệ', type: 'error' })
+      return
+    }
     setLoading(true)
     try {
-      const { newToken } = await updateProfile(form)
+      const profile = { ...form, fullName, phone }
+      const { newToken } = await updateProfile(profile)
       saveAuth({
         ...(newToken ? { token: newToken } : {}),
-        fullName: form.fullName
+        fullName
       })
       if (onProfileUpdated) {
         onProfileUpdated((prev) => ({
           ...prev,
-          fullName: form.fullName,
+          fullName,
           university: form.university,
           studentId: form.studentId,
-          phone: form.phone
+          phone
         }))
       }
       setMessage({ text: 'Cập nhật hồ sơ thành công!', type: 'success' })
@@ -105,6 +116,8 @@ export function ProfileModal({
               value={form.phone}
               onChange={handleChange}
               required
+              pattern='(?:\\+84|0)[0-9]{9}'
+              title='Nhập số điện thoại Việt Nam gồm 10 chữ số, bắt đầu bằng 0 hoặc +84'
               placeholder='09xxxxxxxx'
               autoComplete='tel'
             />

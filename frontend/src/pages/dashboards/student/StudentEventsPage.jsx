@@ -7,7 +7,6 @@ import { joinEvent, getTeamRegistrations, getTeamTrackMentors, dropEvent } from 
 import { useToast } from '../../../context/ToastContext'
 import { localizeError } from '../../../utils/errors'
 import { eventStatusLabel } from '../../../utils/eventStatusLabels'
-import ChatPopup, { ChatOpenButton } from '../../../components/chat/ChatPopup'
 import Pagination from '../../../components/common/Pagination'
 import LoadingState from '../../../components/common/LoadingState'
 import {
@@ -27,7 +26,7 @@ import {
   GithubRequiredBanner
 } from './shared'
 
-function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
+function EventMentorsBlock({ registration, mentorState }) {
   const [mentorsPage, setMentorsPage] = useState(1)
   const status = (registration.registrationStatus || '').toUpperCase()
   const state = mentorState || {}
@@ -59,19 +58,6 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
             <div className='member-info'>
               <div className='member-name-row'>
                 <div className='member-name'>{m.mentorName || '—'}</div>
-                {onOpenChat ? (
-                  <ChatOpenButton
-                    title={`Nhắn tin với ${m.mentorName || 'mentor'}`}
-                    onClick={() =>
-                      onOpenChat({
-                        eventId: registration.eventId,
-                        eventTitle: registration.eventTitle,
-                        mentorId: m.mentorId,
-                        mentorName: m.mentorName
-                      })
-                    }
-                  />
-                ) : null}
               </div>
               <div className='member-meta'>{m.mentorEmail || ''}</div>
             </div>
@@ -84,7 +70,7 @@ function EventMentorsBlock({ registration, mentorState, onOpenChat }) {
 }
 
 // ─── Sự kiện + mentor ─────────────────────────────────────────────────────────
-function TeamEventsPanel({ refreshKey, onOpenChat, isLeader, teamId, onRegisterSuccess }) {
+function TeamEventsPanel({ refreshKey, isLeader, teamId, onRegisterSuccess }) {
   const { showToast } = useToast()
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(true)
@@ -193,7 +179,6 @@ function TeamEventsPanel({ refreshKey, onOpenChat, isLeader, teamId, onRegisterS
         <TeamEventsList
           list={filteredList}
           mentorsByEvent={mentorsByEvent}
-          onOpenChat={onOpenChat}
           isLeader={isLeader}
           onDropEvent={handleDropEvent}
         />
@@ -202,7 +187,7 @@ function TeamEventsPanel({ refreshKey, onOpenChat, isLeader, teamId, onRegisterS
   )
 }
 
-function TeamEventsList({ list, mentorsByEvent, onOpenChat, isLeader, onDropEvent }) {
+function TeamEventsList({ list, mentorsByEvent, isLeader, onDropEvent }) {
   const [page, setPage] = useState(1)
   const visibleItems = list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
@@ -238,7 +223,6 @@ function TeamEventsList({ list, mentorsByEvent, onOpenChat, isLeader, onDropEven
                   <EventMentorsBlock
                     registration={reg}
                     mentorState={mentorsByEvent[reg.eventId]}
-                    onOpenChat={onOpenChat}
                   />
                 </span>
                 <StatusStack>
@@ -469,15 +453,12 @@ function JoinEventForm({ onSuccess, embedded = false }) {
 export default function StudentEventsPage({
   isLeader,
   teamId,
-  teamName,
   refreshKey,
   onRegisterSuccess,
   githubStatus,
   oauthLoading,
   onConnectGithub
 }) {
-  const [chatTarget, setChatTarget] = useState(null)
-
   return (
     <>
       {!githubStatus.loading && (!githubStatus.linked || !githubStatus.username) ? (
@@ -490,21 +471,8 @@ export default function StudentEventsPage({
           isLeader={isLeader}
           teamId={teamId}
           onRegisterSuccess={onRegisterSuccess}
-          onOpenChat={(target) => setChatTarget({ ...target, teamName })}
         />
       </DashboardSection>
-
-      {chatTarget && (
-        <ChatPopup
-          open
-          onClose={() => setChatTarget(null)}
-          eventId={chatTarget.eventId}
-          eventTitle={chatTarget.eventTitle}
-          mentorId={chatTarget.mentorId}
-          mentorName={chatTarget.mentorName}
-          teamName={chatTarget.teamName}
-        />
-      )}
     </>
   )
 }

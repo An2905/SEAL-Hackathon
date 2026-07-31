@@ -1304,23 +1304,10 @@ public class EventService {
     requireCheckInWindowOpen(eventId);
     requireCheckInRegistration(eventId, teamId);
 
-    String oldStatus =
-        teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse("PENDING");
-
     CheckInTeamResponse response =
         checkInRepository.applyTeamCheckIn(eventId, teamId, staffUserId, request.isChecked());
 
-    String newStatus =
-        teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse("PENDING");
-
-    if ("PENDING".equals(oldStatus) && "APPROVED".equals(newStatus)) {
-      try {
-        eventPublisher.publishEvent(
-            new TeamApprovedEvent(this, response.getRegistrationId(), eventId, teamId));
-      } catch (Exception e) {
-        teamRegistrationRepository.updateGithubStatus(response.getRegistrationId(), "FAILED");
-      }
-    }
+    triggerGitHubProvisioningAfterFullCheckIn(response.getRegistrationId(), eventId, teamId);
 
     tryAutoFillOnCheckIn(eventId, teamId);
 
@@ -1342,28 +1329,38 @@ public class EventService {
     requireCheckInWindowOpen(eventId);
     requireCheckInRegistration(eventId, teamId);
 
-    String oldStatus =
-        teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse("PENDING");
-
     CheckInTeamResponse response =
         checkInRepository.applyMemberCheckIn(
             eventId, teamId, userId, staffUserId, request.isChecked());
 
-    String newStatus =
-        teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse("PENDING");
-
-    if ("PENDING".equals(oldStatus) && "APPROVED".equals(newStatus)) {
-      try {
-        eventPublisher.publishEvent(
-            new TeamApprovedEvent(this, response.getRegistrationId(), eventId, teamId));
-      } catch (Exception e) {
-        teamRegistrationRepository.updateGithubStatus(response.getRegistrationId(), "FAILED");
-      }
-    }
+    triggerGitHubProvisioningAfterFullCheckIn(response.getRegistrationId(), eventId, teamId);
 
     tryAutoFillOnCheckIn(eventId, teamId);
 
     return response;
+  }
+
+  /** Starts GitHub provisioning only when approval and full check-in are both complete. */
+  public void triggerGitHubProvisioningAfterFullCheckIn(
+      String registrationId, String eventId, String teamId) {
+    if (!checkInRepository.isTeamFullyCheckedIn(eventId, teamId)) {
+      return;
+    }
+
+    TeamRegistration registration =
+        teamRegistrationRepository.findDetailsByRegistrationId(registrationId).orElse(null);
+    if (registration == null
+        || !"APPROVED".equalsIgnoreCase(registration.getStatus())
+        || !"PENDING".equalsIgnoreCase(registration.getGithubStatus())) {
+      return;
+    }
+
+    try {
+      eventPublisher.publishEvent(new TeamApprovedEvent(this, registrationId, eventId, teamId));
+    } catch (Exception e) {
+      log.error("Could not start GitHub provisioning for registration {}", registrationId, e);
+      teamRegistrationRepository.updateGithubStatus(registrationId, "FAILED");
+    }
   }
 
   private String requireCheckInEventId(String eventId) {

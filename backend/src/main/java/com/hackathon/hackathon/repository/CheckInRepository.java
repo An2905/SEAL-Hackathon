@@ -27,7 +27,6 @@ public class CheckInRepository {
                    t.team_id, t.team_name, t.leader_id,
                    um.user_id AS member_user_id, um.full_name AS member_full_name, um.email AS member_email,
                    CASE
-                       WHEN tr.status = 'APPROVED' THEN 1
                        WHEN ci.checkin_id IS NOT NULL AND ci.checked_in = 1 THEN 1
                        ELSE 0
                    END AS checked_in

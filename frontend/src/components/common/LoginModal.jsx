@@ -9,6 +9,7 @@ import { useToast } from '../../context/ToastContext'
 import { useNavigate } from 'react-router-dom'
 import { localizeError } from '../../utils/errors'
 import { useRecaptcha } from '../../hooks/useRecaptcha'
+import { isValidEmail } from '../../utils/formValidation'
 
 export default function LoginModal({ isOpen, onClose, onSwitchToRegister, onSwitchToReset }) {
   const { saveAuth, pathForRole } = useAuth()
@@ -24,21 +25,26 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister, onSwit
   const handleSubmit = async (e) => {
     e.preventDefault()
     setMessage(null)
-    if (!form.email || !form.password) {
+    const email = form.email.trim()
+    if (!email || !form.password) {
       setMessage({ text: 'Vui lòng nhập đầy đủ email và mật khẩu', type: 'error' })
+      return
+    }
+    if (!isValidEmail(email)) {
+      setMessage({ text: 'Email không đúng định dạng', type: 'error' })
       return
     }
     setLoading(true)
     try {
       const captchaToken = await getCaptchaToken()
-      const result = await login({ ...form, captchaToken })
+      const result = await login({ ...form, email, captchaToken })
       if (!result.ok) {
         setMessage({ text: localizeError(result.message), type: 'error' })
         return
       }
-      saveAuth({ token: result.token, email: form.email, role: result.role })
+      saveAuth({ token: result.token, email, role: result.role })
       setMessage({ text: 'Đăng nhập thành công, đang chuyển hướng...', type: 'success' })
-      const displayName = localStorage.getItem('hh_full_name') || form.email
+      const displayName = localStorage.getItem('hh_full_name') || email
       showToast(`Chào mừng ${displayName}!`, 'success')
       setTimeout(() => {
         onClose()

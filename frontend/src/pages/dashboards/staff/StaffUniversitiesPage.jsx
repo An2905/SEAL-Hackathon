@@ -24,9 +24,14 @@ function CreateUniversityForm({ onCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setMessage(null)
+    const universityName = name.trim()
+    if (!universityName) {
+      setMessage({ text: 'Vui lòng nhập tên trường', type: 'error' })
+      return
+    }
     setLoading(true)
     try {
-      await createUniversity({ universityName: name })
+      await createUniversity({ universityName })
       showToast('Đã thêm trường đại học', 'success')
       setName('')
       onCreated?.()
@@ -75,11 +80,16 @@ function EditUniversityModal({ university, onClose, onUpdated }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    const universityName = name.trim()
+    if (!universityName) {
+      setError('Vui lòng nhập tên trường')
+      return
+    }
     setLoading(true)
     try {
       await updateUniversity({
         universityId: university.universityId,
-        universityName: name
+        universityName
       })
       showToast('Đã cập nhật tên trường', 'success')
       onUpdated?.()

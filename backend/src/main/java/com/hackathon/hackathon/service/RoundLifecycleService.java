@@ -89,15 +89,24 @@ public class RoundLifecycleService {
   }
 
   private void processRoundEnd(RoundLifecycleRepository.RoundSchedule round) {
+    int queuedForRemoval =
+        gitHubRepositoryAccessTaskService.enqueueJudgeRemovalForRound(round.roundId());
+    if (gitHubRepositoryAccessTaskService.hasOutstandingJudgeRemovalTasks(round.roundId())) {
+      log.info(
+          "Round {} reached its end time; waiting for {} queued Judge removal task(s)",
+          round.roundId(),
+          queuedForRemoval);
+      return;
+    }
+
     RoundLifecycleRepository.ScoringProgress progress =
         roundLifecycleRepository.getScoringProgress(round.roundId());
     if (!progress.isComplete()) {
       log.warn(
-          "Round {} cannot end yet: {} submission(s) have no judge and {} submission(s) are unscored",
+          "Round {} ended with {} submission(s) without a Judge and {} unscored submission(s)",
           round.roundId(),
           progress.unassignedSubmissionCount(),
           progress.unscoredSubmissionCount());
-      return;
     }
 
     Optional<String> nextRoundId =
@@ -108,16 +117,6 @@ public class RoundLifecycleService {
 
     if (nextRoundId.isPresent()) {
       eventService.autoFillRoundGroupsForLifecycle(round.eventId(), nextRoundId.get());
-    }
-
-    int queuedForRemoval =
-        gitHubRepositoryAccessTaskService.enqueueJudgeRemovalForRound(round.roundId());
-    if (gitHubRepositoryAccessTaskService.hasOutstandingJudgeRemovalTasks(round.roundId())) {
-      log.info(
-          "Round {} winner(s) finalized; waiting for {} queued Judge removal task(s)",
-          round.roundId(),
-          queuedForRemoval);
-      return;
     }
 
     roundLifecycleRepository.markMilestone(

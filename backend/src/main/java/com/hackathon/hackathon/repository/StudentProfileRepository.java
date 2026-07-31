@@ -4,14 +4,18 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.Optional;
+import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class StudentProfileRepository {
 
   @Autowired private DataSource dataSource;
+
+  @Autowired private JdbcTemplate jdbcTemplate;
 
   public Optional<String> findStudentCodeByUserEmail(String email) {
     String sql =
@@ -67,16 +71,25 @@ public class StudentProfileRepository {
   }
 
   public boolean insert(String userId, String studentCode, String universityName) {
+    if (hasProfileIdColumn()) {
+      String sql =
+          "INSERT INTO studentprofile (profile_id, user_id, student_code, university_name)"
+              + " VALUES (?, ?, ?, ?)";
+      return jdbcTemplate.update(sql, UUID.randomUUID().toString(), userId, studentCode, universityName) > 0;
+    }
+
     String sql =
-        "INSERT INTO studentprofile (user_id, student_code, university_name)" + " VALUES (?, ?, ?)";
+        "INSERT INTO studentprofile (user_id, student_code, university_name) VALUES (?, ?, ?)";
+    return jdbcTemplate.update(sql, userId, studentCode, universityName) > 0;
+  }
+
+  private boolean hasProfileIdColumn() {
     try (Connection conn = dataSource.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, userId);
-      ps.setString(2, studentCode);
-      ps.setString(3, universityName);
-      return ps.executeUpdate() > 0;
+        ResultSet columns =
+            conn.getMetaData().getColumns(conn.getCatalog(), null, "studentprofile", "profile_id")) {
+      return columns.next();
     } catch (Exception e) {
-      return false;
+      throw new RuntimeException("Cannot inspect studentprofile schema", e);
     }
   }
 

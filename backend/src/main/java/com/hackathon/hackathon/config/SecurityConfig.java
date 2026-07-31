@@ -52,8 +52,6 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/auth/github/callback")
                     .permitAll()
-                    .requestMatchers("/ws/**")
-                    .permitAll()
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**")
                     .permitAll()
                     .requestMatchers("/api/**")

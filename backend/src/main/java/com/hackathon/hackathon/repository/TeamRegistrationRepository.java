@@ -48,15 +48,51 @@ public class TeamRegistrationRepository {
 
   public boolean insert(String eventId, String teamId, String status) {
     String registrationId = UUID.randomUUID().toString();
-    String sql =
+    String eventSql = "SELECT max_teams FROM events WHERE event_id = ? FOR UPDATE";
+    String countSql = "SELECT COUNT(*) FROM team_registrations WHERE event_id = ?";
+    String insertSql =
         "INSERT INTO team_registrations (registration_id, event_id, team_id, status) VALUES (?, ?, ?, ?)";
-    try (Connection conn = dataSource.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, registrationId);
-      ps.setString(2, eventId);
-      ps.setString(3, teamId);
-      ps.setString(4, status);
-      return ps.executeUpdate() > 0;
+    try (Connection conn = dataSource.getConnection()) {
+      conn.setAutoCommit(false);
+      try {
+        Integer maxTeams = null;
+        try (PreparedStatement ps = conn.prepareStatement(eventSql)) {
+          ps.setString(1, eventId);
+          try (ResultSet rs = ps.executeQuery()) {
+            if (!rs.next()) {
+              conn.rollback();
+              return false;
+            }
+            int value = rs.getInt("max_teams");
+            maxTeams = rs.wasNull() ? null : value;
+          }
+        }
+
+        if (maxTeams != null) {
+          try (PreparedStatement ps = conn.prepareStatement(countSql)) {
+            ps.setString(1, eventId);
+            try (ResultSet rs = ps.executeQuery()) {
+              if (rs.next() && rs.getInt(1) >= maxTeams) {
+                conn.rollback();
+                return false;
+              }
+            }
+          }
+        }
+
+        try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+          ps.setString(1, registrationId);
+          ps.setString(2, eventId);
+          ps.setString(3, teamId);
+          ps.setString(4, status);
+          boolean inserted = ps.executeUpdate() > 0;
+          conn.commit();
+          return inserted;
+        }
+      } catch (Exception e) {
+        conn.rollback();
+        throw e;
+      }
     } catch (Exception e) {
       return false;
     }
