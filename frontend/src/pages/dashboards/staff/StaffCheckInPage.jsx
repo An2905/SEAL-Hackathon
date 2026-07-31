@@ -444,11 +444,8 @@ export default function StaffCheckInPage() {
 
   return (
     <DashboardShell
-      roleLabel='Nhân viên'
       title='Check-in sự kiện'
       subtitle={page?.eventTitle ? `Sự kiện: ${page.eventTitle}` : 'Điểm danh các đội tham gia'}
-      role='Staff'
-      showStaffFields
     >
       <div className='action-row' style={{ marginBottom: 16 }}>
         <Link className='btn btn-outline' to='/staff?tab=events'>

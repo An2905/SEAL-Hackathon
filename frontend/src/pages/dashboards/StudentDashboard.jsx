@@ -157,11 +157,8 @@ export default function StudentDashboard() {
   return (
     <>
       <DashboardLayout
-        roleLabel='Sinh viên'
         moduleTitle='Khu vực Sinh viên'
         moduleSubtitle='Quản lý đội thi, đăng ký sự kiện hackathon và liên kết GitHub.'
-        showStudentFields
-        className='dashboard-shell--student-zone'
         tabs={tabs}
       />
 

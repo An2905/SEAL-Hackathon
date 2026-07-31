@@ -4,7 +4,7 @@ function parseJson(text) {
   try {
     return JSON.parse(text)
   } catch {
-    throw new Error(text || 'Phản hồi không hợp lệ từ server')
+    throw new Error(text || 'Phản hồi không hợp lệ từ máy chủ')
   }
 }
 

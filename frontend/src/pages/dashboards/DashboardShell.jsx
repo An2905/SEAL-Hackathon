@@ -5,24 +5,11 @@ import DashboardLayout from '../../components/layout/DashboardLayout'
  *
  * Compatibility wrapper around DashboardLayout for standalone full-page
  * routes (no tabs) — maps the legacy title/subtitle props to
- * moduleTitle/moduleSubtitle.
+ * moduleTitle/moduleSubtitle. Chrome comes from MainLayout.
  */
-export default function DashboardShell({
-  roleLabel,
-  title,
-  subtitle,
-  showStudentFields = false,
-  showStaffFields = false,
-  children
-}) {
+export default function DashboardShell({ title, subtitle, children }) {
   return (
-    <DashboardLayout
-      roleLabel={roleLabel}
-      moduleTitle={title}
-      moduleSubtitle={subtitle}
-      showStudentFields={showStudentFields}
-      showStaffFields={showStaffFields}
-    >
+    <DashboardLayout moduleTitle={title} moduleSubtitle={subtitle}>
       {children}
     </DashboardLayout>
   )

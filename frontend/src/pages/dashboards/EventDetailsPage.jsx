@@ -1,7 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import DashboardShell from './DashboardShell'
 import FormMessage from '../../components/common/FormMessage'
 import Modal from '../../components/common/Modal'
 import ConfirmModal from '../../components/common/ConfirmModal'
@@ -1390,7 +1389,15 @@ function TeamRegistrationDetailModal({ team, isOpen, onClose, onTeamUpdated }) {
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={() => {
+        // Đang mở danh sách commit thì Escape / overlay chỉ đóng commit,
+        // không đóng luôn modal đội.
+        if (commitModalOpen) {
+          setCommitModalOpen(false)
+          return
+        }
+        onClose()
+      }}
       title='Đăng ký & GitHub'
       className='modal-wide team-registration-detail-modal'
     >
@@ -1720,7 +1727,7 @@ function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess, repoAcce
         <div className='criteria-manager-head'>
           <div className='team-registrations-title-row'>
             <h3 className='section-title' style={{ margin: 0 }}>
-              Đăng ký và tích hợp GitHub
+              GitHub
             </h3>
             <TeamRegistrationsBulkActions {...bulkActionsProps} />
           </div>
@@ -1735,7 +1742,7 @@ function TeamRegistrationsSection({ teams, onTeamUpdated, onBulkAccess, repoAcce
       <div className='criteria-manager-head'>
         <div className='team-registrations-title-row'>
           <h3 className='section-title' style={{ margin: 0 }}>
-            Đăng ký và tích hợp GitHub
+            GitHub
           </h3>
           <TeamRegistrationsBulkActions {...bulkActionsProps} />
         </div>
@@ -3201,13 +3208,9 @@ export default function EventDetailsPage() {
     })
   }
 
+  // Shell/TabNav come from StaffLayout (nested route). Do not wrap DashboardShell here.
   return (
-    <DashboardShell
-      roleLabel='Nhân viên'
-      title='Chi tiết sự kiện'
-      subtitle='Thông tin đầy đủ của hackathon.'
-      role='Staff'
-    >
+    <>
       <div className='action-row' style={{ marginBottom: 16 }}>
         <Link to='/staff?tab=events' className='btn btn-ghost'>
           ← Quay lại danh sách
@@ -3296,6 +3299,6 @@ export default function EventDetailsPage() {
           />
         </div>
       )}
-    </DashboardShell>
+    </>
   )
 }

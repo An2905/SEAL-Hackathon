@@ -50,7 +50,7 @@ public class GitHubRepoController {
       @RequestHeader("Authorization") String authHeader,
       @RequestBody GitHubCreateRepoRequest request) {
     if (request.getName() == null || request.getName().trim().isEmpty()) {
-      throw new BadRequestException("Repository name is required.");
+      throw new BadRequestException("Tên repository là bắt buộc.");
     }
     return ResponseEntity.ok(gitHubRepoService.createOrgRepo(authHeader, request.getName()));
   }

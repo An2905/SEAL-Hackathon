@@ -22,7 +22,6 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
-import { vietnameseRoleLabel } from '../../utils/roleLabels'
 
 const JUDGE_PAGE_SIZE = 5
 
@@ -178,7 +177,6 @@ export default function JudgeDashboard() {
   }
 
   const isDualRole = auth.role === 'EXPERT_INTERNAL'
-  const roleLabel = vietnameseRoleLabel(auth.role)
   const navLinks = isDualRole
     ? [
         { label: 'Mentor', to: '/mentor' },
@@ -188,10 +186,8 @@ export default function JudgeDashboard() {
 
   return (
     <DashboardLayout
-      roleLabel={roleLabel}
       moduleTitle='Khu vực Judge'
       moduleSubtitle='Khách được phân công giám khảo — chấm điểm các đội thi.'
-      showStaffFields
       navLinks={navLinks}
     >
       <div className='section-title'>

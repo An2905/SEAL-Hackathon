@@ -1,19 +1,36 @@
+import { NavLink } from 'react-router-dom'
+
+/**
+ * Horizontal tab bar under TopBar.
+ *
+ * Prefer tabs with `to` (NavLink + route-based active state).
+ * Fallback: controlled `activeKey` + `onChange` for query-param tabs.
+ */
 export default function TabNav({ tabs, activeKey, onChange }) {
   if (!tabs || tabs.length <= 1) return null
+  if (!tabs.some((tab) => tab.label)) return null
+
+  const useLinks = tabs.every((tab) => tab.to)
 
   return (
     <div style={tabBarWrapStyle}>
       <div style={tabBarInnerStyle}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type='button'
-            onClick={() => onChange(tab.key)}
-            style={tabBtnStyle(activeKey === tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {tabs.map((tab) =>
+          useLinks ? (
+            <NavLink key={tab.key} to={tab.to} end={tab.end} style={({ isActive }) => tabBtnStyle(isActive)}>
+              {tab.label}
+            </NavLink>
+          ) : (
+            <button
+              key={tab.key}
+              type='button'
+              onClick={() => onChange?.(tab.key)}
+              style={tabBtnStyle(activeKey === tab.key)}
+            >
+              {tab.label}
+            </button>
+          )
+        )}
       </div>
     </div>
   )
@@ -51,5 +68,6 @@ const tabBtnStyle = (active) => ({
   cursor: 'pointer',
   whiteSpace: 'nowrap',
   transition: 'color .15s, border-color .15s',
-  flexShrink: 0
+  flexShrink: 0,
+  textDecoration: 'none'
 })

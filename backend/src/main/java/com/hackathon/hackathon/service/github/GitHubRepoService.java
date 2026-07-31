@@ -2,9 +2,12 @@ package com.hackathon.hackathon.service.github;
 
 import com.hackathon.hackathon.config.GitHubAppConfig;
 import com.hackathon.hackathon.exception.BadRequestException;
+import com.hackathon.hackathon.exception.ForbiddenException;
 import com.hackathon.hackathon.service.AuthService;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 @Service
 @Slf4j
@@ -122,14 +126,51 @@ public class GitHubRepoService {
       int perPage,
       int page) {
     String url = buildCommitsUrl(owner, repo, sha, author, since, until, perPage, page);
-    return restClient
-        .get()
-        .uri(url)
-        .header("Authorization", "Bearer " + tokenService.getInstallationToken())
-        .header("Accept", "application/vnd.github+json")
-        .header("X-GitHub-Api-Version", "2026-03-10")
-        .retrieve()
-        .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+    try {
+      List<Map<String, Object>> body =
+          restClient
+              .get()
+              // Pre-built URL (already has query string) — use URI.create to avoid
+              // UriTemplate re-encoding of '?' / '&' / encoded values.
+              .uri(URI.create(url))
+              .header("Authorization", "Bearer " + tokenService.getInstallationToken())
+              .header("Accept", "application/vnd.github+json")
+              .header("X-GitHub-Api-Version", "2026-03-10")
+              .retrieve()
+              .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+      return body != null ? body : Collections.emptyList();
+    } catch (RestClientResponseException e) {
+      int status = e.getStatusCode().value();
+      String githubBody = e.getResponseBodyAsString();
+      // GitHub returns 409 when the git repository has no commits yet (empty repo).
+      // Provisioning creates repos without auto_init, so this is a normal case.
+      if (status == 409) {
+        log.info(
+            "GitHub repo {}/{} has no commits yet (empty repository). Returning empty list.",
+            owner,
+            repo);
+        return Collections.emptyList();
+      }
+      log.error(
+          "GitHub list commits failed for {}/{}: status={}, body={}",
+          owner,
+          repo,
+          status,
+          githubBody);
+      if (status == 404) {
+        throw new BadRequestException(
+            "Không tìm thấy repository hoặc GitHub App không có quyền truy cập: "
+                + owner
+                + "/"
+                + repo);
+      }
+      if (status == 403) {
+        throw new ForbiddenException(
+            "GitHub App thiếu quyền xem commit (cần Contents: Read).");
+      }
+      throw new BadRequestException(
+          "Không lấy được danh sách commit từ GitHub (HTTP " + status + ").");
+    }
   }
 
   public List<Map<String, Object>> listRepoCommits(
@@ -147,10 +188,10 @@ public class GitHubRepoService {
     int resolvedPerPage = perPage == null ? 20 : perPage;
     int resolvedPage = page == null ? 1 : page;
     if (resolvedPerPage < 1 || resolvedPerPage > 100) {
-      throw new BadRequestException("per_page must be between 1 and 100.");
+      throw new BadRequestException("per_page phải từ 1 đến 100.");
     }
     if (resolvedPage < 1) {
-      throw new BadRequestException("page must be at least 1.");
+      throw new BadRequestException("page phải từ 1 trở lên.");
     }
 
     return listRepoCommitsInternal(
@@ -162,14 +203,34 @@ public class GitHubRepoService {
   public Map<String, Object> getRepoCommitInternal(
       String owner, String repo, String ref, int perPage, int page) {
     String url = buildGetCommitUrl(owner, repo, ref, perPage, page);
-    return restClient
-        .get()
-        .uri(url)
-        .header("Authorization", "Bearer " + tokenService.getInstallationToken())
-        .header("Accept", "application/vnd.github+json")
-        .header("X-GitHub-Api-Version", "2026-03-10")
-        .retrieve()
-        .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+    try {
+      return restClient
+          .get()
+          .uri(URI.create(url))
+          .header("Authorization", "Bearer " + tokenService.getInstallationToken())
+          .header("Accept", "application/vnd.github+json")
+          .header("X-GitHub-Api-Version", "2026-03-10")
+          .retrieve()
+          .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+    } catch (RestClientResponseException e) {
+      int status = e.getStatusCode().value();
+      log.error(
+          "GitHub get commit failed for {}/{}@{}: status={}, body={}",
+          owner,
+          repo,
+          ref,
+          status,
+          e.getResponseBodyAsString());
+      if (status == 404) {
+        throw new BadRequestException("Không tìm thấy commit hoặc repository.");
+      }
+      if (status == 403) {
+        throw new ForbiddenException(
+            "GitHub App thiếu quyền xem chi tiết commit (cần Contents: Read).");
+      }
+      throw new BadRequestException(
+          "Không lấy được chi tiết commit từ GitHub (HTTP " + status + ").");
+    }
   }
 
   public Map<String, Object> getRepoCommit(
@@ -177,16 +238,16 @@ public class GitHubRepoService {
     authService.validateRole(authHeader, "COORDINATOR", "EXPERT_INTERNAL", "EXPERT_EXTERNAL");
 
     if (ref == null || ref.isBlank()) {
-      throw new BadRequestException("ref is required.");
+      throw new BadRequestException("Thiếu mã commit (ref).");
     }
 
     int resolvedPerPage = perPage == null ? 30 : perPage;
     int resolvedPage = page == null ? 1 : page;
     if (resolvedPerPage < 1 || resolvedPerPage > 100) {
-      throw new BadRequestException("per_page must be between 1 and 100.");
+      throw new BadRequestException("per_page phải từ 1 đến 100.");
     }
     if (resolvedPage < 1) {
-      throw new BadRequestException("page must be at least 1.");
+      throw new BadRequestException("page phải từ 1 trở lên.");
     }
 
     return getRepoCommitInternal(owner, repo, ref.trim(), resolvedPerPage, resolvedPage);

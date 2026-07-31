@@ -1206,6 +1206,40 @@ main {
   width: min(100%, 710px);
   max-width: 710px;
 }
+.modal.modal-commit-list {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal.modal-commit-list > h2,
+.modal.modal-commit-list > .modal-sub {
+  flex-shrink: 0;
+}
+.modal.modal-commit-list > .modal-sub {
+  margin-bottom: 16px;
+}
+.modal-commit-list-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.modal-commit-list-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+.modal-commit-list-footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-soft, #f5f5f5);
+}
+.modal-commit-list-pagination {
+  margin-top: 0;
+  padding: 12px 0 0;
+}
 .modal h2 {
   font-size: 26px;
   font-weight: 700;
