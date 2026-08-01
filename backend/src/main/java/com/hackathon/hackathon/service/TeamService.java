@@ -219,6 +219,10 @@ public class TeamService {
     if (teamRegistrationRepository.existsByTeamAndEvent(teamId, eventId)) {
       throw new BadRequestException("Your team has already joined this event.");
     }
+    if (teamRegistrationRepository.hasActiveEventRegistration(teamId)) {
+      throw new BadRequestException(
+          "Your team is already participating in another upcoming or ongoing event.");
+    }
 
     if (!teamRegistrationRepository.insert(eventId, teamId, "PENDING")) {
       if (eventSetupRepository
