@@ -412,7 +412,8 @@ public class StaffService {
           "Repository access can only be updated while a round is ongoing.");
     }
 
-    return updateEventRepoAccessInternal(eventId, grantAccess, false);
+    // Manual "lock" preserves repository visibility for team members but removes write access.
+    return updateEventRepoAccessInternal(eventId, grantAccess, true);
   }
 
   public MessageResponse updateEventRepoAccessAutomatically(String eventId, boolean grantAccess) {
@@ -568,7 +569,7 @@ public class StaffService {
       }
     }
 
-    String action = grantAccess ? "Cấp quyền" : "Khóa quyền";
+    String action = grantAccess ? "Cấp quyền ghi" : "Chuyển sang quyền chỉ đọc";
     return new MessageResponse(
         action
             + " làm bài hàng loạt thành công cho "

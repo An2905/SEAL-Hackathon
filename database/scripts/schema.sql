@@ -519,6 +519,7 @@ CREATE TABLE `team_registrations` (
   `status` varchar(20) NOT NULL DEFAULT 'PENDING',
   `registered_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `github_status` varchar(20) NOT NULL DEFAULT 'PENDING',
+  `github_team_slug` varchar(100) DEFAULT NULL,
   `github_repo_id` bigint DEFAULT NULL,
   `github_repo_url` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`registration_id`),

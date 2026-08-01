@@ -1398,7 +1398,7 @@ function TeamRegistrationDetailModal({ team, isOpen, onClose, onTeamUpdated }) {
         }
         onClose()
       }}
-      title='Đăng ký & GitHub'
+      title='GitHub'
       className='modal-wide team-registration-detail-modal'
     >
       {error ? <FormMessage message={error} type='error' /> : null}
@@ -1670,7 +1670,7 @@ function TeamRegistrationsBulkActions({ onBulkAccess, repoAccessAvailable, first
         }}
         onClick={() => onBulkAccess?.(false)}
       >
-        Khóa quyền làm bài (Tất cả)
+        Khóa quyền ghi (Tất cả)
       </button>
     </div>
   )
@@ -3287,13 +3287,13 @@ export default function EventDetailsPage() {
             isOpen={bulkAccessModal.isOpen}
             onClose={() => setBulkAccessModal((prev) => ({ ...prev, isOpen: false }))}
             onConfirm={handleBulkAccessConfirm}
-            title={bulkAccessModal.grant ? 'Mở quyền làm bài' : 'Khóa quyền làm bài'}
+            title={bulkAccessModal.grant ? 'Mở quyền làm bài' : 'Khóa quyền ghi'}
             message={
               bulkAccessModal.grant
                 ? 'Hành động này sẽ thêm tất cả các thành viên của các đội đã duyệt của sự kiện làm Collaborator trực tiếp trên GitHub. Các thí sinh sẽ có quyền clone/push code làm bài. Bạn có chắc chắn muốn tiếp tục?'
-                : 'Hành động này sẽ xóa tất cả các thành viên khỏi Collaborator của repository trên GitHub. Thí sinh sẽ mất quyền truy cập code ngay lập tức. Bạn có chắc chắn muốn tiếp tục?'
+                : 'Hành động này sẽ chuyển tất cả thành viên của đội sang quyền chỉ đọc trên GitHub. Thí sinh vẫn xem hoặc clone code được nhưng không thể push. Bạn có chắc chắn muốn tiếp tục?'
             }
-            confirmLabel={bulkAccessModal.grant ? 'Mở quyền' : 'Khóa quyền'}
+            confirmLabel={bulkAccessModal.grant ? 'Mở quyền' : 'Chuyển sang chỉ đọc'}
             loading={bulkAccessModal.loading}
             danger={!bulkAccessModal.grant}
           />
