@@ -9,11 +9,6 @@ function parseJson(text) {
   }
 }
 
-function parseMessage(text) {
-  const data = parseJson(text)
-  return data.message ?? text
-}
-
 function mapMentorAssignmentRow(data) {
   return {
     roundId: String(data.roundId ?? data.round_id ?? ''),
@@ -52,9 +47,7 @@ export async function deleteMentorAssignment({ eventId, roundId, groupId, mentor
     groupId: gid,
     mentorId: mid
   })
-  const text = await apiFetch(`/api/staff/assign/mentor?${params}`, { method: 'DELETE' })
-  const message = parseMessage(text)
-  if (!/mentor assignment deleted successfully/i.test(message)) throw new Error(message)
+  await apiFetch(`/api/staff/assign/mentor?${params}`, { method: 'DELETE' })
   return true
 }
 
@@ -108,9 +101,7 @@ export async function deleteJudgeAssignment({ eventId, judgeId, roundId, groupId
     roundId: rid,
     groupId: gid
   })
-  const text = await apiFetch(`/api/staff/assign/judge?${params}`, { method: 'DELETE' })
-  const message = parseMessage(text)
-  if (!/judge assignment deleted successfully/i.test(message)) throw new Error(message)
+  await apiFetch(`/api/staff/assign/judge?${params}`, { method: 'DELETE' })
   return true
 }
 

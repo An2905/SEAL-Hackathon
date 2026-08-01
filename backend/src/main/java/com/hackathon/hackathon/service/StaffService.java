@@ -1,5 +1,6 @@
 package com.hackathon.hackathon.service;
 
+import com.hackathon.hackathon.config.GitHubAppConfig;
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.model.dto.request.AssignJudgeRequest;
@@ -25,23 +26,31 @@ import com.hackathon.hackathon.model.dto.response.StaffEmailFilterResponse;
 import com.hackathon.hackathon.model.dto.response.StaffEmailMatchDetailResponse;
 import com.hackathon.hackathon.model.dto.response.StaffEmailMatchRow;
 import com.hackathon.hackathon.model.dto.response.StaffEmailRecipientResponse;
+import com.hackathon.hackathon.model.dto.response.StaffTeamMemberResponse;
 import com.hackathon.hackathon.model.dto.response.UniversityOverviewResponse;
 import com.hackathon.hackathon.model.dto.response.UniversityResponse;
 import com.hackathon.hackathon.model.entity.EventCriterion;
+import com.hackathon.hackathon.model.entity.TeamRegistration;
 import com.hackathon.hackathon.model.entity.University;
 import com.hackathon.hackathon.model.entity.User;
 import com.hackathon.hackathon.model.mapper.CriteriaMapper;
 import com.hackathon.hackathon.model.mapper.UserMapper;
 import com.hackathon.hackathon.repository.AssignmentRepository;
+import com.hackathon.hackathon.repository.CheckInRepository;
 import com.hackathon.hackathon.repository.CriteriaRepository;
 import com.hackathon.hackathon.repository.EventRepository;
+import com.hackathon.hackathon.repository.JudgeTeamAssignmentRepository;
 import com.hackathon.hackathon.repository.ParticipantsProfileRepository;
+import com.hackathon.hackathon.repository.RoundLifecycleRepository;
 import com.hackathon.hackathon.repository.StaffAssignmentRepository;
 import com.hackathon.hackathon.repository.StaffEmailRepository;
 import com.hackathon.hackathon.repository.StudentProfileRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
+import com.hackathon.hackathon.repository.TeamRepository;
 import com.hackathon.hackathon.repository.UniversityRepository;
 import com.hackathon.hackathon.repository.UserRepository;
+import com.hackathon.hackathon.service.github.GitHubRepoService;
+import com.hackathon.hackathon.util.VietnamTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -61,6 +70,7 @@ public class StaffService {
   @Autowired private BCryptPasswordEncoder encoder;
 
   @Autowired private UserRepository userRepository;
+  @Autowired private CheckInRepository checkInRepository;
 
   @Autowired private ParticipantsProfileRepository participantsProfileRepository;
 
@@ -76,7 +86,17 @@ public class StaffService {
 
   @Autowired private AssignmentRepository assignmentRepository;
 
+  @Autowired private JudgeTeamAssignmentRepository judgeTeamAssignmentRepository;
+
+  @Autowired private RoundLifecycleRepository roundLifecycleRepository;
+
   @Autowired private AuthService authService;
+
+  @Autowired private TeamRepository teamRepository;
+
+  @Autowired private GitHubRepoService gitHubRepoService;
+
+  @Autowired private GitHubAppConfig gitHubAppConfig;
 
   @Autowired private StaffAssignmentRepository staffAssignmentRepository;
 
@@ -85,6 +105,10 @@ public class StaffService {
   @Autowired private StudentProfileRepository studentProfileRepository;
 
   @Autowired private StaffEmailRepository staffEmailRepository;
+
+  @Autowired private EventService eventService;
+
+  @Autowired private EmailService emailService;
 
   // region REGIS ACCOUNT FOR ADS
   public MessageResponse registerAccount(String authHeader, CreateStaffAccountRequest request) {
@@ -118,7 +142,14 @@ public class StaffService {
       throw new BadRequestException("Tạo hồ sơ người tham gia thất bại.");
     }
 
-    return new MessageResponse("Đăng ký tài khoản thành công.");
+    boolean emailSent = emailService.sendAccountCredentialsEmail(email, fullName, rawPassword);
+    if (!emailSent) {
+      throw new BadRequestException(
+          "Tạo tài khoản thành công nhưng gửi email thất bại. Vui lòng thử lại hoặc dùng quên mật khẩu.");
+    }
+
+    return new MessageResponse(
+        "Đăng ký tài khoản thành công. Thông tin đăng nhập đã được gửi qua email.");
   }
 
   // endregion
@@ -226,11 +257,326 @@ public class StaffService {
       throw new BadRequestException("Không tìm thấy thông tin đăng ký.");
     }
 
+    TeamRegistration registration =
+        teamRegistrationRepository
+            .findDetailsByRegistrationId(registrationId)
+            .orElseThrow(() -> new BadRequestException("Không tìm thấy thông tin đăng ký."));
+
     if (!teamRegistrationRepository.updateStatus(registrationId, status)) {
       throw new BadRequestException("Cập nhật thất bại.");
     }
 
+    if (status.equals("APPROVED")) {
+      eventService.triggerGitHubProvisioningAfterFullCheckIn(
+          registrationId, registration.getEventId(), registration.getTeamId());
+      eventService.syncAutoFillAfterTeamEligible(
+          registration.getEventId(), registration.getTeamId());
+    }
+
     return new MessageResponse("Cập nhật trạng thái đăng ký của đội thành công.");
+  }
+
+  public List<StaffTeamMemberResponse> getTeamMembers(String authHeader, String teamId) {
+    authService.validateRole(authHeader, "COORDINATOR");
+
+    String tid = teamId == null ? "" : teamId.trim();
+    if (tid.isEmpty()) {
+      throw new BadRequestException("ID đội là bắt buộc.");
+    }
+
+    List<StaffTeamMemberResponse> members = new ArrayList<>();
+    for (User user : teamRepository.findTeamMembersByTeamId(tid)) {
+      StaffTeamMemberResponse row = new StaffTeamMemberResponse();
+      row.setUserId(user.getUserId());
+      row.setFullName(user.getFullName());
+      row.setEmail(user.getEmail());
+      row.setGithubUsername(user.getGithubUsername());
+      row.setStatus(user.getStatus());
+      members.add(row);
+    }
+    return members;
+  }
+
+  public MessageResponse retryGitHubProvisioning(String authHeader, String registrationId) {
+    authService.validateRole(authHeader, "COORDINATOR");
+
+    TeamRegistration tr =
+        teamRegistrationRepository
+            .findDetailsByRegistrationId(registrationId)
+            .orElseThrow(() -> new BadRequestException("Không tìm thấy thông tin đăng ký."));
+
+    if (!"APPROVED".equals(tr.getStatus())) {
+      throw new BadRequestException(
+          "Không thể thử lại: Đăng ký của đội không ở trạng thái APPROVED.");
+    }
+
+    if (!"FAILED".equals(tr.getGithubStatus())) {
+      throw new BadRequestException(
+          "Không thể thử lại: Trạng thái GitHub không ở trạng thái FAILED.");
+    }
+
+    if (!checkInRepository.isTeamFullyCheckedIn(tr.getEventId(), tr.getTeamId())) {
+      throw new BadRequestException(
+          "KhÃ´ng thá»ƒ thá»­ láº¡i: Ä‘á»™i pháº£i check-in Ä‘á»§ thÃ nh viÃªn trÆ°á»›c.");
+    }
+    teamRegistrationRepository.updateGithubStatus(registrationId, "PENDING");
+    eventService.triggerGitHubProvisioningAfterFullCheckIn(
+        registrationId, tr.getEventId(), tr.getTeamId());
+
+    return new MessageResponse("Đã kích hoạt lại tiến trình cấp phát GitHub thành công.");
+  }
+
+  public MessageResponse updateTeamRepoAccess(
+      String authHeader, String registrationId, boolean grantAccess) {
+    authService.validateRole(authHeader, "COORDINATOR");
+
+    TeamRegistration tr =
+        teamRegistrationRepository
+            .findDetailsByRegistrationId(registrationId)
+            .orElseThrow(() -> new BadRequestException("Không tìm thấy thông tin đăng ký."));
+
+    if (!"APPROVED".equals(tr.getStatus())) {
+      throw new BadRequestException(
+          "Không thể cấp/khóa quyền: Đăng ký của đội không ở trạng thái APPROVED.");
+    }
+
+    if (!"SUCCESS".equals(tr.getGithubStatus())) {
+      throw new BadRequestException(
+          "Không thể cấp/khóa quyền: Repository chưa được tạo thành công.");
+    }
+
+    String repoUrl = tr.getGithubRepoUrl();
+    if (repoUrl == null || repoUrl.isBlank()) {
+      throw new BadRequestException("Không tìm thấy URL repository.");
+    }
+
+    String owner = gitHubAppConfig.getOrganization();
+    String repoName = "";
+    int lastSlash = repoUrl.lastIndexOf('/');
+    if (lastSlash != -1) {
+      repoName = repoUrl.substring(lastSlash + 1);
+    } else {
+      throw new BadRequestException("URL repository không hợp lệ: " + repoUrl);
+    }
+
+    if (owner == null || owner.isBlank()) {
+      String temp = repoUrl.replace("https://github.com/", "");
+      String[] parts = temp.split("/");
+      if (parts.length >= 2) {
+        owner = parts[0];
+      } else {
+        throw new BadRequestException("Không thể xác định Owner/Org từ URL repository.");
+      }
+    }
+
+    List<User> members = teamRepository.findTeamMembersByTeamId(tr.getTeamId());
+    int successCount = 0;
+    int skipCount = 0;
+
+    for (User member : members) {
+      String username = member.getGithubUsername();
+      if (username == null || username.isBlank()) {
+        skipCount++;
+        continue;
+      }
+
+      try {
+        if (grantAccess) {
+          gitHubRepoService.addCollaboratorInternal(owner, repoName, username);
+        } else {
+          gitHubRepoService.removeCollaboratorInternal(owner, repoName, username);
+        }
+        successCount++;
+      } catch (Exception e) {
+        System.err.println(
+            "[DEBUG] Failed to update access for user " + username + ": " + e.getMessage());
+      }
+    }
+
+    String action = grantAccess ? "Cấp quyền" : "Khóa quyền";
+    return new MessageResponse(
+        action
+            + " làm bài thành công cho "
+            + successCount
+            + " thành viên. (Bỏ qua "
+            + skipCount
+            + " thành viên chưa liên kết GitHub).");
+  }
+
+  public MessageResponse updateEventRepoAccess(
+      String authHeader, String eventId, boolean grantAccess) {
+    authService.validateRole(authHeader, "COORDINATOR");
+
+    if (!eventRepository.hasOngoingRound(eventId, VietnamTime.nowForDatabase())) {
+      throw new BadRequestException(
+          "Repository access can only be updated while a round is ongoing.");
+    }
+
+    // Manual "lock" preserves repository visibility for team members but removes write access.
+    return updateEventRepoAccessInternal(eventId, grantAccess, true);
+  }
+
+  public MessageResponse updateEventRepoAccessAutomatically(String eventId, boolean grantAccess) {
+    return updateEventRepoAccessInternal(eventId, grantAccess, true);
+  }
+
+  /**
+   * Updates GitHub access for teams participating in a specific round. When revoking, teams are
+   * downgraded to read-only instead of being removed from the repository.
+   *
+   * @return number of member-repo updates that succeeded
+   */
+  public int updateRoundTeamRepoAccess(
+      String roundId, boolean grantAccess, boolean keepReadOnlyWhenClosed) {
+    int successCount = 0;
+    for (RoundLifecycleRepository.RoundTeamRepo team :
+        roundLifecycleRepository.findApprovedTeamsInRound(roundId)) {
+      successCount +=
+          updateTeamMembersRepoAccess(
+              team.githubRepoUrl(), team.teamId(), grantAccess, keepReadOnlyWhenClosed);
+    }
+    return successCount;
+  }
+
+  private int updateTeamMembersRepoAccess(
+      String repoUrl, String teamId, boolean grantAccess, boolean keepReadOnlyWhenClosed) {
+    if (repoUrl == null || repoUrl.isBlank()) {
+      return 0;
+    }
+
+    String owner = gitHubAppConfig.getOrganization();
+    String repoName = extractRepoName(repoUrl);
+    if (repoName.isEmpty()) {
+      return 0;
+    }
+
+    if (owner == null || owner.isBlank()) {
+      String temp = repoUrl.replace("https://github.com/", "");
+      String[] parts = temp.split("/");
+      if (parts.length >= 2) {
+        owner = parts[0];
+      } else {
+        return 0;
+      }
+    }
+
+    int successCount = 0;
+    List<User> members = teamRepository.findTeamMembersByTeamId(teamId);
+    for (User member : members) {
+      String username = member.getGithubUsername();
+      if (username == null || username.isBlank()) {
+        continue;
+      }
+
+      try {
+        if (grantAccess) {
+          gitHubRepoService.addCollaboratorInternal(owner, repoName, username);
+        } else if (keepReadOnlyWhenClosed) {
+          gitHubRepoService.setReadOnlyCollaboratorInternal(owner, repoName, username);
+        } else {
+          gitHubRepoService.removeCollaboratorInternal(owner, repoName, username);
+        }
+        successCount++;
+      } catch (Exception e) {
+        System.err.println(
+            "[DEBUG] Round repo access: failed for user "
+                + username
+                + " in repo "
+                + repoName
+                + ": "
+                + e.getMessage());
+      }
+    }
+    return successCount;
+  }
+
+  private String extractRepoName(String repoUrl) {
+    if (repoUrl == null || repoUrl.isBlank()) {
+      return "";
+    }
+    String cleanUrl = repoUrl.trim();
+    int queryIndex = cleanUrl.indexOf('?');
+    if (queryIndex >= 0) {
+      cleanUrl = cleanUrl.substring(0, queryIndex);
+    }
+    int lastSlash = cleanUrl.lastIndexOf('/');
+    String repoName = lastSlash >= 0 ? cleanUrl.substring(lastSlash + 1) : cleanUrl;
+    return repoName.endsWith(".git") ? repoName.substring(0, repoName.length() - 4) : repoName;
+  }
+
+  private MessageResponse updateEventRepoAccessInternal(
+      String eventId, boolean grantAccess, boolean keepReadOnlyWhenClosed) {
+
+    List<TeamRegistration> registrations = eventRepository.findTeamRegistrationsByEventId(eventId);
+    int successCount = 0;
+    int skipCount = 0;
+
+    for (TeamRegistration tr : registrations) {
+      if (!"APPROVED".equals(tr.getStatus()) || !"SUCCESS".equals(tr.getGithubStatus())) {
+        continue;
+      }
+
+      String repoUrl = tr.getGithubRepoUrl();
+      if (repoUrl == null || repoUrl.isBlank()) {
+        continue;
+      }
+
+      String owner = gitHubAppConfig.getOrganization();
+      String repoName = "";
+      int lastSlash = repoUrl.lastIndexOf('/');
+      if (lastSlash != -1) {
+        repoName = repoUrl.substring(lastSlash + 1);
+      } else {
+        continue;
+      }
+
+      if (owner == null || owner.isBlank()) {
+        String temp = repoUrl.replace("https://github.com/", "");
+        String[] parts = temp.split("/");
+        if (parts.length >= 2) {
+          owner = parts[0];
+        } else {
+          continue;
+        }
+      }
+
+      List<User> members = teamRepository.findTeamMembersByTeamId(tr.getTeamId());
+      for (User member : members) {
+        String username = member.getGithubUsername();
+        if (username == null || username.isBlank()) {
+          skipCount++;
+          continue;
+        }
+
+        try {
+          if (grantAccess) {
+            gitHubRepoService.addCollaboratorInternal(owner, repoName, username);
+          } else if (keepReadOnlyWhenClosed) {
+            gitHubRepoService.setReadOnlyCollaboratorInternal(owner, repoName, username);
+          } else {
+            gitHubRepoService.removeCollaboratorInternal(owner, repoName, username);
+          }
+          successCount++;
+        } catch (Exception e) {
+          System.err.println(
+              "[DEBUG] Bulk update: Failed to update access for user "
+                  + username
+                  + " in repo "
+                  + repoName
+                  + ": "
+                  + e.getMessage());
+        }
+      }
+    }
+
+    String action = grantAccess ? "Cấp quyền ghi" : "Chuyển sang quyền chỉ đọc";
+    return new MessageResponse(
+        action
+            + " làm bài hàng loạt thành công cho "
+            + successCount
+            + " thành viên. (Hiện có "
+            + skipCount
+            + " thành viên chưa liên kết GitHub).");
   }
 
   // endregion
@@ -354,6 +700,7 @@ public class StaffService {
     authService.validateRole(authHeader, "COORDINATOR");
     validateJudgeAssignmentKeys(eventId, judgeId, roundId, groupId);
     assertJudgeAssignmentInEvent(eventId, judgeId, roundId, groupId);
+    assertNoJudgeTeamAssignments(roundId, groupId);
 
     if (!staffAssignmentRepository.deleteJudgeAssignment(judgeId, roundId, groupId)) {
       throw new BadRequestException("Xóa phân công judge thất bại.");
@@ -379,6 +726,7 @@ public class StaffService {
     }
 
     assertJudgeAssignmentInEvent(eventId, oldJudgeId, oldRoundId, oldGroupId);
+    assertNoJudgeTeamAssignments(oldRoundId, oldGroupId);
     if (!eventRepository.roundBelongsToEvent(newRoundId, eventId)) {
       throw new BadRequestException("Vòng mới không thuộc sự kiện này.");
     }
@@ -408,6 +756,13 @@ public class StaffService {
   }
 
   // endregion
+
+  private void assertNoJudgeTeamAssignments(String roundId, String groupId) {
+    if (judgeTeamAssignmentRepository.hasAssignmentsForGroup(roundId, groupId)) {
+      throw new ConflictException(
+          "KhÃ´ng thá»ƒ thay Ä‘á»•i phÃ¢n cÃ´ng giÃ¡m kháº£o sau khi bÃ i thi Ä‘Ã£ Ä‘Æ°á»£c phÃ¢n cháº¥m.");
+    }
+  }
 
   private void validateMentorAssignmentKeys(
       String eventId, String roundId, String groupId, String mentorId) {

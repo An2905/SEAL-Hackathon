@@ -9,7 +9,9 @@ import org.springframework.context.annotation.Configuration;
 @Data
 public class GitHubAppConfig {
   private String clientId;
-  private String privateKeyPath;
+  /** PEM private key content (env GITHUB_PRIVATE_KEY). Supports literal \\n. */
+  private String privateKey;
   private String installationId;
   private String apiBaseUrl = "https://api.github.com";
+  private String organization;
 }

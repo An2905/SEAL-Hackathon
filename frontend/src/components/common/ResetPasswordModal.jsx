@@ -6,6 +6,7 @@ import LoadingButton from './LoadingButton'
 import { sendResetPasswordOtp, verifyAndResetPassword } from '../../api/auth'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
+import { isValidEmail } from '../../utils/formValidation'
 
 export default function ResetPasswordModal({ isOpen, onClose, onSwitchToLogin }) {
   const { showToast } = useToast()
@@ -35,6 +36,10 @@ export default function ResetPasswordModal({ isOpen, onClose, onSwitchToLogin })
     const trimmed = email.trim()
     if (!trimmed) {
       setMessage({ text: 'Vui lòng nhập email', type: 'error' })
+      return
+    }
+    if (!isValidEmail(trimmed)) {
+      setMessage({ text: 'Email không đúng định dạng', type: 'error' })
       return
     }
     setLoading(true)

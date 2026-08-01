@@ -11,4 +11,10 @@ public class EventTeamResponse {
   private String status;
 
   private String registrationId;
+
+  private String githubStatus;
+
+  private String githubRepoUrl;
+
+  private String githubTeamSlug;
 }

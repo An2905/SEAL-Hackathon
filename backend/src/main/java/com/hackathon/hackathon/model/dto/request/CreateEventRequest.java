@@ -10,4 +10,5 @@ public class CreateEventRequest {
   private String endDate;
   private Integer maxTeams;
   private Integer numRounds;
+  private String githubTemplateRepo;
 }

@@ -1,24 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
-
-import {
-  getAssignedEvents,
-  getAssignedCurrentRounds,
-  getAssignedTeams,
-  getGroupColleagues,
-  getMentorAssignments
-} from '../../api/mentor'
-
+import { getAssignedEvents, getAssignedTeams, getGroupColleagues, getMentorAssignments } from '../../api/mentor'
 import ExpertGroupColleaguesBoard from '../../components/expert/ExpertGroupColleaguesBoard'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import { eventStatusLabel } from '../../utils/eventStatusLabels'
 import { localizeError } from '../../utils/errors'
-import { vietnameseRoleLabel } from '../../utils/roleLabels'
-import ChatPopup from '../../components/chat/ChatPopup'
 import Pagination from '../../components/common/Pagination'
 import LoadingState from '../../components/common/LoadingState'
+import Modal from '../../components/common/Modal'
 
-const MENTOR_PAGE_SIZE = 5
+const PAGE_SIZE = 5
+
+const TEAM_STATUS_FILTERS = [
+  { value: 'APPROVED', label: 'Đã duyệt' },
+  { value: 'PENDING', label: 'Chờ duyệt' },
+  { value: 'ALL', label: 'Tất cả' }
+]
 
 function formatDateTime(value) {
   if (!value) return '—'
@@ -43,36 +41,6 @@ function eventStatusPillClass(status) {
   return 'status-default'
 }
 
-function MessageIcon() {
-  return (
-    <svg
-      width='14'
-      height='14'
-      viewBox='0 0 24 24'
-      fill='none'
-      stroke='currentColor'
-      strokeWidth='2'
-      strokeLinecap='round'
-      strokeLinejoin='round'
-      aria-hidden='true'
-    >
-      <path d='M8 9h8' />
-      <path d='M8 13h6' />
-      <path d='M18 4a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-5l-5 3v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12z' />
-    </svg>
-  )
-}
-
-function StatusBadge({ status }) {
-  return (
-    <span className='status-picker' style={{ flexShrink: 0 }}>
-      <span className={`status-pill ${eventStatusPillClass(status)}`} style={{ cursor: 'default' }}>
-        {status || '—'}
-      </span>
-    </span>
-  )
-}
-
 function registrationStatusPillClass(status) {
   const key = (status || '').toUpperCase()
   if (key === 'APPROVED') return 'status-active'
@@ -85,100 +53,330 @@ function assignmentKey(a) {
   return `${a.eventId}-${a.roundId}-${a.groupId}`
 }
 
-function assignmentLabel(a) {
-  return [a.eventTitle, a.roundName, a.groupName].filter(Boolean).join(' · ')
+// ─── Event List View ──────────────────────────────────────────────────────────
+function EventListView({ events, onSelect }) {
+  if (events.length === 0) {
+    return <div className='empty-state'>Bạn chưa được phân công sự kiện nào.</div>
+  }
+  return (
+    <div className='kv-list'>
+      {events.map((ev) => (
+        <button
+          key={ev.eventId}
+          type='button'
+          className='mentor-team-card'
+          onClick={() => onSelect(ev.eventId)}
+          style={{
+            width: '100%',
+            textAlign: 'left',
+            cursor: 'pointer',
+            background: 'none',
+            border: 'none',
+            padding: 0
+          }}
+        >
+          <div className='kv' style={{ alignItems: 'center' }}>
+            <span style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text)' }}>{ev.title || '—'}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>
+                {formatDateTime(ev.startDate)} → {formatDateTime(ev.endDate)}
+              </div>
+            </span>
+            <span className='status-picker'>
+              <span className={`status-pill ${eventStatusPillClass(ev.status)}`} style={{ cursor: 'default' }}>
+                {eventStatusLabel(ev.status)}
+              </span>
+            </span>
+          </div>
+        </button>
+      ))}
+    </div>
+  )
 }
 
-const TEAM_STATUS_FILTERS = [
-  { value: 'APPROVED', label: 'Đã duyệt' },
-  { value: 'PENDING', label: 'Chờ duyệt' },
-  { value: 'ALL', label: 'Tất cả' }
-]
+// ─── Team Detail Modal ────────────────────────────────────────────────────────
+function TeamDetailModal({ team, onClose }) {
+  const members = team.members || []
+  return (
+    <Modal isOpen title={team.teamName || 'Thông tin đội'} onClose={onClose}>
+      <div style={{ padding: '0.5rem 0' }}>
+        <div
+          style={{
+            marginBottom: 16,
+            padding: '10px 14px',
+            background: 'var(--surface-alt, #f5f7ff)',
+            borderRadius: 8
+          }}
+        >
+          <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>Trưởng nhóm</div>
+          <div style={{ fontWeight: 600, marginTop: 2 }}>{team.leaderName || '—'}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{team.leaderEmail || ''}</div>
+        </div>
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: 'var(--text-dim)',
+            marginBottom: 8,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em'
+          }}
+        >
+          Thành viên ({members.length})
+        </div>
+        <div className='kv-list'>
+          {members.length === 0 && <div className='empty-state'>Chưa có thành viên.</div>}
+          {members.map((m) => (
+            <div key={m.userId} className='member-row'>
+              <div className='avatar'>{(m.fullName?.[0] || m.email?.[0] || 'U').toUpperCase()}</div>
+              <div className='member-info'>
+                <div className='member-name'>{m.fullName || '—'}</div>
+                <div className='member-meta'>{m.email || ''}</div>
+                {m.githubUsername && (
+                  <div className='member-meta'>
+                    <span style={{ opacity: 0.6 }}>GitHub: </span>
+                    <strong>@{m.githubUsername}</strong>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Modal>
+  )
+}
 
+// ─── Event Detail View ────────────────────────────────────────────────────────
+function EventDetailView({
+  event,
+  assignments,
+  selectedAssignmentKey,
+  onSelectAssignment,
+  colleagues,
+  loadingColleagues,
+  errorColleagues,
+  teams,
+  loadingTeams,
+  errorTeams,
+  teamsPage,
+  onTeamsPageChange,
+  teamStatusFilter,
+  onTeamStatusFilter,
+  onBack,
+  onTeamClick
+}) {
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 20 }}>
+        <button
+          type='button'
+          className='btn btn-outline'
+          style={{ flexShrink: 0, padding: '6px 14px' }}
+          onClick={onBack}
+        >
+          ← Quay lại
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: '1.15rem', color: 'var(--text)' }}>{event?.title || '—'}</div>
+          {event && (
+            <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>
+              {formatDateTime(event.startDate)} → {formatDateTime(event.endDate)}
+            </div>
+          )}
+        </div>
+        {event && (
+          <span
+            className={`status-pill ${eventStatusPillClass(event.status)}`}
+            style={{ cursor: 'default', flexShrink: 0 }}
+          >
+            {eventStatusLabel(event.status)}
+          </span>
+        )}
+      </div>
+
+      {assignments.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+          {assignments.map((a) => {
+            const key = assignmentKey(a)
+            return (
+              <button
+                key={key}
+                type='button'
+                className={`btn ${key === selectedAssignmentKey ? 'btn-primary' : 'btn-outline'}`}
+                style={{ fontSize: 12, padding: '6px 12px' }}
+                onClick={() => onSelectAssignment(key)}
+              >
+                {a.roundName} · {a.groupName}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {selectedAssignmentKey && (
+        <div style={{ marginBottom: 16 }}>
+          <ExpertGroupColleaguesBoard colleagues={colleagues} loading={loadingColleagues} error={errorColleagues} />
+        </div>
+      )}
+
+      <div className='section-title' style={{ marginTop: 8 }}>
+        <h2>Danh sách đội</h2>
+        <span className='hint'>Bấm vào đội để xem tên, email và GitHub</span>
+      </div>
+
+      <div className='card'>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+          {TEAM_STATUS_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type='button'
+              className={`btn ${teamStatusFilter === f.value ? 'btn-primary' : 'btn-outline'}`}
+              style={{ fontSize: 12, padding: '4px 10px' }}
+              onClick={() => onTeamStatusFilter(f.value)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {loadingTeams && <LoadingState text='Đang tải danh sách đội…' />}
+        {!loadingTeams && errorTeams && <div className='empty-state'>{errorTeams}</div>}
+        {!loadingTeams && !errorTeams && teams.length === 0 && (
+          <div className='empty-state'>Không có đội nào trong bảng này.</div>
+        )}
+        {!loadingTeams && teams.length > 0 && (
+          <>
+            <div className='kv-list'>
+              {teams.slice((teamsPage - 1) * PAGE_SIZE, teamsPage * PAGE_SIZE).map((team, idx) => (
+                <button
+                  key={team.teamId || team.registrationId}
+                  type='button'
+                  className='mentor-team-card'
+                  onClick={() => onTeamClick(team)}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    background: 'none',
+                    border: 'none',
+                    padding: 0
+                  }}
+                >
+                  <div className='kv' style={{ alignItems: 'flex-start' }}>
+                    <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span className='accounts-table-index' style={{ minWidth: 24 }}>
+                          {(teamsPage - 1) * PAGE_SIZE + idx + 1}
+                        </span>
+                        <span style={{ fontWeight: 600, color: 'var(--text)' }}>{team.teamName || '—'}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2, marginLeft: 34 }}>
+                        Trưởng nhóm: {team.leaderName || '—'}
+                        {team.leaderEmail ? ` · ${team.leaderEmail}` : ''}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2, marginLeft: 34 }}>
+                        {team.memberCount || 0} thành viên
+                      </div>
+                    </span>
+                    <span className='status-picker' style={{ flexShrink: 0 }}>
+                      <span
+                        className={`status-pill ${registrationStatusPillClass(team.registrationStatus)}`}
+                        style={{ cursor: 'default' }}
+                      >
+                        {team.registrationStatus || '—'}
+                      </span>
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <Pagination
+              total={teams.length}
+              pageSize={PAGE_SIZE}
+              currentPage={teamsPage}
+              onChange={onTeamsPageChange}
+            />
+          </>
+        )}
+      </div>
+    </>
+  )
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function MentorDashboard() {
   const { auth } = useAuth()
   const { showToast } = useToast()
 
   const [events, setEvents] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [eventsPage, setEventsPage] = useState(1)
-
-  const [rounds, setRounds] = useState([])
-  const [loadingRounds, setLoadingRounds] = useState(true)
-  const [errorRounds, setErrorRounds] = useState(null)
-  const [roundsPage, setRoundsPage] = useState(1)
-
+  const [loadingEvents, setLoadingEvents] = useState(true)
   const [assignments, setAssignments] = useState([])
   const [loadingAssignments, setLoadingAssignments] = useState(true)
-  const [errorAssignments, setErrorAssignments] = useState(null)
+
+  const [selectedEventId, setSelectedEventId] = useState(null)
   const [selectedAssignmentKey, setSelectedAssignmentKey] = useState('')
-  const [teamStatusFilter, setTeamStatusFilter] = useState('APPROVED')
 
   const [teams, setTeams] = useState([])
   const [loadingTeams, setLoadingTeams] = useState(false)
   const [errorTeams, setErrorTeams] = useState(null)
   const [teamsPage, setTeamsPage] = useState(1)
+  const [teamStatusFilter, setTeamStatusFilter] = useState('APPROVED')
+
   const [colleagues, setColleagues] = useState(null)
   const [loadingColleagues, setLoadingColleagues] = useState(false)
   const [errorColleagues, setErrorColleagues] = useState(null)
-  const [chatOpen, setChatOpen] = useState(false)
+
+  const [teamPopup, setTeamPopup] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const [evResult, asResult] = await Promise.allSettled([getAssignedEvents(), getMentorAssignments()])
+      if (cancelled) return
+
+      if (evResult.status === 'fulfilled') setEvents(evResult.value)
+      else showToast('Không tải được sự kiện được phân công', 'error')
+      setLoadingEvents(false)
+
+      if (asResult.status === 'fulfilled') setAssignments(asResult.value)
+      setLoadingAssignments(false)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [showToast])
+
+  const eventAssignments = useMemo(
+    () => assignments.filter((a) => String(a.eventId) === String(selectedEventId)),
+    [assignments, selectedEventId]
+  )
+
+  const selectedEvent = useMemo(
+    () => events.find((e) => String(e.eventId) === String(selectedEventId)) ?? null,
+    [events, selectedEventId]
+  )
+
   const selectedAssignment = useMemo(
     () => assignments.find((a) => assignmentKey(a) === selectedAssignmentKey) ?? null,
     [assignments, selectedAssignmentKey]
   )
 
   useEffect(() => {
-    let cancelled = false
-
-    ;(async () => {
-      const [evResult, rdResult, asResult] = await Promise.allSettled([
-        getAssignedEvents(),
-        getAssignedCurrentRounds(),
-        getMentorAssignments()
-      ])
-      if (cancelled) return
-
-      if (evResult.status === 'fulfilled') {
-        setEvents(evResult.value)
-      } else {
-        setError(localizeError(evResult.reason?.message))
-        showToast('Không tải được sự kiện được phân công', 'error')
-      }
-      setLoading(false)
-
-      if (rdResult.status === 'fulfilled') {
-        setRounds(rdResult.value)
-      } else {
-        setErrorRounds(localizeError(rdResult.reason?.message))
-      }
-      setLoadingRounds(false)
-
-      if (asResult.status === 'fulfilled') {
-        setAssignments(asResult.value)
-        if (asResult.value.length > 0) {
-          setSelectedAssignmentKey(assignmentKey(asResult.value[0]))
-        }
-      } else {
-        setErrorAssignments(localizeError(asResult.reason?.message))
-      }
-      setLoadingAssignments(false)
-    })()
-
-    return () => {
-      cancelled = true
+    if (selectedEventId && eventAssignments.length > 0) {
+      setSelectedAssignmentKey(assignmentKey(eventAssignments[0]))
+    } else if (!selectedEventId) {
+      setSelectedAssignmentKey('')
     }
-  }, [showToast])
+  }, [selectedEventId, eventAssignments])
 
   useEffect(() => {
     if (!selectedAssignment) {
       setTeams([])
-      setErrorTeams(null)
       setColleagues(null)
       setErrorColleagues(null)
       return
     }
-
     let cancelled = false
     setLoadingTeams(true)
     setErrorTeams(null)
@@ -225,223 +423,59 @@ export default function MentorDashboard() {
       cancelled = true
     }
   }, [selectedAssignment, teamStatusFilter])
+
   const isDualRole = auth.role === 'EXPERT_INTERNAL'
-  const roleLabel = vietnameseRoleLabel(auth.role)
   const navLinks = isDualRole
-    ? [{ label: 'Mentor', to: '/mentor' }, { label: 'Judge', to: '/judge' }]
+    ? [
+        { label: 'Mentor', to: '/mentor' },
+        { label: 'Judge', to: '/judge' }
+      ]
     : null
+
+  const isLoading = loadingEvents || loadingAssignments
 
   return (
     <DashboardLayout
-      roleLabel={roleLabel}
       moduleTitle='Khu vực Mentor'
       moduleSubtitle='Khách được phân công mentor — đồng hành cùng các đội thí sinh.'
-      showStaffFields
-      className='dashboard-shell--mentor-zone'
       navLinks={navLinks}
     >
-      {/* ── Sự kiện được phân công ── */}
-      <div className='section-title'>
-        <h2>Sự kiện được phân công</h2>
-        <span className='hint'>Các bảng / sự kiện bạn được Coordinator gán</span>
-      </div>
-
-      <div className='card'>
-        {loading && <LoadingState text='Đang tải danh sách…' />}
-        {!loading && error && <div className='empty-state'>{error}</div>}
-        {!loading && !error && events.length === 0 && (
-          <div className='empty-state'>Bạn chưa được phân công sự kiện nào.</div>
-        )}
-        {!loading && events.length > 0 && (
-          <>
-            <div className='kv-list'>
-              {events.slice((eventsPage - 1) * MENTOR_PAGE_SIZE, eventsPage * MENTOR_PAGE_SIZE).map((ev) => (
-                <div className='kv' key={ev.eventId}>
-                  <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--text)' }}>{ev.title || '—'}</div>
-                  </span>
-                  <StatusBadge status={ev.status} />
-                </div>
-              ))}
-            </div>
-            <Pagination
-              total={events.length}
-              pageSize={MENTOR_PAGE_SIZE}
-              currentPage={eventsPage}
-              onChange={setEventsPage}
-            />
-          </>
-        )}
-      </div>
-
-      {/* ── Vòng đang diễn ra ── */}
-      <div className='section-title' style={{ marginTop: 24 }}>
-        <h2>Vòng đang diễn ra</h2>
-        <span className='hint'>Các vòng thi hiện đang active trong sự kiện của bạn</span>
-      </div>
-
-      <div className='card'>
-        {loadingRounds && <LoadingState text='Đang tải vòng thi…' />}
-        {!loadingRounds && errorRounds && <div className='empty-state'>{errorRounds}</div>}
-        {!loadingRounds && !errorRounds && rounds.length === 0 && (
-          <div className='empty-state'>Hiện không có vòng nào đang diễn ra.</div>
-        )}
-        {!loadingRounds && rounds.length > 0 && (
-          <>
-            <div className='kv-list'>
-              {rounds.slice((roundsPage - 1) * MENTOR_PAGE_SIZE, roundsPage * MENTOR_PAGE_SIZE).map((rd) => (
-                <div className='kv' key={rd.roundId}>
-                  <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--text)' }}>{rd.roundName || '—'}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{rd.eventTitle || '—'}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2 }}>
-                      {formatDateTime(rd.startDate)} → {formatDateTime(rd.endDate)}
-                    </div>
-                  </span>
-                  <StatusBadge status={rd.roundStatus} />
-                </div>
-              ))}
-            </div>
-            <Pagination
-              total={rounds.length}
-              pageSize={MENTOR_PAGE_SIZE}
-              currentPage={roundsPage}
-              onChange={setRoundsPage}
-            />
-          </>
-        )}
-      </div>
-
-      {/* ── Đội được phân công ── */}
-      <div className='section-title' style={{ marginTop: 24 }}>
-        <h2>Đội được phân công</h2>
-        <span className='hint'>Các đội trong bảng bạn được gán mentor</span>
-      </div>
-
-      <div className='card'>
-        {loadingAssignments && <LoadingState text='Đang tải phân công bảng…' />}
-        {!loadingAssignments && errorAssignments && <div className='empty-state'>{errorAssignments}</div>}
-        {!loadingAssignments && !errorAssignments && assignments.length === 0 && (
-          <div className='empty-state'>Bạn chưa được phân công bảng nào.</div>
-        )}
-        {!loadingAssignments && assignments.length > 0 && (
-          <>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-              {assignments.map((a) => {
-                const key = assignmentKey(a)
-                const active = key === selectedAssignmentKey
-                return (
-                  <button
-                    key={key}
-                    type='button'
-                    className={`btn ${active ? 'btn-primary' : 'btn-outline'}`}
-                    style={{ fontSize: 12, padding: '6px 12px' }}
-                    onClick={() => setSelectedAssignmentKey(key)}
-                  >
-                    {assignmentLabel(a)}
-                  </button>
-                )
-              })}
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <ExpertGroupColleaguesBoard colleagues={colleagues} loading={loadingColleagues} error={errorColleagues} />
-            </div>
-
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-              {TEAM_STATUS_FILTERS.map((f) => (
-                <button
-                  key={f.value}
-                  type='button'
-                  className={`btn ${teamStatusFilter === f.value ? 'btn-primary' : 'btn-outline'}`}
-                  style={{ fontSize: 12, padding: '4px 10px' }}
-                  onClick={() => setTeamStatusFilter(f.value)}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-
-            {loadingTeams && <LoadingState text='Đang tải danh sách đội…' />}
-            {!loadingTeams && errorTeams && <div className='empty-state'>{errorTeams}</div>}
-            {!loadingTeams && !errorTeams && teams.length === 0 && (
-              <div className='empty-state'>Không có đội nào trong bảng này.</div>
+      {selectedEventId === null ? (
+        <>
+          <div className='section-title'>
+            <h2>Sự kiện được phân công</h2>
+            <span className='hint'>Chọn sự kiện để xem chi tiết và danh sách đội</span>
+          </div>
+          <div className='card'>
+            {isLoading ? (
+              <LoadingState text='Đang tải…' />
+            ) : (
+              <EventListView events={events} onSelect={setSelectedEventId} />
             )}
-            {!loadingTeams && teams.length > 0 && (
-              <>
-                <div className='kv-list'>
-                  {teams.slice((teamsPage - 1) * MENTOR_PAGE_SIZE, teamsPage * MENTOR_PAGE_SIZE).map((team, idx) => (
-                    <div className='mentor-team-card' key={team.teamId || team.registrationId}>
-                      <div className='kv' style={{ alignItems: 'flex-start' }}>
-                        <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <span className='accounts-table-index' style={{ minWidth: 24 }}>
-                              {(teamsPage - 1) * MENTOR_PAGE_SIZE + idx + 1}
-                            </span>
-                            <span style={{ fontWeight: 600, color: 'var(--text)' }}>{team.teamName || '—'}</span>
-                          </div>
-                          <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2, marginLeft: 34 }}>
-                            Trưởng nhóm: {team.leaderName || '—'}
-                            {team.leaderEmail ? ` · ${team.leaderEmail}` : ''}
-                          </div>
-                          {team.members?.length > 0 && (
-                            <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4, marginLeft: 34 }}>
-                              Thành viên:{' '}
-                              {team.members
-                                .map((m) => m.fullName || m.email || '—')
-                                .filter(Boolean)
-                                .join(', ')}
-                            </div>
-                          )}
-                          {team.enrollCode && (
-                            <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 2, marginLeft: 34 }}>
-                              Mã đội: {team.enrollCode}
-                            </div>
-                          )}
-                        </span>
-                        <span
-                          className='status-picker'
-                          style={{
-                            flexShrink: 0,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'flex-end',
-                            gap: 6
-                          }}
-                        >
-                          <span
-                            className={`status-pill ${registrationStatusPillClass(team.registrationStatus)}`}
-                            style={{ cursor: 'default' }}
-                          >
-                            {team.registrationStatus || '—'}
-                          </span>
-                          <button type='button' className='status-pill status-chat' onClick={() => setChatOpen(true)}>
-                            <MessageIcon />
-                            Chat
-                          </button>
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Pagination
-                  total={teams.length}
-                  pageSize={MENTOR_PAGE_SIZE}
-                  currentPage={teamsPage}
-                  onChange={setTeamsPage}
-                />
-              </>
-            )}
-          </>
-        )}
-      </div>
-
-      {!chatOpen && (
-        <button type='button' className='chat-fab' onClick={() => setChatOpen(true)}>
-          Chat đội
-        </button>
+          </div>
+        </>
+      ) : (
+        <EventDetailView
+          event={selectedEvent}
+          assignments={eventAssignments}
+          selectedAssignmentKey={selectedAssignmentKey}
+          onSelectAssignment={setSelectedAssignmentKey}
+          colleagues={colleagues}
+          loadingColleagues={loadingColleagues}
+          errorColleagues={errorColleagues}
+          teams={teams}
+          loadingTeams={loadingTeams}
+          errorTeams={errorTeams}
+          teamsPage={teamsPage}
+          onTeamsPageChange={setTeamsPage}
+          teamStatusFilter={teamStatusFilter}
+          onTeamStatusFilter={setTeamStatusFilter}
+          onBack={() => setSelectedEventId(null)}
+          onTeamClick={setTeamPopup}
+        />
       )}
-      {chatOpen && <ChatPopup open mode='mentor' onClose={() => setChatOpen(false)} />}
+
+      {teamPopup && <TeamDetailModal team={teamPopup} onClose={() => setTeamPopup(null)} />}
     </DashboardLayout>
   )
 }

@@ -20,7 +20,10 @@ import com.hackathon.hackathon.model.mapper.EventMapper;
 import com.hackathon.hackathon.repository.AssignmentRepository;
 import com.hackathon.hackathon.repository.CriteriaRepository;
 import com.hackathon.hackathon.repository.EventRepository;
+import com.hackathon.hackathon.repository.JudgeTeamAssignmentRepository;
+import com.hackathon.hackathon.repository.RoundLifecycleRepository;
 import com.hackathon.hackathon.repository.ScoreRepository;
+import com.hackathon.hackathon.util.VietnamTime;
 import io.jsonwebtoken.Claims;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -49,6 +52,10 @@ public class JudgeService {
   @Autowired private AssignmentRepository assignmentRepository;
 
   @Autowired private ScoreRepository scoreRepository;
+
+  @Autowired private JudgeTeamAssignmentRepository judgeTeamAssignmentRepository;
+
+  @Autowired private RoundLifecycleRepository roundLifecycleRepository;
 
   @Autowired private MentorService mentorService;
 
@@ -155,6 +162,7 @@ public class JudgeService {
       throw new BadRequestException("Group does not belong to this event.");
     }
 
+    validateScoringWindow(cleanRoundId);
     return scoreRepository.findTeamsToScore(cleanEventId, cleanRoundId, cleanGroupId, cleanJudgeId);
   }
 
@@ -240,10 +248,17 @@ public class JudgeService {
     String cleanRoundId = request.getRoundId().trim();
     String cleanGroupId = request.getGroupId().trim();
 
+    if (roundLifecycleRepository.isMilestoneProcessed(
+        cleanRoundId, RoundLifecycleRepository.MILESTONE_ENDED)) {
+      throw new ConflictException("Round đã kết thúc; không thể tạo hoặc sửa điểm.");
+    }
+
     // 1. Judge assign đúng round + group
     if (!assignmentRepository.judgeAssignmentExists(judgeId, cleanRoundId, cleanGroupId)) {
       throw new ForbiddenException("You are not assigned to this round and group.");
     }
+
+    validateScoringWindow(cleanRoundId);
 
     // Validate relationships
     if (!eventRepository.roundBelongsToEvent(cleanRoundId, cleanEventId)) {
@@ -251,6 +266,14 @@ public class JudgeService {
     }
     if (!eventRepository.groupBelongsToEvent(cleanGroupId, cleanEventId)) {
       throw new BadRequestException("Group does not belong to this event.");
+    }
+
+    if (!judgeTeamAssignmentRepository.isJudgeAssignedToSubmission(
+        judgeId,
+        request.getSubmissionId().trim(),
+        cleanRoundId,
+        cleanGroupId)) {
+      throw new ForbiddenException("This submission is not assigned to you for scoring.");
     }
 
     List<EventCriterion> criteriaList = criteriaRepository.findCriteriaByRoundId(cleanRoundId);
@@ -293,6 +316,16 @@ public class JudgeService {
     }
   }
 
+  private void validateScoringWindow(String roundId) {
+    if (!roundLifecycleRepository.isMilestoneProcessed(
+        roundId, RoundLifecycleRepository.MILESTONE_SUBMISSION_CLOSED)) {
+      throw new ConflictException("Scoring opens after the submission deadline.");
+    }
+    if (roundLifecycleRepository.isRoundEndReached(roundId, VietnamTime.nowForDatabase())) {
+      throw new ConflictException("This round has ended; scoring is closed.");
+    }
+  }
+
   private double calculateTotalScore(SubmitScoreRequest request) {
     List<EventCriterion> criteriaList =
         criteriaRepository.findCriteriaByRoundId(request.getRoundId().trim());
@@ -303,7 +336,7 @@ public class JudgeService {
     double total = 0.0;
     for (ScoreDetailItemRequest detail : request.getDetails()) {
       EventCriterion criterion = criteriaMap.get(detail.getCriteriaId().trim());
-      total += detail.getScore() * (criterion.getWeight() / 100.0);
+      total += (detail.getScore() / criterion.getMaxScore()) * criterion.getWeight();
     }
 
     // 6. total_score = Σ(score × weight / 100), làm tròn 2 decimal

@@ -1,14 +1,22 @@
 import { apiFetch } from './client'
-import { normalizeEventId, countPendingTeams, mapEventRow, mapEventDetailRow } from './normalizers'
+import {
+  normalizeEventId,
+  countPendingTeams,
+  mapEventRow,
+  mapEventDetailRow,
+  mergeTeamGitHubFields
+} from './normalizers'
+import { getCheckInPage } from './checkIn'
 
 // Re-export normalizers so existing callers can keep importing them from "./event".
 export { normalizeEventId, countPendingTeams }
 
 // GET /api/staff/events/detail?eventId=...
-// Requires a Bearer token (any authenticated role per BE).
+// Requires a Bearer token with COORDINATOR role.
 // Returns: { ...event fields, totalTeams, totalGroups, totalRounds, totalAwards,
 //            teams[], groups[], rounds[], awards[] }
-export async function getEventDetail(eventId) {
+// Pass includeGitHub: true to enrich teams with GitHub provisioning fields (extra API call).
+export async function getEventDetail(eventId, { includeGitHub = false } = {}) {
   const id = normalizeEventId(eventId)
   if (!id) throw new Error('Sự kiện không hợp lệ')
 
@@ -20,6 +28,16 @@ export async function getEventDetail(eventId) {
     const data = JSON.parse(text)
     const mapped = mapEventDetailRow(data)
     if (!mapped.eventId) throw new Error('Không tìm thấy sự kiện')
+
+    if (includeGitHub) {
+      try {
+        const checkIn = await getCheckInPage(id)
+        mapped.teams = mergeTeamGitHubFields(mapped.teams, checkIn.teams)
+      } catch {
+        // GitHub enrichment is optional — event detail still usable without it.
+      }
+    }
+
     return mapped
   } catch (err) {
     if (err.message === 'Không tìm thấy sự kiện') throw err
@@ -27,22 +45,14 @@ export async function getEventDetail(eventId) {
   }
 }
 
-// Enrich a list of events with their pending-team counts (fetched in parallel).
-// FIX: Thêm field `pendingTeamsError: true` khi fetch thất bại, để UI phân biệt
-// được "thực sự 0 pending" với "fetch bị lỗi mạng / auth / server".
+// pendingTeams is included in GET /api/staff/events — no N× detail fetch needed.
 export async function attachPendingTeamsToEvents(events) {
   if (!Array.isArray(events) || events.length === 0) return []
-
-  return Promise.all(
-    events.map(async (ev) => {
-      try {
-        const detail = await getEventDetail(ev.eventId)
-        return { ...ev, pendingTeams: countPendingTeams(detail.teams), pendingTeamsError: false }
-      } catch {
-        return { ...ev, pendingTeams: '0', pendingTeamsError: true }
-      }
-    })
-  )
+  return events.map((ev) => ({
+    ...ev,
+    pendingTeams: ev.pendingTeams ?? '0',
+    pendingTeamsError: false
+  }))
 }
 
 // GET /api/staff/events?status=...

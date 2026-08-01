@@ -1,0 +1,222 @@
+%% SEAL Hackathon — Full database ERD
+%% 25 tables; every relationship below corresponds to a foreign key in database/scripts/schema.sql.
+
+erDiagram
+  USERS {
+    varchar user_id PK
+    varchar full_name
+    varchar email UK
+    varchar role
+    varchar status
+    varchar github_username
+    bigint github_id
+  }
+  STUDENTPROFILE {
+    varchar user_id PK, FK
+    varchar student_code
+    varchar university_name
+    datetime created_at
+  }
+  PARTICIPANTS_PROFILE {
+    varchar user_id PK, FK
+    varchar participant_type
+    varchar phone
+    varchar avatar_url
+  }
+  UNIVERSITIES {
+    varchar university_id PK
+    varchar university_name UK
+  }
+  EVENTS {
+    varchar event_id PK
+    varchar title
+    varchar status
+    datetime start_date
+    datetime end_date
+  }
+  ROUNDS {
+    varchar round_id PK
+    varchar event_id FK
+    int round_order
+    datetime start_date
+    datetime submission_deadline
+    datetime end_date
+  }
+  ROUND_GROUPS {
+    varchar group_id PK
+    varchar round_id FK
+    varchar name
+    int max_teams
+  }
+  EVENT_CRITERIA {
+    varchar criteria_id PK
+    varchar round_id FK
+    varchar name
+    decimal weight
+    decimal max_score
+  }
+  ROUND_LIFECYCLE_MILESTONES {
+    varchar round_id PK, FK
+    varchar milestone PK
+    datetime processed_at
+  }
+  TEAMS {
+    varchar team_id PK
+    varchar leader_id FK
+    varchar team_name
+    varchar enroll_code UK
+  }
+  TEAM_MEMBERS {
+    varchar team_id PK, FK
+    varchar user_id PK, FK
+    boolean is_leader
+  }
+  TEAM_REGISTRATIONS {
+    varchar registration_id PK
+    varchar event_id FK
+    varchar team_id FK
+    varchar status
+    varchar github_status
+    text github_repo_url
+  }
+  GROUP_TEAMS {
+    varchar group_id PK, FK
+    varchar team_id PK, FK
+    varchar round_id FK
+  }
+  GROUP_WINNERS {
+    varchar group_winner_id PK
+    varchar group_id FK
+    varchar team_id FK
+    int rank
+  }
+  ROUND_WINNERS {
+    varchar winner_id PK
+    varchar round_id FK
+    varchar team_id FK
+    varchar advanced_to_round_id FK
+    varchar confirmed_by FK
+  }
+  CHECK_INS {
+    varchar checkin_id PK
+    varchar event_id FK
+    varchar team_id FK
+    varchar user_id FK
+    varchar checked_by FK
+  }
+  ELIMINATIONS {
+    varchar elimination_id PK
+    varchar event_id FK
+    varchar team_id FK
+    varchar eliminated_by FK
+  }
+  AWARDS {
+    varchar award_id PK
+    varchar event_id FK
+    varchar team_id FK
+    varchar title
+    int rank
+  }
+  JUDGE_ASSIGNMENTS {
+    varchar assignment_id PK
+    varchar judge_id FK
+    varchar round_id FK
+    varchar group_id FK
+  }
+  MENTOR_ASSIGNMENTS {
+    varchar assignment_id PK
+    varchar mentor_id FK
+    varchar round_id FK
+    varchar group_id FK
+  }
+  JUDGE_TEAM_ASSIGNMENTS {
+    varchar assignment_id PK
+    varchar judge_id FK
+    varchar round_id FK
+    varchar group_id FK
+    varchar team_id FK
+  }
+  SUBMISSIONS {
+    varchar submission_id PK
+    varchar team_id FK
+    varchar round_id FK
+    varchar group_id FK
+    text github_url
+    varchar status
+  }
+  SCORES {
+    varchar score_id PK
+    varchar judge_id FK
+    varchar group_id FK
+    varchar submission_id FK
+    decimal total_score
+  }
+  SCORE_DETAILS {
+    varchar score_detail_id PK
+    varchar score_id FK
+    varchar criteria_id FK
+    decimal score_value
+  }
+  GITHUB_REPOSITORY_ACCESS_TASKS {
+    varchar task_id PK
+    varchar round_id FK
+    varchar group_id FK
+    varchar team_id FK
+    varchar user_id FK
+    varchar operation
+    varchar status
+  }
+  USERS ||--o| STUDENTPROFILE : "has"
+  USERS ||--o| PARTICIPANTS_PROFILE : "has"
+  USERS ||--o{ TEAM_MEMBERS : "joins"
+  USERS ||--o{ TEAMS : "leads"
+  USERS ||--o{ CHECK_INS : "checked / checks"
+  USERS ||--o{ ELIMINATIONS : "eliminates"
+  USERS ||--o{ JUDGE_ASSIGNMENTS : "judges"
+  USERS ||--o{ MENTOR_ASSIGNMENTS : "mentors"
+  USERS ||--o{ JUDGE_TEAM_ASSIGNMENTS : "assigned to score"
+  USERS ||--o{ SCORES : "gives"
+  USERS ||--o{ ROUND_WINNERS : "confirms"
+  USERS ||--o{ GITHUB_REPOSITORY_ACCESS_TASKS : "repository access"
+
+  EVENTS ||--o{ ROUNDS : "contains"
+  EVENTS ||--o{ TEAM_REGISTRATIONS : "receives"
+  EVENTS ||--o{ CHECK_INS : "has"
+  EVENTS ||--o{ ELIMINATIONS : "has"
+  EVENTS ||--o{ AWARDS : "defines"
+
+  ROUNDS ||--o{ ROUND_GROUPS : "contains"
+  ROUNDS ||--o{ EVENT_CRITERIA : "uses"
+  ROUNDS ||--o{ ROUND_LIFECYCLE_MILESTONES : "processes"
+  ROUNDS ||--o{ GROUP_TEAMS : "places"
+  ROUNDS ||--o{ JUDGE_ASSIGNMENTS : "assigns"
+  ROUNDS ||--o{ MENTOR_ASSIGNMENTS : "assigns"
+  ROUNDS ||--o{ JUDGE_TEAM_ASSIGNMENTS : "assigns"
+  ROUNDS ||--o{ SUBMISSIONS : "accepts"
+  ROUNDS ||--o{ ROUND_WINNERS : "produces / advances to"
+  ROUNDS ||--o{ GITHUB_REPOSITORY_ACCESS_TASKS : "triggers"
+
+  ROUND_GROUPS ||--o{ GROUP_TEAMS : "contains"
+  ROUND_GROUPS ||--o{ GROUP_WINNERS : "selects"
+  ROUND_GROUPS ||--o{ JUDGE_ASSIGNMENTS : "has"
+  ROUND_GROUPS ||--o{ MENTOR_ASSIGNMENTS : "has"
+  ROUND_GROUPS ||--o{ JUDGE_TEAM_ASSIGNMENTS : "has"
+  ROUND_GROUPS ||--o{ SUBMISSIONS : "receives"
+  ROUND_GROUPS ||--o{ SCORES : "contains"
+  ROUND_GROUPS ||--o{ GITHUB_REPOSITORY_ACCESS_TASKS : "context"
+
+  TEAMS ||--o{ TEAM_MEMBERS : "has"
+  TEAMS ||--o{ TEAM_REGISTRATIONS : "registers"
+  TEAMS ||--o{ GROUP_TEAMS : "is placed in"
+  TEAMS ||--o{ GROUP_WINNERS : "wins"
+  TEAMS ||--o{ ROUND_WINNERS : "wins"
+  TEAMS ||--o{ CHECK_INS : "checks in"
+  TEAMS ||--o{ ELIMINATIONS : "is eliminated"
+  TEAMS ||--o{ AWARDS : "receives"
+  TEAMS ||--o{ JUDGE_TEAM_ASSIGNMENTS : "is assigned"
+  TEAMS ||--o{ SUBMISSIONS : "submits"
+  TEAMS ||--o{ GITHUB_REPOSITORY_ACCESS_TASKS : "repository"
+
+  EVENT_CRITERIA ||--o{ SCORE_DETAILS : "is scored by"
+  SUBMISSIONS ||--o{ SCORES : "receives"
+  SCORES ||--o{ SCORE_DETAILS : "contains"

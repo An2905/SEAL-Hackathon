@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import ExpertGroupColleaguesBoard from '../../components/expert/ExpertGroupColleaguesBoard'
 import {
@@ -22,7 +22,6 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
-import { vietnameseRoleLabel } from '../../utils/roleLabels'
 
 const JUDGE_PAGE_SIZE = 5
 
@@ -55,33 +54,47 @@ export default function JudgeDashboard() {
   const [errorColleagues, setErrorColleagues] = useState(null)
 
   const [scoreTeam, setScoreTeam] = useState(null)
+  const teamsRequestRef = useRef(0)
 
   const selectedAssignment = useMemo(
     () => assignments.find((a) => assignmentKey(a) === selectedAssignmentKey) ?? null,
     [assignments, selectedAssignmentKey]
   )
 
+  const scoringSummary = useMemo(() => {
+    const submitted = teams.filter((team) => Boolean(team.submissionId))
+    const scored = submitted.filter((team) => team.scored).length
+    return {
+      assigned: teams.length,
+      submitted: submitted.length,
+      scored,
+      remaining: submitted.length - scored
+    }
+  }, [teams])
+
   const reloadTeams = useCallback(async (assignment) => {
     if (!assignment) {
       setTeams([])
       return
     }
+    const requestId = ++teamsRequestRef.current
     setLoadingTeams(true)
     setErrorTeams(null)
     setTeamsPage(1)
     try {
-      setTeams(
-        await getTeamsToScore({
-          eventId: assignment.eventId,
-          roundId: assignment.roundId,
-          groupId: assignment.groupId
-        })
-      )
+      const data = await getTeamsToScore({
+        eventId: assignment.eventId,
+        roundId: assignment.roundId,
+        groupId: assignment.groupId
+      })
+      if (requestId !== teamsRequestRef.current) return
+      setTeams(data)
     } catch (err) {
+      if (requestId !== teamsRequestRef.current) return
       setTeams([])
       setErrorTeams(localizeError(err?.message))
     } finally {
-      setLoadingTeams(false)
+      if (requestId === teamsRequestRef.current) setLoadingTeams(false)
     }
   }, [])
 
@@ -164,18 +177,19 @@ export default function JudgeDashboard() {
   }
 
   const isDualRole = auth.role === 'EXPERT_INTERNAL'
-  const roleLabel = vietnameseRoleLabel(auth.role)
-  const navLinks = isDualRole ? [{ label: 'Mentor', to: '/mentor' }, { label: 'Judge', to: '/judge' }] : null
+  const navLinks = isDualRole
+    ? [
+        { label: 'Mentor', to: '/mentor' },
+        { label: 'Judge', to: '/judge' }
+      ]
+    : null
 
   return (
     <DashboardLayout
-      roleLabel={roleLabel}
       moduleTitle='Khu vực Judge'
       moduleSubtitle='Khách được phân công giám khảo — chấm điểm các đội thi.'
-      showStaffFields
       navLinks={navLinks}
     >
-
       <div className='section-title'>
         <h2>Sự kiện được phân công</h2>
         <span className='hint'>Các sự kiện bạn được Coordinator gán chấm thi</span>
@@ -285,6 +299,11 @@ export default function JudgeDashboard() {
             )}
             {!loadingTeams && teams.length > 0 && (
               <>
+                <div className='hint' style={{ marginBottom: 12 }}>
+                  Bạn có <strong>{scoringSummary.assigned}</strong> bài được phân công ·{' '}
+                  <strong>{scoringSummary.submitted}</strong> bài đã nộp · <strong>{scoringSummary.scored}</strong> bài
+                  đã chấm · Còn <strong>{scoringSummary.remaining}</strong> bài chờ chấm
+                </div>
                 <div className='kv-list'>
                   {teams.slice((teamsPage - 1) * JUDGE_PAGE_SIZE, teamsPage * JUDGE_PAGE_SIZE).map((team) => (
                     <div className='kv' style={{ alignItems: 'flex-start' }} key={team.teamId || team.submissionId}>

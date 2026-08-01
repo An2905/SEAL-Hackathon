@@ -90,10 +90,14 @@ public class StaffEmailRepository {
                 + "JOIN users u ON u.user_id = ma.mentor_id "
                 + "JOIN rounds r ON r.round_id = ma.round_id "
                 + "JOIN round_groups rg ON rg.group_id = ma.group_id "
-                + "WHERE r.event_id = ?");
+                + "WHERE 1=1");
 
     List<Object> bindParams = new ArrayList<>();
-    bindParams.add(eventId);
+
+    if (eventId != null && !eventId.trim().isEmpty()) {
+      sql.append(" AND r.event_id = ?");
+      bindParams.add(eventId.trim());
+    }
 
     if (roundId != null && !roundId.trim().isEmpty()) {
       sql.append(" AND r.round_id = ?");
@@ -140,10 +144,14 @@ public class StaffEmailRepository {
                 + "JOIN users u ON u.user_id = ja.judge_id "
                 + "JOIN rounds r ON r.round_id = ja.round_id "
                 + "JOIN round_groups rg ON rg.group_id = ja.group_id "
-                + "WHERE r.event_id = ?");
+                + "WHERE 1=1");
 
     List<Object> bindParams = new ArrayList<>();
-    bindParams.add(eventId);
+
+    if (eventId != null && !eventId.trim().isEmpty()) {
+      sql.append(" AND r.event_id = ?");
+      bindParams.add(eventId.trim());
+    }
 
     if (roundId != null && !roundId.trim().isEmpty()) {
       sql.append(" AND r.round_id = ?");
@@ -190,10 +198,14 @@ public class StaffEmailRepository {
                 + "JOIN teams t ON t.team_id = tr.team_id "
                 + "JOIN team_members tm ON tm.team_id = t.team_id "
                 + "JOIN users u ON u.user_id = tm.user_id "
-                + "WHERE tr.event_id = ?");
+                + "WHERE 1=1");
 
     List<Object> bindParams = new ArrayList<>();
-    bindParams.add(eventId);
+
+    if (eventId != null && !eventId.trim().isEmpty()) {
+      sql.append(" AND tr.event_id = ?");
+      bindParams.add(eventId.trim());
+    }
 
     if (registrationStatus != null
         && !registrationStatus.trim().isEmpty()
@@ -241,10 +253,14 @@ public class StaffEmailRepository {
                 + "FROM team_registrations tr "
                 + "JOIN teams t ON t.team_id = tr.team_id "
                 + "JOIN users u ON u.user_id = t.leader_id "
-                + "WHERE tr.event_id = ?");
+                + "WHERE 1=1");
 
     List<Object> bindParams = new ArrayList<>();
-    bindParams.add(eventId);
+
+    if (eventId != null && !eventId.trim().isEmpty()) {
+      sql.append(" AND tr.event_id = ?");
+      bindParams.add(eventId.trim());
+    }
 
     if (registrationStatus != null
         && !registrationStatus.trim().isEmpty()

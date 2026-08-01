@@ -147,11 +147,12 @@ public class EventSetupRepository {
       Timestamp startDate,
       Timestamp endDate,
       Integer maxTeams,
-      int numRounds) {
+      int numRounds,
+      String githubTemplateRepo) {
     String eventId = UUID.randomUUID().toString();
     String sql =
-        "INSERT INTO events (event_id, title, description, start_date, end_date, status, max_teams, num_rounds) "
-            + "VALUES (?, ?, ?, ?, ?, 'BUILDING', ?, ?)";
+        "INSERT INTO events (event_id, title, description, start_date, end_date, status, max_teams, num_rounds, github_template_repo) "
+            + "VALUES (?, ?, ?, ?, ?, 'BUILDING', ?, ?, ?)";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, eventId);
@@ -165,6 +166,7 @@ public class EventSetupRepository {
         ps.setNull(6, java.sql.Types.INTEGER);
       }
       ps.setInt(7, numRounds);
+      ps.setString(8, githubTemplateRepo);
       if (ps.executeUpdate() > 0) {
         return eventId;
       }
@@ -223,10 +225,11 @@ public class EventSetupRepository {
       Timestamp endDate,
       String status,
       Integer maxTeams,
-      int numRounds) {
+      int numRounds,
+      String githubTemplateRepo) {
     String sql =
         "UPDATE events SET title = ?, description = ?, start_date = ?, end_date = ?, status = ?, "
-            + "max_teams = ?, num_rounds = ? WHERE event_id = ?";
+            + "max_teams = ?, num_rounds = ?, github_template_repo = ? WHERE event_id = ?";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, title);
@@ -240,7 +243,8 @@ public class EventSetupRepository {
         ps.setNull(6, java.sql.Types.INTEGER);
       }
       ps.setInt(7, numRounds);
-      ps.setString(8, eventId);
+      ps.setString(8, githubTemplateRepo);
+      ps.setString(9, eventId);
       return ps.executeUpdate() > 0;
     } catch (Exception e) {
       return false;
@@ -249,7 +253,7 @@ public class EventSetupRepository {
 
   public Optional<EventSetupRow> findEventById(String eventId) {
     String sql =
-        "SELECT event_id, title, description, start_date, end_date, status, max_teams, num_rounds, created_at "
+        "SELECT event_id, title, description, start_date, end_date, status, max_teams, num_rounds, created_at, github_template_repo "
             + "FROM events WHERE event_id = ?";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -267,7 +271,64 @@ public class EventSetupRepository {
           row.maxTeams = rs.wasNull() ? null : maxTeams;
           row.numRounds = rs.getInt("num_rounds");
           row.createdAt = rs.getTimestamp("created_at");
+          row.githubTemplateRepo = rs.getString("github_template_repo");
           return Optional.of(row);
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
+    }
+    return Optional.empty();
+  }
+
+  public int promoteUpcomingToOngoing(String now) {
+    String sql =
+        "UPDATE events SET status = 'ONGOING' "
+            + "WHERE status = 'UPCOMING' AND start_date IS NOT NULL AND start_date <= ?";
+    return executeDateTimeUpdate(sql, now);
+  }
+
+  public int promoteOngoingToCompleted(String now) {
+    String sql =
+        "UPDATE events SET status = 'COMPLETED' "
+            + "WHERE status = 'ONGOING' AND end_date IS NOT NULL AND end_date <= ?";
+    return executeDateTimeUpdate(sql, now);
+  }
+
+  public void syncAutoStatusForEvent(String eventId, String now) {
+    String sqlUpcoming =
+        "UPDATE events SET status = 'ONGOING' "
+            + "WHERE event_id = ? AND status = 'UPCOMING' AND start_date IS NOT NULL AND start_date <= ?";
+    String sqlOngoing =
+        "UPDATE events SET status = 'COMPLETED' "
+            + "WHERE event_id = ? AND status = 'ONGOING' AND end_date IS NOT NULL AND end_date <= ?";
+    try (Connection conn = dataSource.getConnection()) {
+      try (PreparedStatement ps = conn.prepareStatement(sqlUpcoming)) {
+        ps.setString(1, eventId);
+        ps.setString(2, now);
+        ps.executeUpdate();
+      }
+      try (PreparedStatement ps = conn.prepareStatement(sqlOngoing)) {
+        ps.setString(1, eventId);
+        ps.setString(2, now);
+        ps.executeUpdate();
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to sync event status for " + eventId, e);
+    }
+  }
+
+  public Optional<Timestamp> findMaxRoundEndDate(String eventId) {
+    String sql = "SELECT MAX(end_date) AS max_end FROM rounds WHERE event_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          Timestamp maxEnd = rs.getTimestamp("max_end");
+          if (maxEnd != null) {
+            return Optional.of(maxEnd);
+          }
         }
       }
     } catch (Exception e) {
@@ -350,6 +411,7 @@ public class EventSetupRepository {
     public Integer maxTeams;
     public Integer numRounds;
     public Timestamp createdAt;
+    public String githubTemplateRepo;
   }
 
   public static class EventRoundSetupRow {
@@ -362,6 +424,104 @@ public class EventSetupRepository {
     public Timestamp submissionDeadline;
     public int winnersPerRound;
   }
+
+  public List<GroupStaffingGap> findGroupStaffingGaps(String eventId) {
+    List<GroupStaffingGap> gaps = new ArrayList<>();
+    String sql =
+        "SELECT r.round_id, r.name AS round_name, rg.group_id, rg.name AS group_name, "
+            + "CASE WHEN COUNT(DISTINCT ja.assignment_id) = 0 THEN 1 ELSE 0 END AS missing_judge, "
+            + "CASE WHEN COUNT(DISTINCT ma.assignment_id) = 0 THEN 1 ELSE 0 END AS missing_mentor "
+            + "FROM rounds r "
+            + "JOIN round_groups rg ON rg.round_id = r.round_id "
+            + "LEFT JOIN judge_assignments ja "
+            + "ON ja.round_id = r.round_id AND ja.group_id = rg.group_id "
+            + "LEFT JOIN mentor_assignments ma "
+            + "ON ma.round_id = r.round_id AND ma.group_id = rg.group_id "
+            + "WHERE r.event_id = ? "
+            + "GROUP BY r.round_id, r.name, rg.group_id, rg.name "
+            + "HAVING COUNT(DISTINCT ja.assignment_id) = 0 "
+            + "OR COUNT(DISTINCT ma.assignment_id) = 0 "
+            + "ORDER BY r.round_order ASC, rg.name ASC";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+          gaps.add(
+              new GroupStaffingGap(
+                  rs.getString("round_id"),
+                  rs.getString("round_name"),
+                  rs.getString("group_id"),
+                  rs.getString("group_name"),
+                  rs.getInt("missing_judge") == 1,
+                  rs.getInt("missing_mentor") == 1));
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Could not validate group staffing.", e);
+    }
+    return gaps;
+  }
+
+  public List<JudgeGithubGap> findJudgesWithoutGithubUsername(String eventId) {
+    List<JudgeGithubGap> gaps = new ArrayList<>();
+    String sql =
+        "SELECT DISTINCT u.user_id, u.full_name, u.email "
+            + "FROM judge_assignments ja "
+            + "JOIN rounds r ON r.round_id = ja.round_id "
+            + "JOIN users u ON u.user_id = ja.judge_id "
+            + "WHERE r.event_id = ? "
+            + "AND (u.github_username IS NULL OR TRIM(u.github_username) = '') "
+            + "ORDER BY u.full_name ASC, u.email ASC";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+          gaps.add(
+              new JudgeGithubGap(
+                  rs.getString("user_id"), rs.getString("full_name"), rs.getString("email")));
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Could not validate judge GitHub accounts.", e);
+    }
+    return gaps;
+  }
+
+  public record GroupStaffingGap(
+      String roundId,
+      String roundName,
+      String groupId,
+      String groupName,
+      boolean missingJudge,
+      boolean missingMentor) {}
+
+  public record JudgeGithubGap(String judgeId, String fullName, String email) {}
+
+  public List<RoundReference> findFirstRoundsReadyForRosterReconciliation() {
+    List<RoundReference> rounds = new ArrayList<>();
+    String sql =
+        "SELECT r.event_id, r.round_id "
+            + "FROM rounds r "
+            + "JOIN events e ON e.event_id = r.event_id "
+            + "WHERE r.round_order = 1 "
+            + "AND e.status = 'UPCOMING' "
+            + "AND EXISTS (SELECT 1 FROM round_groups rg WHERE rg.round_id = r.round_id) "
+            + "ORDER BY e.start_date ASC, r.round_id ASC";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql);
+        ResultSet rs = ps.executeQuery()) {
+      while (rs.next()) {
+        rounds.add(new RoundReference(rs.getString("event_id"), rs.getString("round_id")));
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Could not load first rounds for roster reconciliation.", e);
+    }
+    return rounds;
+  }
+
+  public record RoundReference(String eventId, String roundId) {}
 
   public int findNextRoundOrder(String eventId) {
     String sql =
@@ -560,11 +720,13 @@ public class EventSetupRepository {
   }
 
   public void deleteJudgeAssignmentsByGroup(String groupId) {
+    executeUpdate("DELETE FROM judge_team_assignments WHERE group_id = ?", groupId);
     String sql = "DELETE FROM judge_assignments WHERE group_id = ?";
     executeUpdate(sql, groupId);
   }
 
   public void deleteJudgeAssignmentsByRound(String roundId) {
+    executeUpdate("DELETE FROM judge_team_assignments WHERE round_id = ?", roundId);
     String sql = "DELETE FROM judge_assignments WHERE round_id = ?";
     executeUpdate(sql, roundId);
   }
@@ -618,6 +780,16 @@ public class EventSetupRepository {
     }
   }
 
+  private int executeDateTimeUpdate(String sql, String dateTime) {
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, dateTime);
+      return ps.executeUpdate();
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
+    }
+  }
+
   public List<EventRoundSetupRow> findRoundsByEventId(String eventId) {
     String sql =
         "SELECT round_id, event_id, name, round_order, start_date, end_date, submission_deadline, winners_per_round FROM rounds WHERE event_id = ? ORDER BY round_order ASC";
@@ -643,6 +815,40 @@ public class EventSetupRepository {
       throw new RuntimeException(sql, e);
     }
     return list;
+  }
+
+  public int countRoundsByEventId(String eventId) {
+    String sql = "SELECT COUNT(*) AS cnt FROM rounds WHERE event_id = ?";
+    return countById(sql, eventId);
+  }
+
+  public int countGroupsByEventId(String eventId) {
+    String sql =
+        "SELECT COUNT(*) AS cnt FROM round_groups rg "
+            + "INNER JOIN rounds r ON rg.round_id = r.round_id "
+            + "WHERE r.event_id = ?";
+    return countById(sql, eventId);
+  }
+
+  public int countTeamRegistrationsByEventId(String eventId) {
+    String sql = "SELECT COUNT(*) AS cnt FROM team_registrations WHERE event_id = ?";
+    return countById(sql, eventId);
+  }
+
+  public int countMentorAssignmentsByEventId(String eventId) {
+    String sql =
+        "SELECT COUNT(*) AS cnt FROM mentor_assignments ma "
+            + "INNER JOIN rounds r ON ma.round_id = r.round_id "
+            + "WHERE r.event_id = ?";
+    return countById(sql, eventId);
+  }
+
+  public int countJudgeAssignmentsByEventId(String eventId) {
+    String sql =
+        "SELECT COUNT(*) AS cnt FROM judge_assignments ja "
+            + "INNER JOIN rounds r ON ja.round_id = r.round_id "
+            + "WHERE r.event_id = ?";
+    return countById(sql, eventId);
   }
 
   public int countApprovedTeamsInEvent(String eventId) {
@@ -689,6 +895,22 @@ public class EventSetupRepository {
       if (excludeGroupId != null && !excludeGroupId.isBlank()) {
         ps.setString(2, excludeGroupId);
       }
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+      }
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  public boolean hasUnlimitedGroupsInEvent(String eventId) {
+    String sql =
+        "SELECT 1 FROM round_groups rg "
+            + "INNER JOIN rounds r ON rg.round_id = r.round_id "
+            + "WHERE r.event_id = ? AND rg.max_teams IS NULL";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
       try (ResultSet rs = ps.executeQuery()) {
         return rs.next();
       }

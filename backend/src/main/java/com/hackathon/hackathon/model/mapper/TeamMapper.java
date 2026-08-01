@@ -75,6 +75,8 @@ public class TeamMapper {
     response.setEventStartDate(rs.getString("event_start_date"));
     response.setEventEndDate(rs.getString("event_end_date"));
     response.setEventStatus(rs.getString("event_status"));
+    response.setGithubStatus(rs.getString("github_status"));
+    response.setGithubRepoUrl(rs.getString("github_repo_url"));
     return response;
   }
 }

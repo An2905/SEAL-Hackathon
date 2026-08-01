@@ -1,12 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import FullWidthSearchBar from '../common/FullWidthSearchBar'
 import { getPublicEvents, PUBLIC_STATUS_ORDER } from '../../api/publicEvent'
-
-const STATUS_LABELS = {
-  ONGOING: 'Đang diễn ra',
-  UPCOMING: 'Sắp diễn ra',
-  COMPLETED: 'Đã kết thúc'
-}
+import { eventStatusLabel } from '../../utils/eventStatusLabels'
 
 const STATUS_PILL_CLASS = {
   ONGOING: 'status-active',
@@ -37,7 +32,7 @@ function formatDateRange(start, end) {
 function eventMatchesSearch(event, query) {
   if (!query) return true
   const status = String(event.status ?? '').toUpperCase()
-  const statusLabel = STATUS_LABELS[status] ?? status
+  const statusLabel = eventStatusLabel(status)
   const haystack = [event.title, event.description, status, statusLabel].filter(Boolean).join(' ').toLowerCase()
   return haystack.includes(query)
 }
@@ -48,7 +43,7 @@ function EventRow({ event }) {
     <article className='landing-event-row'>
       <div className='landing-event-row-status'>
         <span className={`status-pill ${STATUS_PILL_CLASS[status] ?? 'status-default'}`}>
-          {STATUS_LABELS[status] ?? status}
+          {eventStatusLabel(status)}
         </span>
       </div>
       <div className='landing-event-row-main'>
@@ -102,7 +97,7 @@ export default function LandingEventsSection({ onOpenRegister }) {
     }
     return PUBLIC_STATUS_ORDER.map((status) => ({
       status,
-      label: STATUS_LABELS[status],
+      label: eventStatusLabel(status),
       items: map.get(status)
     })).filter((g) => g.items.length > 0)
   }, [filteredEvents])

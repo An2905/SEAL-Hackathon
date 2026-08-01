@@ -127,10 +127,17 @@ public class EventRepository {
     List<Event> events = new ArrayList<>();
     boolean filterAll =
         (statusFilter == null || statusFilter.isEmpty() || "ALL".equals(statusFilter));
+    String baseSelect =
+        "SELECT e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at, "
+            + "COUNT(DISTINCT CASE WHEN tr.status = 'PENDING' THEN tr.team_id END) AS pending_teams "
+            + "FROM events e "
+            + "LEFT JOIN team_registrations tr ON e.event_id = tr.event_id ";
+    String groupBy =
+        "GROUP BY e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at ";
     String sql =
         filterAll
-            ? "SELECT event_id, title, description, start_date, end_date, status, created_at FROM events"
-            : "SELECT event_id, title, description, start_date, end_date, status, created_at FROM events WHERE status = ?";
+            ? baseSelect + groupBy
+            : baseSelect + "WHERE e.status = ? " + groupBy;
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       if (!filterAll) {
@@ -151,7 +158,7 @@ public class EventRepository {
     String sql =
         "SELECT "
             + "e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at, "
-            + "e.max_teams, e.num_rounds, "
+            + "e.max_teams, e.num_rounds, e.github_template_repo, "
             + "COUNT(DISTINCT tr.team_id) AS total_teams, "
             + "COUNT(DISTINCT CASE WHEN tr.status = 'PENDING' THEN tr.team_id END) AS pending_teams, "
             + "(SELECT COUNT(*) FROM round_groups rg "
@@ -164,7 +171,7 @@ public class EventRepository {
             + "LEFT JOIN awards a ON e.event_id = a.event_id "
             + "WHERE e.event_id = ? "
             + "GROUP BY e.event_id, e.title, e.description, e.start_date, e.end_date, e.status, e.created_at, "
-            + "e.max_teams, e.num_rounds";
+            + "e.max_teams, e.num_rounds, e.github_template_repo";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, eventId);
@@ -229,7 +236,7 @@ public class EventRepository {
   public List<TeamRegistration> findTeamRegistrationsByEventId(String eventId) {
     List<TeamRegistration> registrations = new ArrayList<>();
     String sql =
-        "SELECT tr.registration_id, t.team_id, t.team_name, tr.status "
+        "SELECT tr.registration_id, t.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url, tr.github_team_slug "
             + "FROM team_registrations tr JOIN teams t ON tr.team_id = t.team_id WHERE tr.event_id = ?";
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -248,7 +255,7 @@ public class EventRepository {
   public List<TeamRegistration> findAssignedTeamsInGroup(String groupId, String eventId) {
     List<TeamRegistration> registrations = new ArrayList<>();
     String sql =
-        "SELECT tr.registration_id, gt.team_id, t.team_name, tr.status "
+        "SELECT tr.registration_id, gt.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url, tr.github_team_slug "
             + "FROM group_teams gt "
             + "INNER JOIN teams t ON gt.team_id = t.team_id "
             + "INNER JOIN team_registrations tr ON tr.team_id = gt.team_id AND tr.event_id = ? "
@@ -272,7 +279,7 @@ public class EventRepository {
   public List<TeamRegistration> findAvailableTeamsForRound(String eventId, String roundId) {
     List<TeamRegistration> registrations = new ArrayList<>();
     String sql =
-        "SELECT tr.registration_id, tr.team_id, t.team_name, tr.status "
+        "SELECT tr.registration_id, tr.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url, tr.github_team_slug "
             + "FROM team_registrations tr "
             + "JOIN teams t ON tr.team_id = t.team_id "
             + "JOIN rounds curr ON curr.round_id = ? AND curr.event_id = ? "
@@ -328,6 +335,173 @@ public class EventRepository {
     } catch (Exception e) {
       return false;
     }
+  }
+
+  public List<TeamRegistration> findEligibleTeamsForAutoFill(
+      String eventId, String roundId, boolean requireFullCheckIn) {
+    List<TeamRegistration> registrations = new ArrayList<>();
+    StringBuilder sql =
+        new StringBuilder(
+            "SELECT tr.registration_id, tr.team_id, t.team_name, tr.status, tr.github_status, tr.github_repo_id, tr.github_repo_url, tr.github_team_slug "
+                + "FROM team_registrations tr "
+                + "JOIN teams t ON tr.team_id = t.team_id "
+                + "JOIN rounds curr ON curr.round_id = ? AND curr.event_id = ? "
+                + "LEFT JOIN rounds prev ON prev.event_id = curr.event_id AND prev.round_order = curr.round_order - 1 "
+                + "WHERE tr.event_id = ? AND tr.status = 'APPROVED' "
+                + "AND NOT EXISTS ("
+                + "SELECT 1 FROM group_teams gt WHERE gt.team_id = tr.team_id AND gt.round_id = ?"
+                + ") "
+                + "AND ("
+                + "curr.round_order <= 1 "
+                + "OR EXISTS ("
+                + "SELECT 1 FROM round_winners rw WHERE rw.round_id = prev.round_id AND rw.team_id = tr.team_id"
+                + ")"
+                + ") ");
+    if (requireFullCheckIn) {
+      sql.append(
+          "AND ("
+              + "SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = tr.team_id"
+              + ") > 0 "
+              + "AND ("
+              + "SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = tr.team_id"
+              + ") = ("
+              + "SELECT COUNT(*) FROM team_members tm "
+              + "JOIN check_ins ci ON ci.user_id = tm.user_id AND ci.team_id = tm.team_id AND ci.event_id = ? "
+              + "WHERE tm.team_id = tr.team_id AND ci.checked_in = 1"
+              + ") ");
+    }
+    sql.append("ORDER BY t.team_name ASC");
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+      ps.setString(1, roundId);
+      ps.setString(2, eventId);
+      ps.setString(3, eventId);
+      ps.setString(4, roundId);
+      if (requireFullCheckIn) {
+        ps.setString(5, eventId);
+      }
+      try (ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+          registrations.add(eventMapper.teamRegistrationFromResultSet(rs));
+        }
+      }
+    } catch (Exception e) {
+      return registrations;
+    }
+    return registrations;
+  }
+
+  public Optional<String> findFirstRoundId(String eventId) {
+    String sql = "SELECT round_id FROM rounds WHERE event_id = ? ORDER BY round_order ASC LIMIT 1";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return Optional.of(rs.getString("round_id"));
+        }
+      }
+    } catch (Exception e) {
+      return Optional.empty();
+    }
+    return Optional.empty();
+  }
+
+  public boolean hasOngoingRound(String eventId, String now) {
+    String sql =
+        "SELECT 1 FROM rounds WHERE event_id = ? AND start_date IS NOT NULL "
+            + "AND start_date <= ? AND (end_date IS NULL OR end_date > ?) LIMIT 1";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      ps.setString(2, now);
+      ps.setString(3, now);
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
+    }
+  }
+
+  public List<RepoAccessSchedule> findRepoAccessSchedules(String now) {
+    List<RepoAccessSchedule> schedules = new ArrayList<>();
+    String sql =
+        "SELECT e.event_id, "
+            + "CASE WHEN EXISTS ("
+            + "SELECT 1 FROM rounds r WHERE r.event_id = e.event_id "
+            + "AND r.start_date IS NOT NULL AND r.start_date <= ? "
+            + "AND (r.end_date IS NULL OR r.end_date > ?)"
+            + ") THEN 1 ELSE 0 END AS access_open "
+            + "FROM events e WHERE EXISTS (SELECT 1 FROM rounds r WHERE r.event_id = e.event_id)";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, now);
+      ps.setString(2, now);
+      try (ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+          schedules.add(new RepoAccessSchedule(rs.getString("event_id"), rs.getBoolean("access_open")));
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
+    }
+    return schedules;
+  }
+
+  public record RepoAccessSchedule(String eventId, boolean accessOpen) {}
+
+  public List<CompletedRoundSchedule> findCompletedRoundSchedules(String now) {
+    List<CompletedRoundSchedule> schedules = new ArrayList<>();
+    String sql =
+        "SELECT round_id FROM rounds WHERE end_date IS NOT NULL AND end_date <= ? ORDER BY end_date ASC";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, now);
+      try (ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+          schedules.add(new CompletedRoundSchedule(rs.getString("round_id")));
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
+    }
+    return schedules;
+  }
+
+  public record CompletedRoundSchedule(String roundId) {}
+
+  public Optional<String> findNextRoundId(String eventId, int currentRoundOrder) {
+    String sql = "SELECT round_id FROM rounds WHERE event_id = ? AND round_order = ? LIMIT 1";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      ps.setInt(2, currentRoundOrder + 1);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return Optional.of(rs.getString("round_id"));
+        }
+      }
+    } catch (Exception e) {
+      return Optional.empty();
+    }
+    return Optional.empty();
+  }
+
+  public int countRoundWinners(String roundId) {
+    String sql = "SELECT COUNT(*) AS cnt FROM round_winners WHERE round_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, roundId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return rs.getInt("cnt");
+        }
+      }
+    } catch (Exception e) {
+      return 0;
+    }
+    return 0;
   }
 
   public List<Award> findAwardsByEventId(String eventId) {
@@ -740,5 +914,21 @@ public class EventRepository {
       throw new RuntimeException(sql, e);
     }
     return mentors;
+  }
+
+  public String findTemplateRepoByEventId(String eventId) {
+    String sql = "SELECT github_template_repo FROM events WHERE event_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, eventId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return rs.getString("github_template_repo");
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
+    }
+    return null;
   }
 }

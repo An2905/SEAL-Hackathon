@@ -20,6 +20,7 @@ import com.hackathon.hackathon.model.dto.response.EventDetailResponse;
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.dto.response.StaffEmailFilterResponse;
+import com.hackathon.hackathon.model.dto.response.StaffTeamMemberResponse;
 import com.hackathon.hackathon.model.dto.response.UniversityOverviewResponse;
 import com.hackathon.hackathon.model.dto.response.UniversityResponse;
 import com.hackathon.hackathon.service.EventService;
@@ -84,6 +85,20 @@ public class StaffController {
       @RequestHeader("Authorization") String authHeader,
       @RequestBody ChangeTeamRegistrationStatusRequest request) {
     return ResponseEntity.ok(staffService.changeTeamRegistrationStatus(authHeader, request));
+  }
+
+  @GetMapping("/teams/members")
+  public ResponseEntity<List<StaffTeamMemberResponse>> getTeamMembers(
+      @RequestHeader("Authorization") String authHeader, @RequestParam String teamId) {
+    return ResponseEntity.ok(staffService.getTeamMembers(authHeader, teamId));
+  }
+
+  @PutMapping("/events/{eventId}/github-access")
+  public ResponseEntity<MessageResponse> updateEventRepoAccess(
+      @RequestHeader("Authorization") String authHeader,
+      @PathVariable String eventId,
+      @RequestParam("grant") boolean grant) {
+    return ResponseEntity.ok(staffService.updateEventRepoAccess(authHeader, eventId, grant));
   }
 
   @GetMapping("/events/export")

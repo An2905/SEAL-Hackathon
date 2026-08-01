@@ -1,3 +1,5 @@
+import { eventStatusLabel } from '../../utils/eventStatusLabels'
+
 export function formatDateTime(value) {
   if (!value) return '—'
   const d = new Date(value)
@@ -24,7 +26,7 @@ export function StatusBadge({ status }) {
   return (
     <span className='status-picker' style={{ flexShrink: 0 }}>
       <span className={`status-pill ${eventStatusPillClass(status)}`} style={{ cursor: 'default' }}>
-        {status || '—'}
+        {eventStatusLabel(status)}
       </span>
     </span>
   )

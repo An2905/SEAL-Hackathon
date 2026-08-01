@@ -19,6 +19,8 @@ function mapTeam(row) {
     teamName: row.teamName ?? row.team_name ?? '',
     registrationStatus: row.registrationStatus ?? row.registration_status ?? '',
     registeredAt: row.registeredAt ?? row.registered_at ?? null,
+    githubStatus: row.githubStatus ?? row.github_status ?? null,
+    githubRepoUrl: row.githubRepoUrl ?? row.github_repo_url ?? '',
     memberCount: row.memberCount ?? row.member_count ?? membersRaw.length,
     members: Array.isArray(membersRaw) ? membersRaw.map(mapMember) : []
   }
@@ -41,6 +43,7 @@ export async function getCheckInPage(eventId) {
   return {
     eventId: data.eventId ?? data.event_id ?? id,
     eventTitle: data.eventTitle ?? data.event_title ?? '',
+    checkInOpen: Boolean(data.checkInOpen ?? data.check_in_open),
     teams: Array.isArray(data.teams) ? data.teams.map(mapTeam) : []
   }
 }

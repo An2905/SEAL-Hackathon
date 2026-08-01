@@ -16,6 +16,7 @@ import {
 import { useToast } from '../../context/ToastContext'
 import { localizeError } from '../../utils/errors'
 import { roleUiLabel } from '../../utils/roleLabels'
+import { eventStatusLabel } from '../../utils/eventStatusLabels'
 
 const ACCOUNT_ROLE_FILTERS = [
   { value: 'ALL', label: 'Tất cả' },
@@ -28,12 +29,12 @@ const ACCOUNT_ROLE_FILTERS = [
 
 const ACCOUNT_STATUSES = ['PENDING', 'APPROVED', 'REJECTED']
 
-function statusPillClass(status) {
-  const key = (status || '').toLowerCase()
-  if (key === 'approved') return 'status-active'
-  if (key === 'pending') return 'status-pending'
-  if (key === 'rejected') return 'status-rejected'
-  return 'status-default'
+function accountStatusLabel(status) {
+  const key = String(status ?? '').toUpperCase()
+  if (key === 'PENDING') return 'Chờ duyệt'
+  if (key === 'APPROVED') return 'Đã duyệt'
+  if (key === 'REJECTED') return 'Từ chối'
+  return status || '—'
 }
 
 function resolveAccountUserId(account) {
@@ -50,16 +51,14 @@ function accountSourceLabel(role) {
 // ─── Account Status Picker ────────────────────────────────────────────────────
 function AccountStatusPicker({ account, onUpdated }) {
   const { showToast } = useToast()
-  const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const locked = account.role === 'COORDINATOR'
+  const currentStatus = String(account.status ?? '')
+    .trim()
+    .toUpperCase()
 
   const handleSelect = async (e) => {
     const next = e.target.value
-    setOpen(false)
-    const currentStatus = String(account.status ?? '')
-      .trim()
-      .toUpperCase()
     if (next === currentStatus) return
 
     const resolvedId = resolveAccountUserId(account)
@@ -72,7 +71,7 @@ function AccountStatusPicker({ account, onUpdated }) {
     try {
       await changeAccountStatus({ userId: resolvedId, status: next })
       onUpdated(resolvedId, next)
-      showToast(`Đã cập nhật trạng thái tài khoản → ${next}`, 'success')
+      showToast(`Đã cập nhật trạng thái tài khoản → ${accountStatusLabel(next)}`, 'success')
     } catch (err) {
       showToast(localizeError(err.message), 'error')
     } finally {
@@ -80,39 +79,21 @@ function AccountStatusPicker({ account, onUpdated }) {
     }
   }
 
-  if (open && !locked) {
-    return (
-      <div className='status-picker'>
-        <select
-          className='status-picker-select'
-          value={account.status}
-          onChange={handleSelect}
-          onBlur={() => setOpen(false)}
-          disabled={saving}
-          autoFocus
-        >
-          {ACCOUNT_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      </div>
-    )
-  }
-
   return (
-    <div className='status-picker'>
-      <button
-        type='button'
-        className={`status-pill ${statusPillClass(account.status)}`}
-        onClick={() => !locked && !saving && setOpen(true)}
-        disabled={locked || saving}
-        title={locked ? 'Không thể đổi trạng thái Coordinator' : 'Nhấn để đổi trạng thái'}
-      >
-        {account.status}
-      </button>
-    </div>
+    <select
+      className='account-status-select'
+      value={currentStatus || ACCOUNT_STATUSES[0]}
+      onChange={handleSelect}
+      disabled={locked || saving}
+      title={locked ? 'Không thể đổi trạng thái Coordinator' : 'Đổi trạng thái tài khoản'}
+      aria-label='Trạng thái tài khoản'
+    >
+      {ACCOUNT_STATUSES.map((s) => (
+        <option key={s} value={s}>
+          {accountStatusLabel(s)}
+        </option>
+      ))}
+    </select>
   )
 }
 
@@ -215,7 +196,8 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
     startDate: '',
     endDate: '',
     maxTeams: '',
-    numRounds: '1'
+    numRounds: '1',
+    githubTemplateRepo: ''
   })
 
   const handle = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
@@ -229,7 +211,11 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
       setMessage({ text: 'Vui lòng nhập tên sự kiện', type: 'error' })
       return
     }
-    if (form.startDate && form.endDate && form.startDate > form.endDate) {
+    if (!form.startDate || !form.endDate) {
+      setMessage({ text: 'Vui lòng nhập ngày bắt đầu và ngày kết thúc', type: 'error' })
+      return
+    }
+    if (form.startDate > form.endDate) {
       setMessage({ text: 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc', type: 'error' })
       return
     }
@@ -249,14 +235,15 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
       const created = await createEvent({
         title,
         description: form.description,
-        startDate: form.startDate || null,
-        endDate: form.endDate || null,
+        startDate: form.startDate,
+        endDate: form.endDate,
         maxTeams,
-        numRounds
+        numRounds,
+        githubTemplateRepo: form.githubTemplateRepo
       })
       setLastCreated(created)
       setMessage({
-        text: `Đã tạo sự kiện "${created.title}" — trạng thái BUILDING.`,
+        text: `Đã tạo sự kiện "${created.title}" — trạng thái ${eventStatusLabel('BUILDING')}.`,
         type: 'success'
       })
       showToast('Đã tạo sự kiện mới', 'success')
@@ -266,7 +253,8 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
         startDate: '',
         endDate: '',
         maxTeams: '',
-        numRounds: '1'
+        numRounds: '1',
+        githubTemplateRepo: ''
       })
       onSuccess?.(created)
       onClose?.()
@@ -282,7 +270,7 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
       isOpen={open}
       onClose={onClose}
       title='Tạo sự kiện mới'
-      subtitle='Sự kiện mới có trạng thái BUILDING — sinh viên chưa đăng ký được. Vào chi tiết sự kiện để thêm vòng/bảng, rồi chuyển sang UPCOMING.'
+      subtitle='Sự kiện mới ở trạng thái đang thiết lập — sinh viên chưa đăng ký được. Vào chi tiết sự kiện để thêm vòng/bảng, rồi chuyển sang sắp diễn ra.'
     >
       <form className='form' onSubmit={handleSubmit}>
         <FormField label='Tên sự kiện *'>
@@ -307,10 +295,26 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
           />
         </FormField>
         <FormField label='Ngày bắt đầu'>
-          <input type='datetime-local' name='startDate' value={form.startDate} onChange={handle} disabled={loading} />
+          <input
+            type='datetime-local'
+            name='startDate'
+            value={form.startDate}
+            onChange={handle}
+            max={form.endDate || undefined}
+            required
+            disabled={loading}
+          />
         </FormField>
         <FormField label='Ngày kết thúc'>
-          <input type='datetime-local' name='endDate' value={form.endDate} onChange={handle} disabled={loading} />
+          <input
+            type='datetime-local'
+            name='endDate'
+            value={form.endDate}
+            onChange={handle}
+            min={form.startDate || undefined}
+            required
+            disabled={loading}
+          />
         </FormField>
         <FormField label='Số đội tối đa'>
           <input
@@ -326,6 +330,7 @@ export function CreateEventForm({ open, onClose, onSuccess }) {
         <FormField label='Số vòng thi dự kiến'>
           <input type='number' name='numRounds' value={form.numRounds} onChange={handle} min={1} disabled={loading} />
         </FormField>
+
         <LoadingButton loading={loading} type='submit'>
           Tạo sự kiện
         </LoadingButton>

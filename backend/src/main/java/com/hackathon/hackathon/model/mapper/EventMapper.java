@@ -30,6 +30,11 @@ public class EventMapper {
     event.setEndDate(rs.getString("end_date"));
     event.setStatus(rs.getString("status"));
     event.setCreatedAt(rs.getString("created_at"));
+    try {
+      event.setPendingTeams(rs.getString("pending_teams"));
+    } catch (SQLException ignored) {
+      event.setPendingTeams("0");
+    }
     return event;
   }
 
@@ -43,6 +48,7 @@ public class EventMapper {
     event.setTotalGroups(rs.getString("total_groups"));
     event.setTotalRounds(rs.getString("total_rounds"));
     event.setTotalAwards(rs.getString("total_awards"));
+    event.setGithubTemplateRepo(rs.getString("github_template_repo"));
     return event;
   }
 
@@ -81,6 +87,11 @@ public class EventMapper {
     registration.setTeamId(rs.getString("team_id"));
     registration.setTeamName(rs.getString("team_name"));
     registration.setStatus(rs.getString("status"));
+    registration.setGithubStatus(rs.getString("github_status"));
+    registration.setGithubRepoId(
+        rs.getObject("github_repo_id") != null ? rs.getLong("github_repo_id") : null);
+    registration.setGithubRepoUrl(rs.getString("github_repo_url"));
+    registration.setGithubTeamSlug(rs.getString("github_team_slug"));
     return registration;
   }
 
@@ -103,6 +114,7 @@ public class EventMapper {
     response.setEndDate(event.getEndDate());
     response.setStatus(event.getStatus());
     response.setCreatedAt(event.getCreatedAt());
+    response.setPendingTeams(event.getPendingTeams() != null ? event.getPendingTeams() : "0");
     return response;
   }
 
@@ -142,6 +154,7 @@ public class EventMapper {
     response.setTotalGroups(event.getTotalGroups());
     response.setTotalRounds(event.getTotalRounds());
     response.setTotalAwards(event.getTotalAwards());
+    response.setGithubTemplateRepo(event.getGithubTemplateRepo());
     response.setGroups(groups);
     response.setRounds(rounds.stream().map(this::toRoundResponse).toList());
     response.setTeams(teams.stream().map(this::toTeamResponse).toList());
@@ -170,6 +183,9 @@ public class EventMapper {
     response.setTeamId(registration.getTeamId());
     response.setTeamName(registration.getTeamName());
     response.setStatus(registration.getStatus());
+    response.setGithubStatus(registration.getGithubStatus());
+    response.setGithubRepoUrl(registration.getGithubRepoUrl());
+    response.setGithubTeamSlug(registration.getGithubTeamSlug());
     return response;
   }
 

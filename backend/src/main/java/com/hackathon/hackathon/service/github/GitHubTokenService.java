@@ -4,19 +4,18 @@ import com.hackathon.hackathon.config.GitHubAppConfig;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class GitHubTokenService {
 
-  private final GitHubAppConfig config;
-  private final GitHubJwtService jwtService;
+  @Autowired private GitHubAppConfig config;
+  @Autowired private GitHubJwtService jwtService;
   private final RestClient restClient = RestClient.create();
 
   // In-memory cache

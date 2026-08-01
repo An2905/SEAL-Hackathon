@@ -2,6 +2,7 @@ package com.hackathon.hackathon.repository;
 
 import com.hackathon.hackathon.model.dto.response.TeamEventRegistrationResponse;
 import com.hackathon.hackathon.model.dto.response.TeamTrackMentorsResponse;
+import com.hackathon.hackathon.model.entity.TeamRegistration;
 import com.hackathon.hackathon.model.mapper.TeamMapper;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -45,17 +46,114 @@ public class TeamRegistrationRepository {
     }
   }
 
-  public boolean insert(String eventId, String teamId, String status) {
-    String registrationId = UUID.randomUUID().toString();
+  /**
+   * A team can still change members only before its upcoming event has started check-in.
+   * Once any member is checked in, or an event is ongoing, its roster is locked.
+   */
+  public boolean isRosterLockedForJoin(String teamId) {
     String sql =
-        "INSERT INTO team_registrations (registration_id, event_id, team_id, status) VALUES (?, ?, ?, ?)";
+        """
+        SELECT 1
+        FROM team_registrations tr
+        JOIN events e ON e.event_id = tr.event_id
+        WHERE tr.team_id = ?
+          AND tr.status IN ('PENDING', 'APPROVED')
+          AND (
+            e.status = 'ONGOING'
+            OR (
+              e.status = 'UPCOMING'
+              AND EXISTS (
+                SELECT 1
+                FROM check_ins ci
+                WHERE ci.event_id = tr.event_id
+                  AND ci.team_id = tr.team_id
+                  AND ci.checked_in = 1
+              )
+            )
+          )
+        LIMIT 1
+        """;
     try (Connection conn = dataSource.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, registrationId);
-      ps.setString(2, eventId);
-      ps.setString(3, teamId);
-      ps.setString(4, status);
-      return ps.executeUpdate() > 0;
+      ps.setString(1, teamId);
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to check whether the team roster is locked.", e);
+    }
+  }
+
+  /** Returns whether the team is already participating in an upcoming or ongoing event. */
+  public boolean hasActiveEventRegistration(String teamId) {
+    String sql =
+        """
+        SELECT 1
+        FROM team_registrations tr
+        JOIN events e ON e.event_id = tr.event_id
+        WHERE tr.team_id = ?
+          AND tr.status IN ('PENDING', 'APPROVED')
+          AND e.status IN ('UPCOMING', 'ONGOING')
+        LIMIT 1
+        """;
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, teamId);
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to check the team's active event registrations.", e);
+    }
+  }
+
+  public boolean insert(String eventId, String teamId, String status) {
+    String registrationId = UUID.randomUUID().toString();
+    String eventSql = "SELECT max_teams FROM events WHERE event_id = ? FOR UPDATE";
+    String countSql = "SELECT COUNT(*) FROM team_registrations WHERE event_id = ?";
+    String insertSql =
+        "INSERT INTO team_registrations (registration_id, event_id, team_id, status) VALUES (?, ?, ?, ?)";
+    try (Connection conn = dataSource.getConnection()) {
+      conn.setAutoCommit(false);
+      try {
+        Integer maxTeams = null;
+        try (PreparedStatement ps = conn.prepareStatement(eventSql)) {
+          ps.setString(1, eventId);
+          try (ResultSet rs = ps.executeQuery()) {
+            if (!rs.next()) {
+              conn.rollback();
+              return false;
+            }
+            int value = rs.getInt("max_teams");
+            maxTeams = rs.wasNull() ? null : value;
+          }
+        }
+
+        if (maxTeams != null) {
+          try (PreparedStatement ps = conn.prepareStatement(countSql)) {
+            ps.setString(1, eventId);
+            try (ResultSet rs = ps.executeQuery()) {
+              if (rs.next() && rs.getInt(1) >= maxTeams) {
+                conn.rollback();
+                return false;
+              }
+            }
+          }
+        }
+
+        try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+          ps.setString(1, registrationId);
+          ps.setString(2, eventId);
+          ps.setString(3, teamId);
+          ps.setString(4, status);
+          boolean inserted = ps.executeUpdate() > 0;
+          conn.commit();
+          return inserted;
+        }
+      } catch (Exception e) {
+        conn.rollback();
+        throw e;
+      }
     } catch (Exception e) {
       return false;
     }
@@ -83,6 +181,66 @@ public class TeamRegistrationRepository {
       return ps.executeUpdate() > 0;
     } catch (Exception e) {
       return false;
+    }
+  }
+
+  public Optional<TeamRegistration> findDetailsByRegistrationId(String registrationId) {
+    String sql =
+        "SELECT registration_id, event_id, team_id, status, registered_at, github_status, "
+            + "github_repo_id, github_repo_url FROM team_registrations WHERE registration_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, registrationId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          TeamRegistration tr = new TeamRegistration();
+          tr.setRegistrationId(rs.getString("registration_id"));
+          tr.setEventId(rs.getString("event_id"));
+          tr.setTeamId(rs.getString("team_id"));
+          tr.setStatus(rs.getString("status"));
+          tr.setRegisteredAt(rs.getString("registered_at"));
+          tr.setGithubStatus(rs.getString("github_status"));
+          tr.setGithubRepoId(
+              rs.getObject("github_repo_id") != null ? rs.getLong("github_repo_id") : null);
+          tr.setGithubRepoUrl(rs.getString("github_repo_url"));
+          return Optional.of(tr);
+        }
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+    return Optional.empty();
+  }
+
+  public boolean updateGithubDetails(
+      String registrationId, String githubStatus, Long githubRepoId, String githubRepoUrl) {
+    String sql =
+        "UPDATE team_registrations SET github_status = ?, github_repo_id = ?, github_repo_url = ? WHERE registration_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, githubStatus);
+      if (githubRepoId != null) {
+        ps.setLong(2, githubRepoId);
+      } else {
+        ps.setNull(2, java.sql.Types.BIGINT);
+      }
+      ps.setString(3, githubRepoUrl);
+      ps.setString(4, registrationId);
+      return ps.executeUpdate() > 0;
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+  }
+
+  public boolean updateGithubStatus(String registrationId, String githubStatus) {
+    String sql = "UPDATE team_registrations SET github_status = ? WHERE registration_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, githubStatus);
+      ps.setString(2, registrationId);
+      return ps.executeUpdate() > 0;
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
     }
   }
 
@@ -169,12 +327,13 @@ public class TeamRegistrationRepository {
   public List<TeamEventRegistrationResponse> findAllByTeamId(String teamId) {
     String sql =
         """
-            SELECT tr.registration_id, tr.event_id, tr.status AS registration_status, tr.registered_at,
-                   e.title AS event_title, e.description AS event_description,
-                   e.start_date AS event_start_date, e.end_date AS event_end_date, e.status AS event_status,
-                   g.group_id, g.group_name
-            FROM team_registrations tr
-            JOIN events e ON tr.event_id = e.event_id
+             SELECT tr.registration_id, tr.event_id, tr.status AS registration_status, tr.registered_at,
+                    tr.github_status, tr.github_repo_url,
+                    e.title AS event_title, e.description AS event_description,
+                    e.start_date AS event_start_date, e.end_date AS event_end_date, e.status AS event_status,
+                    g.group_id, g.group_name
+             FROM team_registrations tr
+             JOIN events e ON tr.event_id = e.event_id
             LEFT JOIN (
             """
             + GROUP_ASSIGNMENT_SUBQUERY

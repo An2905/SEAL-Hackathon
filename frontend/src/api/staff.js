@@ -1,4 +1,4 @@
-import { apiFetch } from './client'
+import { apiFetch, apiFetchBlob } from './client'
 import {
   normalizeEventId,
   normalizeAccountUserId,
@@ -18,7 +18,9 @@ export async function createStaffAccount({ email, fullName, role }) {
     method: 'POST',
     body: { email, fullName, role }
   })
-  if (!/account created successfully/i.test(text)) throw new Error(text)
+  if (!/account created successfully|đăng ký tài khoản thành công/i.test(text)) {
+    throw new Error(text)
+  }
   return true
 }
 
@@ -31,7 +33,7 @@ function parseStaffJson(text) {
 }
 
 // POST /api/staff/events — status mặc định BUILDING (server set)
-export async function createEvent({ title, description, startDate, endDate, maxTeams, numRounds }) {
+export async function createEvent({ title, description, startDate, endDate, maxTeams, numRounds, githubTemplateRepo }) {
   const t = String(title ?? '').trim()
   if (!t) throw new Error('Tên sự kiện không được để trống')
 
@@ -42,6 +44,8 @@ export async function createEvent({ title, description, startDate, endDate, maxT
   if (endDate) body.endDate = endDate
   if (maxTeams != null && maxTeams !== '') body.maxTeams = Number(maxTeams)
   if (numRounds != null && numRounds !== '') body.numRounds = Number(numRounds)
+  const repo = String(githubTemplateRepo ?? '').trim()
+  if (repo) body.githubTemplateRepo = repo
 
   const data = parseStaffJson(
     await apiFetch('/api/staff/events', {
@@ -73,11 +77,10 @@ export async function changeEventStatus({ eventId, newStatus }) {
   const nextStatus = String(newStatus ?? '')
     .trim()
     .toUpperCase()
-  const text = await apiFetch('/api/staff/events/status', {
+  await apiFetch('/api/staff/events/status', {
     method: 'PUT',
     body: { eventId: id, newStatus: nextStatus }
   })
-  if (!/event status updated successfully/i.test(text)) throw new Error(text)
   return true
 }
 
@@ -114,11 +117,10 @@ export async function changeAccountStatus({ userId, status }) {
   const nextStatus = String(status ?? '')
     .trim()
     .toUpperCase()
-  const text = await apiFetch('/api/staff/change-status', {
+  await apiFetch('/api/staff/change-status', {
     method: 'PUT',
     body: { userId: id, status: nextStatus }
   })
-  if (!/account status updated successfully/i.test(text)) throw new Error(text)
   return true
 }
 
@@ -133,16 +135,36 @@ export async function changeTeamRegistrationStatus({ registrationId, status }) {
   const nextStatus = String(status ?? '')
     .trim()
     .toUpperCase()
-  const text = await apiFetch('/api/staff/team-registration/status', {
+  await apiFetch('/api/staff/team-registration/status', {
     method: 'PUT',
     body: { registrationId: id, status: nextStatus }
   })
-  if (!/registration status updated successfully/i.test(text)) throw new Error(text)
   return true
 }
 
+function mapStaffTeamMemberRow(data) {
+  return {
+    userId: String(data.userId ?? data.user_id ?? ''),
+    fullName: data.fullName ?? data.full_name ?? '',
+    email: data.email ?? '',
+    githubUsername: data.githubUsername ?? data.github_username ?? '',
+    status: data.status ?? ''
+  }
+}
+
+// GET /api/staff/teams/members?teamId=
+export async function getTeamMembers(teamId) {
+  const tid = normalizeId(teamId)
+  if (!tid) throw new Error('Không xác định được đội')
+
+  const params = new URLSearchParams({ teamId: tid })
+  const data = parseStaffJson(await apiFetch(`/api/staff/teams/members?${params}`, { method: 'GET' }))
+  if (!Array.isArray(data)) return []
+  return data.map(mapStaffTeamMemberRow)
+}
+
 // POST /api/staff/assign/judge
-// Body: { judgeId, roundId, groupId }
+// Body: { userId, roundId, groupId } — BE AssignJudgeRequest uses userId (judge's user id).
 export async function assignJudge({ judgeId, roundId, groupId }) {
   const jId = normalizeAccountUserId(judgeId)
   const rId = normalizeId(roundId)
@@ -152,11 +174,10 @@ export async function assignJudge({ judgeId, roundId, groupId }) {
   if (!rId) throw new Error('Vui lòng chọn vòng')
   if (!gId) throw new Error('Vui lòng chọn bảng')
 
-  const text = await apiFetch('/api/staff/assign/judge', {
+  await apiFetch('/api/staff/assign/judge', {
     method: 'POST',
-    body: { judgeId: jId, roundId: rId, groupId: gId }
+    body: { userId: jId, roundId: rId, groupId: gId }
   })
-  if (!/judge assigned successfully/i.test(text)) throw new Error(text)
   return true
 }
 
@@ -171,40 +192,76 @@ export async function assignMentor({ userId, roundId, groupId }) {
   if (!rId) throw new Error('Vui lòng chọn vòng')
   if (!gId) throw new Error('Vui lòng chọn bảng')
 
-  const text = await apiFetch('/api/staff/assign/mentor', {
+  await apiFetch('/api/staff/assign/mentor', {
     method: 'POST',
     body: { userId: uId, roundId: rId, groupId: gId }
   })
-  if (!/mentor assigned successfully/i.test(text)) throw new Error(text)
   return true
 }
 
-// GET /api/staff/events/export
-// Response: file Excel binary (.xlsx), header Content-Disposition: attachment; filename=events.xlsx
-// KHÔNG dùng apiFetch vì response không phải JSON/text — dùng fetch + blob.
+// GET /api/staff/events/export — binary .xlsx via apiFetchBlob (respects VITE_API_BASE).
 export async function exportEventsExcel() {
-  const token = localStorage.getItem('hh_token')
-  const headers = { 'Content-Type': 'application/json' }
-  if (token && token !== 'null' && token !== 'undefined') {
-    headers['Authorization'] = `Bearer ${token}`
-  }
+  return apiFetchBlob('/api/staff/events/export', { method: 'GET' })
+}
 
-  let response
-  try {
-    response = await fetch('/api/staff/events/export', {
-      method: 'GET',
-      headers,
-      credentials: 'include'
-    })
-  } catch {
-    throw new Error('NETWORK')
+// POST /api/github/registrations/{registrationId}/retry
+// Requires a Bearer token of a COORDINATOR.
+export async function retryGitHubProvisioning(registrationId) {
+  const id = normalizeRegistrationId(registrationId)
+  if (!id) {
+    throw new Error('Không xác định được đăng ký — vui lòng tải lại danh sách đội')
   }
+  const text = await apiFetch(`/api/github/registrations/${id}/retry`, {
+    method: 'POST'
+  })
+  return parseStaffJson(text)
+}
 
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(text || `HTTP_${response.status}`)
+// GET /api/staff/emails/filter
+// Lọc danh sách email theo nhiều tiêu chí. Trả về danh sách recipients + copyText.
+export async function filterEmails({
+  audiences,
+  eventId,
+  roundId,
+  groupId,
+  teamId,
+  userRole,
+  registrationStatus,
+  emailContains,
+  nameContains,
+  teamNameContains,
+  accountStatus,
+  separator,
+  includeCopyText
+} = {}) {
+  const params = new URLSearchParams()
+  if (audiences) params.set('audiences', audiences)
+  if (eventId) params.set('eventId', eventId)
+  if (roundId) params.set('roundId', roundId)
+  if (groupId) params.set('groupId', groupId)
+  if (teamId) params.set('teamId', teamId)
+  if (userRole) params.set('userRole', userRole)
+  if (registrationStatus) params.set('registrationStatus', registrationStatus)
+  if (emailContains) params.set('emailContains', emailContains)
+  if (nameContains) params.set('nameContains', nameContains)
+  if (teamNameContains) params.set('teamNameContains', teamNameContains)
+  if (accountStatus) params.set('accountStatus', accountStatus)
+  if (separator) params.set('separator', separator)
+  if (includeCopyText != null) params.set('includeCopyText', String(includeCopyText))
+
+  const query = params.toString() ? `?${params.toString()}` : ''
+  const text = await apiFetch(`/api/staff/emails/filter${query}`)
+  return parseStaffJson(text)
+}
+
+// PUT /api/staff/events/{eventId}/github-access?grant=true/false
+export async function updateEventRepoAccess({ eventId, grant }) {
+  const id = normalizeEventId(eventId)
+  if (!id) {
+    throw new Error('Không xác định được sự kiện — vui lòng tải lại trang')
   }
-
-  // Trả về Blob để caller tự tạo download link
-  return await response.blob()
+  const text = await apiFetch(`/api/staff/events/${id}/github-access?grant=${grant}`, {
+    method: 'PUT'
+  })
+  return parseStaffJson(text)
 }

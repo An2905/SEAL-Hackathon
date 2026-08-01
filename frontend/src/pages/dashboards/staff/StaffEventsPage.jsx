@@ -7,11 +7,16 @@ import { getAllEvents, attachPendingTeamsToEvents } from '../../../api/event'
 import { changeEventStatus } from '../../../api/staff'
 import { useToast } from '../../../context/ToastContext'
 import { localizeError } from '../../../utils/errors'
+import {
+  BUILDING_STATUS_OPTIONS,
+  EVENT_STATUSES,
+  canManuallyChangeEventStatus,
+  eventStatusFilterLabel,
+  eventStatusLabel
+} from '../../../utils/eventStatusLabels'
 import { CreateEventForm } from '../StaffDashboard'
 
 const PAGE_SIZE = 5
-
-const EVENT_STATUSES = ['BUILDING', 'UPCOMING', 'ONGOING', 'COMPLETED']
 
 const STATUS_COLORS = {
   BUILDING: { bg: '#fffbeb', color: '#92400e', border: '#fde68a' },
@@ -22,6 +27,7 @@ const STATUS_COLORS = {
 
 function StatusPill({ status }) {
   const c = STATUS_COLORS[status] || STATUS_COLORS.COMPLETED
+  const label = eventStatusLabel(status)
   return (
     <span
       style={{
@@ -34,7 +40,7 @@ function StatusPill({ status }) {
         border: `1px solid ${c.border}`
       }}
     >
-      {status}
+      {label}
     </span>
   )
 }
@@ -74,7 +80,7 @@ export default function StaffEventsPage() {
     try {
       await changeEventStatus({ eventId, newStatus: nextStatus })
       setEvents((prev) => prev.map((e) => (e.eventId === eventId ? { ...e, status: nextStatus } : e)))
-      showToast(`Đã cập nhật trạng thái → ${nextStatus}`, 'success')
+      showToast(`Đã cập nhật trạng thái → ${eventStatusLabel(nextStatus)}`, 'success')
     } catch (err) {
       showToast(localizeError(err.message), 'error')
     }
@@ -108,7 +114,7 @@ export default function StaffEventsPage() {
             }}
             style={filterBtnStyle(statusFilter === s)}
           >
-            {s === 'ALL' ? 'Tất cả' : s}
+            {eventStatusFilterLabel(s)}
           </button>
         ))}
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-dim,#718096)', alignSelf: 'center' }}>
@@ -156,32 +162,38 @@ export default function StaffEventsPage() {
               >
                 Chi tiết
               </Link>
-              <Link
-                to={`/staff/events/${ev.eventId}/check-in`}
-                className='btn btn-outline'
-                style={{ fontSize: 12, padding: '5px 12px' }}
-              >
-                Check-in
-              </Link>
-              <select
-                value={ev.status}
-                onChange={(e) => handleStatusChange(ev.eventId, e.target.value)}
-                style={{
-                  fontSize: 12,
-                  padding: '5px 10px',
-                  borderRadius: 6,
-                  border: '1px solid var(--border,#e2e8f0)',
-                  cursor: 'pointer',
-                  background: 'var(--card-bg,#fff)',
-                  color: 'var(--text,#1a202c)'
-                }}
-              >
-                {EVENT_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+              {ev.status === 'UPCOMING' && (
+                <Link
+                  to={`/staff/events/${ev.eventId}/check-in`}
+                  className='btn btn-outline'
+                  style={{ fontSize: 12, padding: '5px 12px' }}
+                >
+                  Check-in
+                </Link>
+              )}
+              {canManuallyChangeEventStatus(ev.status) ? (
+                <select
+                  value={ev.status}
+                  onChange={(e) => handleStatusChange(ev.eventId, e.target.value)}
+                  style={{
+                    fontSize: 12,
+                    padding: '5px 10px',
+                    borderRadius: 6,
+                    border: '1px solid var(--border,#e2e8f0)',
+                    cursor: 'pointer',
+                    background: 'var(--card-bg,#fff)',
+                    color: 'var(--text,#1a202c)'
+                  }}
+                >
+                  {BUILDING_STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {eventStatusLabel(s)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <StatusPill status={ev.status} />
+              )}
             </div>
           </AccordionCard>
         ))}

@@ -1,5 +1,6 @@
 package com.hackathon.hackathon.service;
 
+import com.hackathon.hackathon.config.GitHubAppConfig;
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.exception.ForbiddenException;
@@ -24,9 +25,11 @@ import com.hackathon.hackathon.model.mapper.EventMapper;
 import com.hackathon.hackathon.model.mapper.TeamMapper;
 import com.hackathon.hackathon.repository.EliminationRepository;
 import com.hackathon.hackathon.repository.EventRepository;
+import com.hackathon.hackathon.repository.EventSetupRepository;
 import com.hackathon.hackathon.repository.TeamRegistrationRepository;
 import com.hackathon.hackathon.repository.TeamRepository;
 import com.hackathon.hackathon.repository.UserRepository;
+import com.hackathon.hackathon.service.github.GitHubRepoService;
 import io.jsonwebtoken.Claims;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +38,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class TeamService {
 
+  @Autowired private GitHubRepoService gitHubRepoService;
+  @Autowired private GitHubAppConfig gitHubAppConfig;
+
   private final EliminationRepository eliminationRepository;
 
   @Autowired private TeamRepository teamRepository;
@@ -42,6 +48,8 @@ public class TeamService {
   @Autowired private TeamMapper teamMapper;
 
   @Autowired private EventRepository eventRepository;
+
+  @Autowired private EventSetupRepository eventSetupRepository;
 
   @Autowired private TeamRegistrationRepository teamRegistrationRepository;
 
@@ -130,6 +138,11 @@ public class TeamService {
                     new BadRequestException(
                         "Invalid enroll code. Please check the enroll code and try again."));
 
+    if (teamRegistrationRepository.isRosterLockedForJoin(teamId)) {
+      throw new BadRequestException(
+          "This team has checked in or is participating in an ongoing event. New members cannot join.");
+    }
+
     int memberCount = teamRepository.countMembers(teamId);
     int maxMembers = teamRepository.findMaxMembers(teamId);
     if (memberCount >= maxMembers) {
@@ -206,8 +219,19 @@ public class TeamService {
     if (teamRegistrationRepository.existsByTeamAndEvent(teamId, eventId)) {
       throw new BadRequestException("Your team has already joined this event.");
     }
+    if (teamRegistrationRepository.hasActiveEventRegistration(teamId)) {
+      throw new BadRequestException(
+          "Your team is already participating in another upcoming or ongoing event.");
+    }
 
     if (!teamRegistrationRepository.insert(eventId, teamId, "PENDING")) {
+      if (eventSetupRepository
+          .findEventById(eventId)
+          .map(event -> event.maxTeams != null
+              && eventSetupRepository.countTeamRegistrationsByEventId(eventId) >= event.maxTeams)
+          .orElse(false)) {
+        throw new ConflictException("This event has reached its maximum number of teams.");
+      }
       throw new BadRequestException("Join event failed.");
     }
 
@@ -346,7 +370,45 @@ public class TeamService {
             .orElseThrow(() -> new BadRequestException("No team found for this user."));
     String teamId = detail.getTeamId();
 
-    return teamRegistrationRepository.findAllByTeamId(teamId);
+    List<TeamEventRegistrationResponse> registrations =
+        teamRegistrationRepository.findAllByTeamId(teamId);
+    String githubUsername = userRepository.findGithubUsernameByUserId(userId).orElse("");
+
+    for (TeamEventRegistrationResponse reg : registrations) {
+      if ("SUCCESS".equals(reg.getGithubStatus())
+          && reg.getGithubRepoUrl() != null
+          && !reg.getGithubRepoUrl().isBlank()
+          && !githubUsername.isBlank()) {
+
+        String repoUrl = reg.getGithubRepoUrl();
+        String owner = gitHubAppConfig.getOrganization();
+        String repoName = "";
+        int lastSlash = repoUrl.lastIndexOf('/');
+        if (lastSlash != -1) {
+          repoName = repoUrl.substring(lastSlash + 1);
+        }
+
+        if (owner == null || owner.isBlank()) {
+          String temp = repoUrl.replace("https://github.com/", "");
+          String[] parts = temp.split("/");
+          if (parts.length >= 2) {
+            owner = parts[0];
+          }
+        }
+
+        if (!repoName.isBlank() && owner != null && !owner.isBlank()) {
+          boolean hasAccess =
+              gitHubRepoService.isCollaboratorInternal(owner, repoName, githubUsername);
+          reg.setRepoAccessGranted(hasAccess);
+        } else {
+          reg.setRepoAccessGranted(false);
+        }
+      } else {
+        reg.setRepoAccessGranted(false);
+      }
+    }
+
+    return registrations;
   }
 
   // endregion

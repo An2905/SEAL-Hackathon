@@ -7,12 +7,15 @@ import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class StudentProfileRepository {
 
   @Autowired private DataSource dataSource;
+
+  @Autowired private JdbcTemplate jdbcTemplate;
 
   public Optional<String> findStudentCodeByUserEmail(String email) {
     String sql =
@@ -24,6 +27,26 @@ public class StudentProfileRepository {
       try (ResultSet rs = ps.executeQuery()) {
         if (rs.next()) {
           return Optional.ofNullable(rs.getString("student_code"));
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(sql, e);
+    }
+    return Optional.empty();
+  }
+
+  /** Returns [studentCode, universityName] or empty if not found. */
+  public Optional<String[]> findProfileByEmail(String email) {
+    String sql =
+        "SELECT sp.student_code, sp.university_name FROM users u "
+            + "LEFT JOIN studentprofile sp ON u.user_id = sp.user_id WHERE u.email = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, email);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return Optional.of(
+              new String[] {rs.getString("student_code"), rs.getString("university_name")});
         }
       }
     } catch (Exception e) {
@@ -48,19 +71,25 @@ public class StudentProfileRepository {
   }
 
   public boolean insert(String userId, String studentCode, String universityName) {
-    String profileId = UUID.randomUUID().toString();
+    if (hasProfileIdColumn()) {
+      String sql =
+          "INSERT INTO studentprofile (profile_id, user_id, student_code, university_name)"
+              + " VALUES (?, ?, ?, ?)";
+      return jdbcTemplate.update(sql, UUID.randomUUID().toString(), userId, studentCode, universityName) > 0;
+    }
+
     String sql =
-        "INSERT INTO studentprofile (profile_id, user_id, student_code, university_name)"
-            + " VALUES (?, ?, ?, ?)";
+        "INSERT INTO studentprofile (user_id, student_code, university_name) VALUES (?, ?, ?)";
+    return jdbcTemplate.update(sql, userId, studentCode, universityName) > 0;
+  }
+
+  private boolean hasProfileIdColumn() {
     try (Connection conn = dataSource.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, profileId);
-      ps.setString(2, userId);
-      ps.setString(3, studentCode);
-      ps.setString(4, universityName);
-      return ps.executeUpdate() > 0;
+        ResultSet columns =
+            conn.getMetaData().getColumns(conn.getCatalog(), null, "studentprofile", "profile_id")) {
+      return columns.next();
     } catch (Exception e) {
-      return false;
+      throw new RuntimeException("Cannot inspect studentprofile schema", e);
     }
   }
 

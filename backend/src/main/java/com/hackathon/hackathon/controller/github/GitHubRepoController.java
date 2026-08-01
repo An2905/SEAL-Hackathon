@@ -1,31 +1,57 @@
 package com.hackathon.hackathon.controller.github;
 
+import com.hackathon.hackathon.exception.BadRequestException;
+import com.hackathon.hackathon.model.dto.request.GitHubCreateRepoRequest;
 import com.hackathon.hackathon.service.github.GitHubRepoService;
+import java.util.List;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/github")
-@RequiredArgsConstructor
+@RequestMapping("/api/github/repos")
 public class GitHubRepoController {
 
-  private final GitHubRepoService gitHubRepoService;
+  @Autowired private GitHubRepoService gitHubRepoService;
 
-  // Tạo repo mới theo template
-  // POST /repos/{template_owner}/{template_repo}/generate
-  @PostMapping("/repos/{templateOwner}/{templateRepo}/generate")
-  public ResponseEntity<Map<String, Object>> createRepo(
-      @PathVariable String templateOwner,
-      @PathVariable String templateRepo,
-      @RequestBody Map<String, Object> body) {
+  @GetMapping("/{owner}/{repo}/commits")
+  public ResponseEntity<List<Map<String, Object>>> listCommits(
+      @RequestHeader("Authorization") String authHeader,
+      @PathVariable String owner,
+      @PathVariable String repo,
+      @RequestParam(required = false) String sha,
+      @RequestParam(required = false) String author,
+      @RequestParam(required = false) String since,
+      @RequestParam(required = false) String until,
+      @RequestParam(name = "per_page", required = false) Integer perPage,
+      @RequestParam(required = false) Integer page) {
     return ResponseEntity.ok(
-        gitHubRepoService.createOrgRepo(
-            templateOwner,
-            templateRepo,
-            (String) body.get("owner"),
-            (String) body.get("name"),
-            (Boolean) body.getOrDefault("private", true)));
+        gitHubRepoService.listRepoCommits(
+            authHeader, owner, repo, sha, author, since, until, perPage, page));
+  }
+
+  @GetMapping("/{owner}/{repo}/commits/{ref}")
+  public ResponseEntity<Map<String, Object>> getCommit(
+      @RequestHeader("Authorization") String authHeader,
+      @PathVariable String owner,
+      @PathVariable String repo,
+      @PathVariable String ref,
+      @RequestParam(name = "per_page", required = false) Integer perPage,
+      @RequestParam(required = false) Integer page) {
+    return ResponseEntity.ok(
+        gitHubRepoService.getRepoCommit(authHeader, owner, repo, ref, perPage, page));
+  }
+
+  // Tạo repo mới trong Organization SWP391-SEAL-Hackathon
+  // POST /api/github/repos
+  @PostMapping
+  public ResponseEntity<Map<String, Object>> createRepo(
+      @RequestHeader("Authorization") String authHeader,
+      @RequestBody GitHubCreateRepoRequest request) {
+    if (request.getName() == null || request.getName().trim().isEmpty()) {
+      throw new BadRequestException("Tên repository là bắt buộc.");
+    }
+    return ResponseEntity.ok(gitHubRepoService.createOrgRepo(authHeader, request.getName()));
   }
 }

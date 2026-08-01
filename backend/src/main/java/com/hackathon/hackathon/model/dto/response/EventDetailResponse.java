@@ -33,6 +33,8 @@ public class EventDetailResponse {
 
   private String pendingTeams;
 
+  private String githubTemplateRepo;
+
   private List<EventGroupResponse> groups;
 
   private List<EventRoundResponse> rounds;

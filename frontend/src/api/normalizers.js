@@ -63,7 +63,8 @@ export function mapEventRow(row) {
     startDate: r.startDate ?? r.start_date ?? '',
     endDate: r.endDate ?? r.end_date ?? '',
     status: r.status ?? '',
-    createdAt: r.createdAt ?? r.created_at ?? ''
+    createdAt: r.createdAt ?? r.created_at ?? '',
+    pendingTeams: String(r.pendingTeams ?? r.pending_teams ?? '0')
   }
 }
 
@@ -111,8 +112,32 @@ function mapTeamRow(row) {
     registrationId: normalizeId(row.registrationId ?? row.registration_id),
     teamId: normalizeId(row.teamId ?? row.team_id),
     teamName: row.teamName ?? row.team_name ?? '',
-    status: row.status ?? ''
+    status: row.status ?? '',
+    githubStatus: row.githubStatus ?? row.github_status ?? '',
+    githubRepoUrl: row.githubRepoUrl ?? row.github_repo_url ?? '',
+    githubTeamSlug: row.githubTeamSlug ?? row.github_team_slug ?? ''
   }
+}
+
+/** Merge GitHub provisioning fields from check-in API into event detail teams. */
+export function mergeTeamGitHubFields(teams, checkInTeams) {
+  if (!Array.isArray(teams) || teams.length === 0) return teams
+  const githubByRegistration = new Map(
+    (Array.isArray(checkInTeams) ? checkInTeams : []).map((team) => [
+      normalizeRegistrationId(team.registrationId),
+      team
+    ])
+  )
+  return teams.map((team) => {
+    const github = githubByRegistration.get(normalizeRegistrationId(team.registrationId))
+    if (!github) return team
+    return {
+      ...team,
+      githubStatus: github.githubStatus ?? github.github_status ?? team.githubStatus ?? '',
+      githubRepoUrl: github.githubRepoUrl ?? github.github_repo_url ?? team.githubRepoUrl ?? '',
+      githubTeamSlug: github.githubTeamSlug ?? github.github_team_slug ?? team.githubTeamSlug ?? ''
+    }
+  })
 }
 
 function mapAssignedMentorRow(row) {
@@ -171,7 +196,8 @@ function mapMentorAssignedTeamMemberRow(row) {
     fullName: r.fullName ?? r.full_name ?? '',
     email: r.email ?? '',
     userRole: r.userRole ?? r.user_role ?? '',
-    teamRole: r.teamRole ?? r.team_role ?? ''
+    teamRole: r.teamRole ?? r.team_role ?? '',
+    githubUsername: r.githubUsername ?? r.github_username ?? ''
   }
 }
 
@@ -289,6 +315,7 @@ export function mapEventDetailRow(row) {
     totalGroups: mapCount(r.totalGroups ?? r.total_groups),
     totalRounds: mapCount(r.totalRounds ?? r.total_rounds),
     totalAwards: mapCount(r.totalAwards ?? r.total_awards),
+    githubTemplateRepo: r.githubTemplateRepo ?? r.github_template_repo ?? '',
     teams: mapList(r.teams, mapTeamRow),
     groups: mapList(r.groups, mapGroupRow),
     rounds: mapList(r.rounds, mapRoundRow),

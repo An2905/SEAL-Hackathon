@@ -183,6 +183,27 @@ export async function removeTeamFromGroup({ eventId, roundId, groupId, teamId })
   return mapGroupTeamsResponse(parseJson(text), { groupId: gid })
 }
 
+// POST /api/staff/events/groups/auto-fill?eventId=&roundId=
+export async function autoFillRoundGroups({ eventId, roundId }) {
+  const eid = normalizeEventId(eventId)
+  const rid = normalizeId(roundId)
+  if (!eid || !rid) throw new Error('Thiếu thông tin vòng thi')
+
+  const params = new URLSearchParams({ eventId: eid, roundId: rid })
+  const text = await apiFetch(`/api/staff/events/groups/auto-fill?${params}`, {
+    method: 'POST'
+  })
+  const data = parseJson(text)
+  const assignedRaw = data.assignedCount ?? data.assigned_count
+  const assignedNum = assignedRaw == null || assignedRaw === '' ? 0 : Number(assignedRaw)
+  return {
+    eventId: String(data.eventId ?? data.event_id ?? eid),
+    roundId: String(data.roundId ?? data.round_id ?? rid),
+    assignedCount: Number.isFinite(assignedNum) ? assignedNum : 0,
+    message: data.message ?? 'Đã phân bảng tự động'
+  }
+}
+
 function mapGroupResponse(data, fallback = {}) {
   const maxRaw = data.maxTeams ?? data.max_teams ?? fallback.maxTeams
   const maxNum = maxRaw == null || maxRaw === '' ? null : Number(maxRaw)
@@ -332,12 +353,23 @@ function mapEventUpdateResponse(data, fallback = {}) {
     status: data.status ?? fallback.status ?? '',
     maxTeams: mapOptionalInt(data.maxTeams ?? data.max_teams ?? fallback.maxTeams),
     numRounds: mapOptionalInt(data.numRounds ?? data.num_rounds ?? fallback.numRounds) ?? 1,
-    createdAt: data.createdAt ?? data.created_at ?? fallback.createdAt ?? ''
+    createdAt: data.createdAt ?? data.created_at ?? fallback.createdAt ?? '',
+    githubTemplateRepo: data.githubTemplateRepo ?? data.github_template_repo ?? fallback.githubTemplateRepo ?? ''
   }
 }
 
 // PUT /api/staff/events
-export async function updateEvent({ eventId, title, description, startDate, endDate, status, maxTeams, numRounds }) {
+export async function updateEvent({
+  eventId,
+  title,
+  description,
+  startDate,
+  endDate,
+  status,
+  maxTeams,
+  numRounds,
+  githubTemplateRepo
+}) {
   const id = normalizeEventId(eventId)
   if (!id) throw new Error('Sự kiện không hợp lệ')
 
@@ -348,14 +380,16 @@ export async function updateEvent({ eventId, title, description, startDate, endD
     .trim()
     .toUpperCase()
   if (!['BUILDING', 'UPCOMING', 'ONGOING', 'COMPLETED'].includes(nextStatus)) {
-    throw new Error('Trạng thái phải là BUILDING, UPCOMING, ONGOING hoặc COMPLETED')
+    throw new Error('Trạng thái không hợp lệ.')
   }
 
   const body = {
     eventId: id,
     title: t,
     description: String(description ?? '').trim() || null,
-    status: nextStatus
+    status: nextStatus,
+    githubTemplateRepo:
+      githubTemplateRepo == null || String(githubTemplateRepo).trim() === '' ? null : String(githubTemplateRepo).trim()
   }
   if (startDate) body.startDate = startDate
   if (endDate) body.endDate = endDate
@@ -385,7 +419,8 @@ export async function updateEvent({ eventId, title, description, startDate, endD
     endDate: endDate ?? '',
     status: nextStatus,
     maxTeams: max,
-    numRounds: rounds
+    numRounds: rounds,
+    githubTemplateRepo: githubTemplateRepo ?? ''
   })
 }
 

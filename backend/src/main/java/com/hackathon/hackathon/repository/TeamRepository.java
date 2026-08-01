@@ -3,6 +3,7 @@ package com.hackathon.hackathon.repository;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedTeamMemberResponse;
 import com.hackathon.hackathon.model.dto.response.MentorAssignedTeamResponse;
 import com.hackathon.hackathon.model.entity.TeamDetail;
+import com.hackathon.hackathon.model.entity.User;
 import com.hackathon.hackathon.model.mapper.TeamMapper;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -199,7 +200,7 @@ public class TeamRepository {
         .append("t.team_id, t.team_name, t.status AS team_status, t.enrollCode, ")
         .append("t.leader_id, lu.full_name AS leader_name, lu.email AS leader_email, ")
         .append(
-            "um.user_id AS member_user_id, um.full_name AS member_full_name, um.email AS member_email, um.role AS member_role ")
+            "um.user_id AS member_user_id, um.full_name AS member_full_name, um.email AS member_email, um.role AS member_role, um.github_username AS member_github_username ")
         .append("FROM mentor_assignments ma ")
         .append("JOIN round_groups rg ON ma.group_id = rg.group_id ")
         .append("JOIN rounds r ON ma.round_id = r.round_id ")
@@ -263,6 +264,7 @@ public class TeamRepository {
             member.setEmail(rs.getString("member_email"));
             member.setUserRole(rs.getString("member_role"));
             member.setTeamRole(memberId.equals(team.getLeaderId()) ? "LEADER" : "MEMBER");
+            member.setGithubUsername(rs.getString("member_github_username"));
             team.getMembers().add(member);
           }
         }
@@ -325,5 +327,49 @@ public class TeamRepository {
     } catch (SQLException e) {
       throw new RuntimeException(sql, e);
     }
+  }
+
+  public Optional<String> findTeamNameById(String teamId) {
+    String sql = "SELECT team_name FROM teams WHERE team_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, teamId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return Optional.ofNullable(rs.getString("team_name"));
+        }
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+    return Optional.empty();
+  }
+
+  public List<User> findTeamMembersByTeamId(String teamId) {
+    String sql =
+        "SELECT u.user_id, u.full_name, u.email, u.role, u.status, u.github_username, u.github_id "
+            + "FROM team_members tm JOIN users u ON tm.user_id = u.user_id WHERE tm.team_id = ?";
+    List<com.hackathon.hackathon.model.entity.User> list = new ArrayList<>();
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, teamId);
+      try (ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+          com.hackathon.hackathon.model.entity.User user =
+              new com.hackathon.hackathon.model.entity.User();
+          user.setUserId(rs.getString("user_id"));
+          user.setFullName(rs.getString("full_name"));
+          user.setEmail(rs.getString("email"));
+          user.setRole(rs.getString("role"));
+          user.setStatus(rs.getString("status"));
+          user.setGithubUsername(rs.getString("github_username"));
+          user.setGithubId(rs.getObject("github_id") != null ? rs.getLong("github_id") : null);
+          list.add(user);
+        }
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
+    return list;
   }
 }

@@ -31,45 +31,76 @@ function clearStorage() {
   Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k))
 }
 
-export function AuthProvider({ children }) {
-  const [auth, setAuthState] = useState(() => {
-    const token = localStorage.getItem(STORAGE_KEYS.token) || ''
-    if (token && isTokenExpired(token)) {
-      clearStorage()
-      return { token: '', email: '', role: '', fullName: '', phone: '', avatarUrl: '' }
-    }
-    return {
-      token,
-      email: localStorage.getItem(STORAGE_KEYS.email) || '',
-      role: localStorage.getItem(STORAGE_KEYS.role) || '',
-      fullName: localStorage.getItem(STORAGE_KEYS.fullName) || '',
-      phone: '',
-      avatarUrl: ''
-    }
+function hydrateAuthFromToken(token, stored = {}) {
+  const claims = token ? parseJwt(token) : null
+  let role = stored.role || ''
+  let email = stored.email || ''
+  let fullName = stored.fullName || ''
+
+  if (claims) {
+    if (!role && claims.role) role = claims.role
+    if (!email && claims.sub) email = claims.sub
+    if (!fullName && claims.fullName) fullName = claims.fullName
+  }
+
+  if (role) localStorage.setItem(STORAGE_KEYS.role, role)
+  if (email) localStorage.setItem(STORAGE_KEYS.email, email)
+  if (fullName) localStorage.setItem(STORAGE_KEYS.fullName, fullName)
+
+  return { token, email, role, fullName }
+}
+
+function readInitialAuth() {
+  const token = localStorage.getItem(STORAGE_KEYS.token) || ''
+  if (token && isTokenExpired(token)) {
+    clearStorage()
+    return { token: '', email: '', role: '', fullName: '', phone: '', avatarUrl: '' }
+  }
+
+  const hydrated = hydrateAuthFromToken(token, {
+    email: localStorage.getItem(STORAGE_KEYS.email) || '',
+    role: localStorage.getItem(STORAGE_KEYS.role) || '',
+    fullName: localStorage.getItem(STORAGE_KEYS.fullName) || ''
   })
+
+  return {
+    token: hydrated.token,
+    email: hydrated.email,
+    role: hydrated.role,
+    fullName: hydrated.fullName,
+    phone: '',
+    avatarUrl: ''
+  }
+}
+
+export function AuthProvider({ children }) {
+  const [auth, setAuthState] = useState(readInitialAuth)
 
   const saveAuth = useCallback((patch = {}) => {
     const { token, email, role, fullName } = patch
 
     let derivedFullName = fullName
     let derivedEmail = email
+    let derivedRole = role
+
     if (token) {
       const claims = parseJwt(token)
       if (claims) {
         if (derivedFullName == null && claims.fullName) derivedFullName = claims.fullName
         if (derivedEmail == null && claims.sub) derivedEmail = claims.sub
+        if (derivedRole == null && claims.role) derivedRole = claims.role
       }
     }
 
     if (token != null) localStorage.setItem(STORAGE_KEYS.token, token)
     if (derivedEmail != null) localStorage.setItem(STORAGE_KEYS.email, derivedEmail)
-    if (role != null) localStorage.setItem(STORAGE_KEYS.role, role)
+    if (derivedRole != null) localStorage.setItem(STORAGE_KEYS.role, derivedRole)
     if (derivedFullName != null) localStorage.setItem(STORAGE_KEYS.fullName, derivedFullName)
 
     setAuthState((prev) => ({
       token: token != null ? token : prev.token,
       email: derivedEmail != null ? derivedEmail : prev.email,
-      role: role != null ? role : prev.role,
+      role: derivedRole != null ? derivedRole : prev.role,
       fullName: derivedFullName != null ? derivedFullName : prev.fullName
     }))
   }, [])

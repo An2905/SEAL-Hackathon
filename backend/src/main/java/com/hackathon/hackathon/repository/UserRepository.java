@@ -12,12 +12,15 @@ import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class UserRepository {
 
   @Autowired private DataSource dataSource;
+
+  @Autowired private JdbcTemplate jdbcTemplate;
 
   @Autowired private UserMapper userMapper;
 
@@ -63,23 +66,7 @@ public class UserRepository {
     String sql =
         "INSERT INTO users (user_id, full_name, email, password_hash, role, status)"
             + " VALUES (?, ?, ?, ?, ?, 'APPROVED')";
-    try (Connection conn = dataSource.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)) {
-
-      ps.setString(1, userId);
-      ps.setString(2, fullName);
-      ps.setString(3, email);
-      ps.setString(4, passwordHash);
-      ps.setString(5, role);
-
-      if (ps.executeUpdate() > 0) {
-        return userId;
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException(sql, e);
-    }
-
-    return null;
+    return jdbcTemplate.update(sql, userId, fullName, email, passwordHash, role) > 0 ? userId : null;
   }
 
   // #endregion
@@ -407,6 +394,17 @@ public class UserRepository {
       return true;
     }
     return isGithubUsernameLinkedToOtherUser(userId, githubUsername);
+  }
+
+  public boolean unlinkGithub(String userId) {
+    String sql = "UPDATE users SET github_id = NULL, github_username = NULL WHERE user_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, userId);
+      return ps.executeUpdate() > 0;
+    } catch (SQLException e) {
+      throw new RuntimeException(sql, e);
+    }
   }
 
   // #endregion

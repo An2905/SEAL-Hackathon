@@ -7,18 +7,14 @@ import com.hackathon.hackathon.model.dto.request.StudentRegisterRequest;
 import com.hackathon.hackathon.model.dto.request.UpdatePasswordRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateProfileRequest;
 import com.hackathon.hackathon.model.dto.request.VerifyStudentRegisterRequest;
-import com.hackathon.hackathon.model.dto.response.GithubLinkStatusResponse;
-import com.hackathon.hackathon.model.dto.response.GithubOauthUrlResponse;
+import com.hackathon.hackathon.model.dto.response.GetProfileResponse;
 import com.hackathon.hackathon.model.dto.response.LoginResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
 import com.hackathon.hackathon.model.dto.response.ProfileUpdateResponse;
 import com.hackathon.hackathon.service.AuthService;
-import com.hackathon.hackathon.service.GithubOauthService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,7 +24,6 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
   @Autowired private AuthService authService;
-  @Autowired private GithubOauthService githubOauthService;
 
   @PostMapping("/login")
   public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
@@ -40,6 +35,12 @@ public class AuthController {
       @RequestHeader("Authorization") String authHeader,
       @Valid @RequestBody UpdatePasswordRequest request) {
     return ResponseEntity.ok(authService.updatePassword(authHeader, request));
+  }
+
+  @GetMapping("/profile")
+  public ResponseEntity<GetProfileResponse> getProfile(
+      @RequestHeader("Authorization") String authHeader) {
+    return ResponseEntity.ok(authService.getProfile(authHeader));
   }
 
   @PutMapping("/profile")
@@ -71,29 +72,5 @@ public class AuthController {
   public ResponseEntity<MessageResponse> verifyAndRegister(
       @Valid @RequestBody VerifyStudentRegisterRequest request, HttpSession session) {
     return ResponseEntity.ok(authService.verifyAndRegister(request, session));
-  }
-
-  @GetMapping("/github/link-url")
-  public ResponseEntity<GithubOauthUrlResponse> getGithubLinkUrl(
-      @RequestHeader("Authorization") String authHeader, HttpSession session) {
-    String authorizeUrl = githubOauthService.buildAuthorizeUrl(authHeader, session);
-    return ResponseEntity.ok(new GithubOauthUrlResponse(authorizeUrl));
-  }
-
-  @GetMapping("/github/status")
-  public ResponseEntity<GithubLinkStatusResponse> getGithubLinkStatus(
-      @RequestHeader("Authorization") String authHeader) {
-    return ResponseEntity.ok(authService.getGithubLinkStatus(authHeader));
-  }
-
-  @GetMapping(value = "/github/callback", produces = MediaType.TEXT_HTML_VALUE)
-  public ResponseEntity<Void> githubCallback(
-      @RequestParam(value = "code", required = false) String code,
-      @RequestParam(value = "state", required = false) String state,
-      HttpSession session) {
-    String redirectUrl = githubOauthService.processCallback(code, state, session);
-    return ResponseEntity.status(HttpStatus.FOUND)
-        .header(HttpHeaders.LOCATION, redirectUrl)
-        .build();
   }
 }

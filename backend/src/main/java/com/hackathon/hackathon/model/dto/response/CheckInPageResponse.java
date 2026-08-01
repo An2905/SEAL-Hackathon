@@ -8,5 +8,6 @@ import lombok.Data;
 public class CheckInPageResponse {
   private String eventId;
   private String eventTitle;
+  private boolean checkInOpen;
   private List<CheckInTeamResponse> teams = new ArrayList<>();
 }

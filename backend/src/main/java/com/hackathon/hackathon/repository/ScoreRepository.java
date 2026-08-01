@@ -26,11 +26,17 @@ public class ScoreRepository {
       String eventId, String roundId, String groupId, String judgeId) {
     List<JudgeTeamToScoreResponse> teams = new ArrayList<>();
     String sql =
-        "SELECT gt.team_id, t.team_name "
-            + "FROM group_teams gt "
-            + "JOIN teams t ON gt.team_id = t.team_id "
-            + "JOIN team_registrations tr ON tr.team_id = t.team_id AND tr.event_id = ? "
-            + "WHERE gt.round_id = ? AND gt.group_id = ? AND tr.status = 'APPROVED' "
+        "SELECT jta.team_id, t.team_name, s.submission_id, s.status AS submission_status, "
+            + "s.submitted_at, s.github_url, s.demo_url, s.report_url, s.slide_url, "
+            + "sc.score_id, sc.total_score "
+            + "FROM judge_team_assignments jta "
+            + "JOIN teams t ON t.team_id = jta.team_id "
+            + "JOIN rounds r ON r.round_id = jta.round_id "
+            + "JOIN team_registrations tr ON tr.team_id = jta.team_id AND tr.event_id = r.event_id "
+            + "LEFT JOIN submissions s ON s.team_id = jta.team_id AND s.round_id = jta.round_id "
+            + "LEFT JOIN scores sc ON sc.submission_id = s.submission_id AND sc.judge_id = jta.judge_id "
+            + "WHERE r.event_id = ? AND jta.round_id = ? AND jta.group_id = ? AND jta.judge_id = ? "
+            + "AND tr.status = 'APPROVED' "
             + "ORDER BY t.team_name ASC";
 
     try (Connection conn = dataSource.getConnection();
@@ -38,13 +44,24 @@ public class ScoreRepository {
       ps.setString(1, eventId);
       ps.setString(2, roundId);
       ps.setString(3, groupId);
+      ps.setString(4, judgeId);
 
       try (ResultSet rs = ps.executeQuery()) {
         while (rs.next()) {
           JudgeTeamToScoreResponse item = new JudgeTeamToScoreResponse();
           item.setTeamId(rs.getString("team_id"));
           item.setTeamName(rs.getString("team_name"));
-          item.setScored(false);
+          item.setSubmissionId(rs.getString("submission_id"));
+          item.setSubmissionStatus(rs.getString("submission_status"));
+          item.setSubmittedAt(rs.getString("submitted_at"));
+          item.setGithubUrl(rs.getString("github_url"));
+          item.setDemoUrl(rs.getString("demo_url"));
+          item.setReportUrl(rs.getString("report_url"));
+          item.setSlideUrl(rs.getString("slide_url"));
+          item.setScoreId(rs.getString("score_id"));
+          double totalScore = rs.getDouble("total_score");
+          item.setTotalScore(rs.wasNull() ? null : totalScore);
+          item.setScored(item.getScoreId() != null);
           teams.add(item);
         }
       }

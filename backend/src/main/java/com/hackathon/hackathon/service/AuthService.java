@@ -11,6 +11,7 @@ import com.hackathon.hackathon.model.dto.request.StudentRegisterRequest;
 import com.hackathon.hackathon.model.dto.request.UpdatePasswordRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateProfileRequest;
 import com.hackathon.hackathon.model.dto.request.VerifyStudentRegisterRequest;
+import com.hackathon.hackathon.model.dto.response.GetProfileResponse;
 import com.hackathon.hackathon.model.dto.response.GithubLinkStatusResponse;
 import com.hackathon.hackathon.model.dto.response.LoginResponse;
 import com.hackathon.hackathon.model.dto.response.MessageResponse;
@@ -23,15 +24,36 @@ import com.hackathon.hackathon.security.JwtUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpSession;
 import java.security.SecureRandom;
+import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
+  private static final Logger log = LoggerFactory.getLogger(AuthService.class);
+
   private static final String[] AUTHENTICATED_ROLES = {
     "COORDINATOR", "EXPERT_INTERNAL", "EXPERT_EXTERNAL", "STUDENT_FPT", "STUDENT_EXTERNAL"
   };
+
+  private static final int OTP_SEND_MAX_PER_WINDOW = 3;
+  private static final long OTP_SEND_WINDOW_MS = 15 * 60 * 1000L;
+  private static final int OTP_VERIFY_MAX_ATTEMPTS = 5;
+  private static final String OTP_VERIFY_ATTEMPTS_ATTR = "OTP_VERIFY_ATTEMPTS";
+
+  private static final String RESET_OTP_SENT_MESSAGE =
+      "If the email exists, an OTP was sent. Please check your inbox (valid for 5 minutes).";
+
+  private final ConcurrentHashMap<String, OtpSendWindow> otpSendLimits = new ConcurrentHashMap<>();
+
+  private static final class OtpSendWindow {
+    int count;
+    long windowStartMs;
+  }
 
   @Autowired private CaptchaService captchaService;
 
@@ -76,7 +98,55 @@ public class AuthService {
       throw new ForbiddenException("Forbidden access.");
     }
 
+    String email = claims.getSubject();
+    if (email != null && !email.isBlank()) {
+      userRepository
+          .findByEmail(email.trim())
+          .ifPresent(
+              user -> {
+                if (!"APPROVED".equalsIgnoreCase(user.getStatus())) {
+                  throw new UnauthorizedException("Access Denied: Account is not approved.");
+                }
+              });
+    }
+
     return claims;
+  }
+
+  private void enforceOtpSendRateLimit(String email) {
+    String key = email.trim().toLowerCase();
+    long now = System.currentTimeMillis();
+    otpSendLimits.compute(
+        key,
+        (k, window) -> {
+          if (window == null || now - window.windowStartMs > OTP_SEND_WINDOW_MS) {
+            OtpSendWindow fresh = new OtpSendWindow();
+            fresh.count = 1;
+            fresh.windowStartMs = now;
+            return fresh;
+          }
+          if (window.count >= OTP_SEND_MAX_PER_WINDOW) {
+            throw new BadRequestException(
+                "Too many OTP requests. Please wait before requesting another code.");
+          }
+          window.count++;
+          return window;
+        });
+  }
+
+  private void resetOtpVerifyAttempts(HttpSession session) {
+    session.removeAttribute(OTP_VERIFY_ATTEMPTS_ATTR);
+  }
+
+  private void recordFailedOtpVerify(HttpSession session) {
+    Integer attempts = (Integer) session.getAttribute(OTP_VERIFY_ATTEMPTS_ATTR);
+    int next = attempts == null ? 1 : attempts + 1;
+    session.setAttribute(OTP_VERIFY_ATTEMPTS_ATTR, next);
+    if (next >= OTP_VERIFY_MAX_ATTEMPTS) {
+      session.invalidate();
+      throw new BadRequestException(
+          "Too many invalid OTP attempts. Please request a new OTP.");
+    }
   }
 
   private void requireNonBlank(String value, String fieldName) {
@@ -130,6 +200,21 @@ public class AuthService {
         linked ? userRepository.findGithubUsernameByUserId(userId.trim()).orElse("") : "";
     return new GithubLinkStatusResponse(linked, githubUsername);
   }
+
+  // #region GITHUB
+  public void unlinkGithub(String authHeader) {
+    Claims claims = validateRole(authHeader, AUTHENTICATED_ROLES);
+    String userId = claims.get("userId", String.class);
+    if (userId == null || userId.isBlank()) {
+      throw new BadRequestException("Invalid user token.");
+    }
+    boolean success = userRepository.unlinkGithub(userId.trim());
+    if (!success) {
+      throw new BadRequestException("Không thể hủy liên kết hoặc tài khoản chưa liên kết GitHub.");
+    }
+  }
+
+  // #endregion
 
   @Autowired private EmailService emailService;
 
@@ -275,6 +360,11 @@ public class AuthService {
       if (!participantsProfileRepository.updateExpertProfile(userId, newPhone.trim(), avatarUrl)) {
         throw new BadRequestException("Failed to update expert profile.");
       }
+    } else {
+      // COORDINATOR: lưu phone nếu có
+      if (newPhone != null && !newPhone.trim().isEmpty()) {
+        participantsProfileRepository.upsertPhone(userId, newPhone.trim());
+      }
     }
 
     String token = JwtUtil.generateToken(resolvedEmail, role, userId, newFullName);
@@ -297,6 +387,41 @@ public class AuthService {
     if (!avatarUrl.matches(urlRegex)) {
       throw new BadRequestException("Avatar URL must start with http:// or https://");
     }
+  }
+
+  // #endregion
+  // #region GET PROFILE
+
+  public GetProfileResponse getProfile(String authHeader) {
+    String email = extractEmailFromToken(authHeader);
+    User user =
+        userRepository
+            .findByEmail(email)
+            .orElseThrow(() -> new UnauthorizedException("User not found."));
+    String role = user.getRole();
+
+    String university = null;
+    String studentId = null;
+    String phone = null;
+    String avatarUrl = null;
+
+    if (isStudentRole(role)) {
+      String[] studentData =
+          studentProfileRepository.findProfileByEmail(email).orElse(new String[] {null, null});
+      studentId = studentData[0];
+      university = studentData[1];
+    } else {
+      // EXPERT và COORDINATOR đều có thể lưu phone trong participants_profile
+      String[] profileData =
+          participantsProfileRepository
+              .findPhoneAndAvatarByUserId(user.getUserId())
+              .orElse(new String[] {null, null});
+      phone = profileData[0];
+      avatarUrl = profileData[1];
+    }
+
+    return new GetProfileResponse(
+        user.getFullName(), email, role, university, studentId, phone, avatarUrl);
   }
 
   // #endregion
@@ -330,9 +455,11 @@ public class AuthService {
       ResetPasswordOtpRequest request, HttpSession session) {
     String email = request.getEmail();
     requireValidEmail(email);
+    enforceOtpSendRateLimit(email);
 
     if (!checkEmail(email)) {
-      throw new BadRequestException("Email not found.");
+      // Avoid email enumeration — same response whether or not the account exists.
+      return new MessageResponse(RESET_OTP_SENT_MESSAGE);
     }
 
     String otp = generateOtp();
@@ -347,8 +474,9 @@ public class AuthService {
     session.setAttribute("OTP_CODE", otp);
     session.setAttribute("OTP_EXPIRE", expireTime);
     session.setAttribute("OTP_EMAIL", email);
+    resetOtpVerifyAttempts(session);
 
-    return new MessageResponse("OTP sent to email. Please check your inbox (Valid for 5 minutes).");
+    return new MessageResponse(RESET_OTP_SENT_MESSAGE);
   }
 
   // #endregion
@@ -369,6 +497,7 @@ public class AuthService {
     }
 
     if (!sessionOtp.equals(request.getOtp())) {
+      recordFailedOtpVerify(session);
       throw new BadRequestException("Invalid OTP. Please try again.");
     }
 
@@ -393,6 +522,7 @@ public class AuthService {
     String email = request.getEmail();
 
     requireValidEmail(email);
+    enforceOtpSendRateLimit(email);
     requireNonBlank(request.getPassword(), "Password");
     requireNonBlank(request.getFullName(), "Full name");
     requireNonBlank(request.getUniversity(), "University");
@@ -418,10 +548,12 @@ public class AuthService {
     session.setAttribute("REG_OTP_CODE", otp);
     session.setAttribute("REG_OTP_EXPIRE", expireTime);
     session.setAttribute("REG_DATA", request);
+    resetOtpVerifyAttempts(session);
 
     return new MessageResponse("OTP sent to email. Please verify to complete registration.");
   }
 
+  @Transactional
   public MessageResponse verifyAndRegister(
       VerifyStudentRegisterRequest request, HttpSession session) {
     String sessionOtp = (String) session.getAttribute("REG_OTP_CODE");
@@ -440,6 +572,7 @@ public class AuthService {
     }
 
     if (!sessionOtp.equals(request.getOtp())) {
+      recordFailedOtpVerify(session);
       throw new BadRequestException("Invalid OTP. Please try again.");
     }
 
@@ -452,16 +585,21 @@ public class AuthService {
             ? "STUDENT_FPT"
             : "STUDENT_EXTERNAL";
 
-    String userId =
-        userRepository.insertStudentUser(
-            regData.getFullName(), regData.getEmail(), encoder.encode(regData.getPassword()), role);
+    try {
+      String userId =
+          userRepository.insertStudentUser(
+              regData.getFullName(), regData.getEmail(), encoder.encode(regData.getPassword()), role);
 
-    if (userId == null) {
-      throw new BadRequestException("Database error while creating user.");
-    }
+      if (userId == null) {
+        throw new BadRequestException("Database error while creating user.");
+      }
 
-    if (!studentProfileRepository.insert(userId, regData.getStudentId(), regData.getUniversity())) {
-      throw new BadRequestException("Database error while creating profile.");
+      if (!studentProfileRepository.insert(userId, regData.getStudentId(), regData.getUniversity())) {
+        throw new BadRequestException("Database error while creating profile.");
+      }
+    } catch (RuntimeException ex) {
+      log.error("Student registration database operation failed for {}", regData.getEmail(), ex);
+      throw ex;
     }
 
     session.removeAttribute("REG_OTP_CODE");

@@ -11,12 +11,14 @@ import FullWidthSearchBar from '../../../components/common/FullWidthSearchBar'
 import LoadingState from '../../../components/common/LoadingState'
 
 import { getCheckInPage, setMemberCheckIn, setTeamCheckIn } from '../../../api/checkIn'
+import { retryGitHubProvisioning } from '../../../api/staff'
 
 import { useToast } from '../../../context/ToastContext'
 
 import { localizeError } from '../../../utils/errors'
 
 const PAGE_SIZE = 5
+const GITHUB_POLL_INTERVAL_MS = 3000
 
 function formatDateTime(value) {
   if (!value) return '—'
@@ -76,7 +78,7 @@ function isTeamPartiallyChecked(team) {
   return checkedCount > 0 && checkedCount < members.length
 }
 
-function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }) {
+function TeamAccordionItem({ team, eventId, checkInOpen, onTeamUpdated, busyKey, setBusyKey }) {
   const { showToast } = useToast()
   const [open, setOpen] = useState(false)
   const [membersPage, setMembersPage] = useState(1)
@@ -84,6 +86,23 @@ function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }
   const teamCheckboxRef = useRef(null)
 
   const members = team.members || []
+
+  const handleGithubRetry = async (e) => {
+    e.stopPropagation()
+    setBusyKey(`github:${team.teamId}`)
+    try {
+      await retryGitHubProvisioning(team.registrationId)
+      showToast('Đã kích hoạt lại tiến trình cấp phát GitHub thành công.', 'success')
+      onTeamUpdated({
+        ...team,
+        githubStatus: 'PENDING'
+      })
+    } catch (err) {
+      showToast(localizeError(err.message), 'error')
+    } finally {
+      setBusyKey(null)
+    }
+  }
 
   const allChecked = isTeamFullyChecked(team)
 
@@ -142,7 +161,7 @@ function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }
   return (
     <div className={`checkin-team-item${open ? ' is-open' : ''}`}>
       <div className='checkin-team-header'>
-        <label
+        {checkInOpen && <label
           className='checkin-checkbox-label'
           onClick={(e) => e.stopPropagation()}
           title={allChecked ? 'Bỏ check-in cả đội' : 'Check-in cả đội'}
@@ -155,7 +174,7 @@ function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }
             disabled={teamBusy || members.length === 0 || Boolean(busyKey)}
             onChange={handleTeamCheck}
           />
-        </label>
+        </label>}
 
         <button
           type='button'
@@ -184,6 +203,75 @@ function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }
         >
           {team.registrationStatus || '—'}
         </span>
+
+        {team.registrationStatus === 'APPROVED' && (
+          <div
+            className='github-provision-info'
+            onClick={(e) => e.stopPropagation()}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '12px', flexShrink: 0 }}
+          >
+            {team.githubStatus === 'SUCCESS' ? (
+              <a
+                href={team.githubRepoUrl || '#'}
+                target='_blank'
+                rel='noopener noreferrer'
+                className='status-pill status-active'
+                style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+                title='Mở GitHub Repository'
+              >
+                <svg className='icon' viewBox='0 0 16 16' width='14' height='14' fill='currentColor'>
+                  <path d='M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z' />
+                </svg>
+                GitHub Repo
+              </a>
+            ) : team.githubStatus === 'FAILED' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className='status-pill status-inactive' style={{ cursor: 'default' }}>
+                  GitHub thất bại
+                </span>
+                <button
+                  type='button'
+                  className='btn btn-xs btn-outline'
+                  style={{
+                    padding: '2px 8px',
+                    fontSize: '11px',
+                    height: 'auto',
+                    minHeight: 'auto',
+                    border: '1px solid var(--border)',
+                    borderRadius: '4px',
+                    background: 'transparent',
+                    color: 'var(--text-dim)',
+                    cursor: 'pointer'
+                  }}
+                  disabled={Boolean(busyKey)}
+                  onClick={handleGithubRetry}
+                  title='Nhấn để thử lại quy trình tạo GitHub'
+                >
+                  {busyKey === `github:${team.teamId}` ? 'Đang gửi...' : 'Thử lại'}
+                </button>
+              </div>
+            ) : (
+              <span
+                className='status-pill status-pending'
+                style={{ cursor: 'default', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <span
+                  className='spinner-tiny'
+                  style={{
+                    width: '10px',
+                    height: '10px',
+                    border: '2px solid currentColor',
+                    borderTopColor: 'transparent',
+                    borderRadius: '50%',
+                    display: 'inline-block',
+                    animation: 'spin 1s linear infinite'
+                  }}
+                />
+                Cung cấp tài nguyên GitHub...
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {open && (
@@ -199,7 +287,7 @@ function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }
                   const memberBusy = busyKey === `member:${team.teamId}:${m.userId}`
                   return (
                     <div className='kv checkin-member-row' key={m.userId} style={{ alignItems: 'flex-start' }}>
-                      <label className='checkin-checkbox-label'>
+                      {checkInOpen && <label className='checkin-checkbox-label'>
                         <input
                           type='checkbox'
                           className='checkin-checkbox'
@@ -214,7 +302,7 @@ function TeamAccordionItem({ team, eventId, onTeamUpdated, busyKey, setBusyKey }
                             }
                           }}
                         />
-                      </label>
+                      </label>}
                       <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
                         <div style={{ fontWeight: 600, color: 'var(--text)' }}>
                           {m.fullName || '—'}
@@ -292,23 +380,26 @@ export default function StaffCheckInPage() {
 
   const handleTeamUpdated = useCallback(
     (updatedTeam) => {
+      let statusChanged = false
       setPage((prev) => {
         if (!prev) return prev
-
+        const existing = prev.teams.find((t) => t.teamId === updatedTeam.teamId)
+        if (existing && existing.registrationStatus !== updatedTeam.registrationStatus) {
+          statusChanged = true
+        }
         return {
           ...prev,
-
           teams: prev.teams.map((t) => (t.teamId === updatedTeam.teamId ? updatedTeam : t))
         }
       })
 
-      const status = (updatedTeam.registrationStatus || '').toUpperCase()
-
-      showToast(
-        status === 'APPROVED' ? 'Đã check-in đủ — đăng ký APPROVED' : 'Chưa đủ thành viên — đăng ký PENDING',
-
-        status === 'APPROVED' ? 'success' : 'info'
-      )
+      if (statusChanged) {
+        const status = (updatedTeam.registrationStatus || '').toUpperCase()
+        showToast(
+          status === 'APPROVED' ? 'Đã check-in đủ thành viên' : 'Chưa đủ thành viên',
+          status === 'APPROVED' ? 'success' : 'info'
+        )
+      }
     },
     [showToast]
   )
@@ -329,13 +420,32 @@ export default function StaffCheckInPage() {
     setTeamsPage(1)
   }, [searchQuery])
 
+  // Polling for pending GitHub provisioning
+  useEffect(() => {
+    if (!page || !page.teams) return
+
+    const hasPendingProvisioning = page.teams.some(
+      (t) => t.registrationStatus === 'APPROVED' && t.githubStatus !== 'SUCCESS' && t.githubStatus !== 'FAILED'
+    )
+
+    if (!hasPendingProvisioning) return
+
+    const interval = setInterval(async () => {
+      try {
+        const data = await getCheckInPage(eventId)
+        setPage(data)
+      } catch (err) {
+        console.error('Error polling check-in page data:', err)
+      }
+    }, GITHUB_POLL_INTERVAL_MS)
+
+    return () => clearInterval(interval)
+  }, [eventId, page])
+
   return (
     <DashboardShell
-      roleLabel='Nhân viên'
       title='Check-in sự kiện'
       subtitle={page?.eventTitle ? `Sự kiện: ${page.eventTitle}` : 'Điểm danh các đội tham gia'}
-      role='Staff'
-      showStaffFields
     >
       <div className='action-row' style={{ marginBottom: 16 }}>
         <Link className='btn btn-outline' to='/staff?tab=events'>
@@ -356,6 +466,13 @@ export default function StaffCheckInPage() {
           Tick cả đội để check-in tất cả thành viên. Khi <strong>đủ</strong> thành viên đã check-in, trạng thái đăng ký
           chuyển <strong>APPROVED</strong>; nếu <strong>chưa đủ</strong> sẽ là <strong>PENDING</strong>.
         </p>
+
+        {page && !page.checkInOpen && (
+          <FormMessage
+            message='Check-in đã đóng vì sự kiện đã bắt đầu. Danh sách dưới đây chỉ để theo dõi.'
+            type='info'
+          />
+        )}
 
         {error && <FormMessage message={error} type='error' />}
 
@@ -397,6 +514,7 @@ export default function StaffCheckInPage() {
                       key={team.teamId || team.registrationId}
                       team={team}
                       eventId={eventId}
+                      checkInOpen={page.checkInOpen}
                       onTeamUpdated={handleTeamUpdated}
                       busyKey={busyKey}
                       setBusyKey={setBusyKey}

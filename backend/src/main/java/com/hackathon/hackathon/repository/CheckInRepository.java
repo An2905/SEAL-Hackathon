@@ -23,10 +23,10 @@ public class CheckInRepository {
   private static final String TEAM_QUERY =
       """
             SELECT tr.registration_id, tr.status AS registration_status, tr.registered_at,
+                   tr.github_status, tr.github_repo_url,
                    t.team_id, t.team_name, t.leader_id,
                    um.user_id AS member_user_id, um.full_name AS member_full_name, um.email AS member_email,
                    CASE
-                       WHEN tr.status = 'APPROVED' THEN 1
                        WHEN ci.checkin_id IS NOT NULL AND ci.checked_in = 1 THEN 1
                        ELSE 0
                    END AS checked_in
@@ -144,6 +144,8 @@ public class CheckInRepository {
     team.setTeamName(rs.getString("team_name"));
     team.setRegistrationStatus(rs.getString("registration_status"));
     team.setRegisteredAt(rs.getString("registered_at"));
+    team.setGithubStatus(rs.getString("github_status"));
+    team.setGithubRepoUrl(rs.getString("github_repo_url"));
     team.setMembers(new ArrayList<>());
     return team;
   }
@@ -279,22 +281,36 @@ public class CheckInRepository {
 
   private void syncRegistrationStatus(Connection conn, String eventId, String teamId)
       throws SQLException {
+    String currentStatus = null;
+    String statusSql = "SELECT status FROM team_registrations WHERE event_id = ? AND team_id = ?";
+    try (PreparedStatement ps = conn.prepareStatement(statusSql)) {
+      ps.setString(1, eventId);
+      ps.setString(2, teamId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          currentStatus = rs.getString("status");
+        }
+      }
+    }
+
+    if ("APPROVED".equals(currentStatus)) {
+      return;
+    }
+
     int totalMembers = countTeamMembers(conn, teamId);
     int checkedMembers = countCheckedMembers(conn, eventId, teamId);
-    String newStatus =
-        (totalMembers > 0 && checkedMembers == totalMembers) ? "APPROVED" : "PENDING";
-
-    String sql =
-        """
-                UPDATE team_registrations
-                SET status = ?
-                WHERE event_id = ? AND team_id = ? AND status IN ('PENDING', 'APPROVED')
-                """;
-    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, newStatus);
-      ps.setString(2, eventId);
-      ps.setString(3, teamId);
-      ps.executeUpdate();
+    if (totalMembers > 0 && checkedMembers == totalMembers) {
+      String sql =
+          """
+                  UPDATE team_registrations
+                  SET status = 'APPROVED'
+                  WHERE event_id = ? AND team_id = ? AND status = 'PENDING'
+                  """;
+      try (PreparedStatement ps = conn.prepareStatement(sql)) {
+        ps.setString(1, eventId);
+        ps.setString(2, teamId);
+        ps.executeUpdate();
+      }
     }
   }
 
@@ -305,6 +321,19 @@ public class CheckInRepository {
       try (ResultSet rs = ps.executeQuery()) {
         return rs.next() ? rs.getInt(1) : 0;
       }
+    }
+  }
+
+  public boolean isTeamFullyCheckedIn(String eventId, String teamId) {
+    try (Connection conn = dataSource.getConnection()) {
+      int totalMembers = countTeamMembers(conn, teamId);
+      if (totalMembers <= 0) {
+        return false;
+      }
+      int checkedMembers = countCheckedMembers(conn, eventId, teamId);
+      return checkedMembers == totalMembers;
+    } catch (Exception e) {
+      return false;
     }
   }
 

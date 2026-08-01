@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import FormField from '../../../components/common/FormField'
 import FormMessage from '../../../components/common/FormMessage'
 import LoadingState from '../../../components/common/LoadingState'
@@ -7,26 +7,15 @@ import { getAllEvents, getEventDetail } from '../../../api/event'
 import { getAllAccounts, assignJudge, assignMentor } from '../../../api/staff'
 import { useToast } from '../../../context/ToastContext'
 import { localizeError } from '../../../utils/errors'
+import { eventStatusLabel } from '../../../utils/eventStatusLabels'
 
-const EXCLUDED_EVENT_STATUSES = new Set(['BUILDING', 'COMPLETED'])
+const EXCLUDED_EVENT_STATUSES = new Set(['COMPLETED'])
 
 function isAssignableEvent(event) {
   const status = String(event?.status ?? '')
     .trim()
     .toUpperCase()
   return status && !EXCLUDED_EVENT_STATUSES.has(status)
-}
-
-function eventStatusLabel(status) {
-  const key = String(status ?? '')
-    .trim()
-    .toUpperCase()
-  if (key === 'UPCOMING') return 'Sắp diễn ra'
-  if (key === 'ONGOING') return 'Đang diễn ra'
-  if (key === 'CANCELLED') return 'Đã hủy'
-  if (key === 'BUILDING') return 'Đang thiết lập'
-  if (key === 'COMPLETED') return 'Đã kết thúc'
-  return status || '—'
 }
 
 function EventAssignStatsPanel({ detail }) {
@@ -61,7 +50,7 @@ function EventAssignStatsPanel({ detail }) {
     </div>
   )
 }
-function AssignJudgeForm({ judges, rounds, groups, disabled }) {
+function AssignJudgeForm({ judges, rounds, groups, disabled, onAssigned }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
@@ -93,6 +82,7 @@ function AssignJudgeForm({ judges, rounds, groups, disabled }) {
       setMessage({ text: 'Đã phân công judge thành công!', type: 'success' })
       showToast('Đã phân công judge', 'success')
       setForm({ judgeId: '', roundId: '', groupId: '' })
+      await onAssigned?.()
     } catch (err) {
       setMessage({ text: localizeError(err.message), type: 'error' })
     } finally {
@@ -148,7 +138,7 @@ function AssignJudgeForm({ judges, rounds, groups, disabled }) {
   )
 }
 
-function AssignMentorForm({ mentors, rounds, groups, disabled }) {
+function AssignMentorForm({ mentors, rounds, groups, disabled, onAssigned }) {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
@@ -180,6 +170,7 @@ function AssignMentorForm({ mentors, rounds, groups, disabled }) {
       setMessage({ text: 'Đã phân công mentor thành công!', type: 'success' })
       showToast('Đã phân công mentor', 'success')
       setForm({ userId: '', roundId: '', groupId: '' })
+      await onAssigned?.()
     } catch (err) {
       setMessage({ text: localizeError(err.message), type: 'error' })
     } finally {
@@ -247,21 +238,16 @@ export default function StaffAssignPage() {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const [evResult, jsResult, msResult] = await Promise.allSettled([
-        getAllEvents('ALL'),
-        getAllAccounts('EXPERT'),
-        getAllAccounts('EXPERT')
-      ])
+      const [evResult, expertsResult] = await Promise.allSettled([getAllEvents('ALL'), getAllAccounts('EXPERT')])
       if (cancelled) return
 
       if (evResult.status === 'fulfilled') setEvents(evResult.value)
       else showToast('Không tải được danh sách sự kiện', 'error')
 
-      if (jsResult.status === 'fulfilled') setJudges(jsResult.value)
-      else showToast('Không tải được danh sách Judge (lỗi BE)', 'error')
-
-      if (msResult.status === 'fulfilled') setMentors(msResult.value)
-      else showToast('Không tải được danh sách Mentor (lỗi BE)', 'error')
+      if (expertsResult.status === 'fulfilled') {
+        setJudges(expertsResult.value)
+        setMentors(expertsResult.value)
+      } else showToast('Không tải được danh sách Judge/Mentor (lỗi BE)', 'error')
     })()
     return () => {
       cancelled = true
@@ -293,6 +279,16 @@ export default function StaffAssignPage() {
     }
   }, [eventId, showToast])
 
+  const reloadDetail = useCallback(async () => {
+    if (!eventId) return
+    try {
+      const d = await getEventDetail(eventId)
+      setDetail(d)
+    } catch (err) {
+      showToast(localizeError(err.message), 'error')
+    }
+  }, [eventId, showToast])
+
   const assignableEvents = useMemo(() => events.filter(isAssignableEvent), [events])
 
   useEffect(() => {
@@ -318,7 +314,7 @@ export default function StaffAssignPage() {
           <div>
             <div className='card-title'>Chọn sự kiện</div>
             <p className='card-sub' style={{ margin: '4px 0 0' }}>
-              {assignableEvents.length} sự kiện khả dụng (trừ BUILDING & COMPLETED)
+              {assignableEvents.length} sự kiện khả dụng (trừ đã kết thúc)
             </p>
           </div>
         </div>
@@ -350,8 +346,14 @@ export default function StaffAssignPage() {
       </div>
 
       <div className='cards'>
-        <AssignJudgeForm judges={judges} rounds={rounds} groups={groups} disabled={!ready} />
-        <AssignMentorForm mentors={mentors} rounds={rounds} groups={groups} disabled={!ready} />
+        <AssignJudgeForm judges={judges} rounds={rounds} groups={groups} disabled={!ready} onAssigned={reloadDetail} />
+        <AssignMentorForm
+          mentors={mentors}
+          rounds={rounds}
+          groups={groups}
+          disabled={!ready}
+          onAssigned={reloadDetail}
+        />
       </div>
     </>
   )

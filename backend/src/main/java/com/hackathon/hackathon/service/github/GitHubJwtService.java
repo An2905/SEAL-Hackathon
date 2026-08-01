@@ -2,27 +2,26 @@ package com.hackathon.hackathon.service.github;
 
 import com.hackathon.hackathon.config.GitHubAppConfig;
 import io.jsonwebtoken.Jwts;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 public class GitHubJwtService {
 
-  private final GitHubAppConfig config;
+  @Autowired private GitHubAppConfig config;
 
   public String generateJwt() {
     try {
-      // Load private key content from file
-      String pemContent = Files.readString(Path.of(config.getPrivateKeyPath()));
+      String pemContent = normalizePem(config.getPrivateKey());
+      if (pemContent == null || pemContent.isBlank()) {
+        throw new IllegalStateException("GITHUB_PRIVATE_KEY is not configured.");
+      }
 
       PrivateKey privateKey = getPrivateKey(pemContent);
 
@@ -39,6 +38,40 @@ public class GitHubJwtService {
     } catch (Exception e) {
       throw new RuntimeException("Failed to generate GitHub JWT", e);
     }
+  }
+
+  private static String normalizePem(String raw) {
+    if (raw == null) {
+      return null;
+    }
+    String pem = raw.trim();
+    if ((pem.startsWith("\"") && pem.endsWith("\""))
+        || (pem.startsWith("'") && pem.endsWith("'"))) {
+      pem = pem.substring(1, pem.length() - 1).trim();
+    }
+    // Railway / .env often stores PEM as a single line with literal \n
+    if (pem.contains("\\n")) {
+      pem = pem.replace("\\n", "\n");
+    }
+    // Some .env stores the entire PEM file as one base64 blob (no BEGIN header)
+    if (!pem.contains("BEGIN ") && looksLikeBase64(pem)) {
+      try {
+        String decoded = new String(Base64.getDecoder().decode(pem.replaceAll("\\s", "")));
+        if (decoded.contains("BEGIN ")) {
+          pem = decoded;
+        }
+      } catch (IllegalArgumentException ignored) {
+        // keep original; getPrivateKey will fail with a clearer error
+      }
+    }
+    return pem;
+  }
+
+  private static boolean looksLikeBase64(String value) {
+    if (value.isBlank() || value.length() < 64) {
+      return false;
+    }
+    return value.replaceAll("\\s", "").matches("^[A-Za-z0-9+/=]+$");
   }
 
   private PrivateKey getPrivateKey(String pemContent) throws Exception {

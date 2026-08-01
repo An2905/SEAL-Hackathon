@@ -35,6 +35,7 @@ dist/
 hackathon.env
 hackathon.env.properties
 secret/
+backend/secret/
 *.pem
 
 # OS & System Files
@@ -42,7 +43,3 @@ secret/
 Thumbs.db
 *.tmp
 *.temp
-
-# AI Agent Caches
-.agents/
-.antigravitycli/

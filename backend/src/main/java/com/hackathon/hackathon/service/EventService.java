@@ -1,5 +1,7 @@
 package com.hackathon.hackathon.service;
 
+import com.hackathon.hackathon.config.GitHubAppConfig;
+import com.hackathon.hackathon.event.TeamApprovedEvent;
 import com.hackathon.hackathon.exception.BadRequestException;
 import com.hackathon.hackathon.exception.ConflictException;
 import com.hackathon.hackathon.model.dto.request.AssignGroupTeamRequest;
@@ -14,6 +16,7 @@ import com.hackathon.hackathon.model.dto.request.UpdateAwardRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventGroupRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventRequest;
 import com.hackathon.hackathon.model.dto.request.UpdateEventRoundRequest;
+import com.hackathon.hackathon.model.dto.response.AutoFillGroupsResponse;
 import com.hackathon.hackathon.model.dto.response.CheckInPageResponse;
 import com.hackathon.hackathon.model.dto.response.CheckInTeamResponse;
 import com.hackathon.hackathon.model.dto.response.CreateEventGroupResponse;
@@ -21,6 +24,7 @@ import com.hackathon.hackathon.model.dto.response.CreateEventResponse;
 import com.hackathon.hackathon.model.dto.response.CreateEventRoundResponse;
 import com.hackathon.hackathon.model.dto.response.EventAwardResponse;
 import com.hackathon.hackathon.model.dto.response.EventDetailResponse;
+import com.hackathon.hackathon.model.dto.response.EventGroupResponse;
 import com.hackathon.hackathon.model.dto.response.EventRoundSetupResponse;
 import com.hackathon.hackathon.model.dto.response.EventSummaryResponse;
 import com.hackathon.hackathon.model.dto.response.EventTeamResponse;
@@ -32,10 +36,14 @@ import com.hackathon.hackathon.model.entity.TeamRegistration;
 import com.hackathon.hackathon.model.mapper.EventMapper;
 import com.hackathon.hackathon.repository.AwardRepository;
 import com.hackathon.hackathon.repository.CheckInRepository;
+import com.hackathon.hackathon.repository.CriteriaRepository;
 import com.hackathon.hackathon.repository.EventRepository;
 import com.hackathon.hackathon.repository.EventSetupRepository;
 import com.hackathon.hackathon.repository.EventSetupRepository.EventRoundSetupRow;
 import com.hackathon.hackathon.repository.EventSetupRepository.EventSetupRow;
+import com.hackathon.hackathon.repository.TeamRegistrationRepository;
+import com.hackathon.hackathon.service.github.GitHubRepoService;
+import com.hackathon.hackathon.util.VietnamTime;
 import io.jsonwebtoken.Claims;
 import java.io.ByteArrayOutputStream;
 import java.sql.Timestamp;
@@ -43,18 +51,26 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientResponseException;
 
 @Service
+@Slf4j
 public class EventService {
 
   @Autowired private AuthService authService;
@@ -65,9 +81,19 @@ public class EventService {
 
   @Autowired private AwardRepository awardRepository;
 
+  @Autowired private CriteriaRepository criteriaRepository;
+
   @Autowired private EventMapper eventMapper;
 
   @Autowired private CheckInRepository checkInRepository;
+
+  @Autowired private GitHubRepoService gitHubRepoService;
+
+  @Autowired private GitHubAppConfig gitHubAppConfig;
+
+  @Autowired private TeamRegistrationRepository teamRegistrationRepository;
+
+  @Autowired private ApplicationEventPublisher eventPublisher;
 
   // region CREATE EVENT
 
@@ -106,9 +132,15 @@ public class EventService {
       throw new BadRequestException("Number of rounds must be at least 1.");
     }
 
+    String githubTemplateRepo = request.getGithubTemplateRepo();
+    if (githubTemplateRepo != null) {
+      githubTemplateRepo = githubTemplateRepo.trim();
+      if (githubTemplateRepo.isEmpty()) githubTemplateRepo = null;
+    }
+
     String eventId =
         eventSetupRepository.insertEvent(
-            title, description, startDate, endDate, maxTeams, numRounds);
+            title, description, startDate, endDate, maxTeams, numRounds, githubTemplateRepo);
     if (eventId == null || eventId.isBlank()) {
       throw new BadRequestException("Failed to create event.");
     }
@@ -167,6 +199,17 @@ public class EventService {
     if (!eventRepository.existsById(eventId)) {
       throw new BadRequestException("Event not found.");
     }
+
+    syncAutoEventStatusForEvent(eventId);
+    EventSetupRow currentEvent =
+        eventSetupRepository
+            .findEventById(eventId)
+            .orElseThrow(() -> new BadRequestException("Event not found."));
+
+    if ("COMPLETED".equalsIgnoreCase(currentEvent.status)) {
+      throw new ConflictException("Sự kiện đã kết thúc — không thể chỉnh sửa.");
+    }
+
     if (eventSetupRepository.eventTitleExistsExcluding(title, eventId)) {
       throw new ConflictException("Event title already exists.");
     }
@@ -194,17 +237,69 @@ public class EventService {
       throw new BadRequestException("Number of rounds must be at least 1.");
     }
 
-    eventSetupRepository
-        .findEventStatus(eventId)
-        .ifPresent(
-            currentStatus -> {
-              if ("COMPLETED".equalsIgnoreCase(currentStatus) && !"COMPLETED".equals(status)) {
-                throw new ConflictException("Event is already COMPLETED — cannot change state.");
-              }
-            });
+    String currentStatus = currentEvent.status;
+    validateManualEventStatus(currentStatus, status);
+    validateEventStatusTransition(eventId, currentStatus, status);
+    validateEventUpdateMonotonic(eventId, currentEvent, startDate, endDate, maxTeams, numRounds);
+
+    if ("UPCOMING".equals(status) && "BUILDING".equalsIgnoreCase(currentStatus)) {
+      EventSetupRow pendingEvent = new EventSetupRow();
+      pendingEvent.title = title;
+      pendingEvent.startDate = startDate;
+      pendingEvent.endDate = endDate;
+      pendingEvent.numRounds = numRounds;
+      pendingEvent.maxTeams = maxTeams;
+      validateEventReadyForUpcoming(eventId, pendingEvent);
+    }
+
+    String githubTemplateRepo =
+        request.getGithubTemplateRepo() == null ? null : request.getGithubTemplateRepo().trim();
+    if (githubTemplateRepo != null && githubTemplateRepo.isEmpty()) {
+      githubTemplateRepo = null;
+    }
+
+    if (githubTemplateRepo != null) {
+      String templateOwner = gitHubAppConfig.getOrganization();
+      String templateRepoName = githubTemplateRepo;
+      if (githubTemplateRepo.contains("/")) {
+        String[] parts = githubTemplateRepo.split("/", 2);
+        templateOwner = parts[0].trim();
+        templateRepoName = parts[1].trim();
+      }
+      if (templateOwner == null || templateOwner.isEmpty() || templateRepoName.isEmpty()) {
+        throw new BadRequestException(
+            "Định dạng kho lưu trữ mẫu không hợp lệ. Phải là 'owner/repo' hoặc 'repo'.");
+      }
+      try {
+        gitHubRepoService.getOrgRepoInternal(templateOwner, templateRepoName);
+      } catch (RestClientResponseException e) {
+        if (e.getStatusCode().value() == 404) {
+          throw new BadRequestException(
+              "Kho lưu trữ mẫu GitHub '"
+                  + templateOwner
+                  + "/"
+                  + templateRepoName
+                  + "' không tồn tại hoặc GitHub App không được cài đặt/cấp quyền.");
+        } else {
+          throw new BadRequestException(
+              "Lỗi khi kiểm tra kho lưu trữ mẫu GitHub: " + e.getResponseBodyAsString());
+        }
+      } catch (Exception e) {
+        throw new BadRequestException(
+            "Không thể kết nối để kiểm tra kho lưu trữ mẫu GitHub: " + e.getMessage());
+      }
+    }
 
     if (!eventSetupRepository.updateEvent(
-        eventId, title, description, startDate, endDate, status, maxTeams, numRounds)) {
+        eventId,
+        title,
+        description,
+        startDate,
+        endDate,
+        status,
+        maxTeams,
+        numRounds,
+        githubTemplateRepo)) {
       throw new BadRequestException("Failed to update event.");
     }
 
@@ -223,6 +318,7 @@ public class EventService {
     response.setMaxTeams(row.maxTeams);
     response.setNumRounds(row.numRounds);
     response.setCreatedAt(timestampToIso(row.createdAt));
+    response.setGithubTemplateRepo(row.githubTemplateRepo);
     return response;
   }
 
@@ -240,12 +336,31 @@ public class EventService {
     if (eventId.isEmpty()) {
       throw new BadRequestException("ID sự kiện là bắt buộc.");
     }
-    if (newStatus.isEmpty()
-        || (!newStatus.equals("BUILDING")
-            && !newStatus.equals("UPCOMING")
-            && !newStatus.equals("ONGOING")
-            && !newStatus.equals("COMPLETED"))) {
+    if (newStatus.isEmpty() || (!newStatus.equals("BUILDING") && !newStatus.equals("UPCOMING"))) {
       throw new BadRequestException("Trạng thái sự kiện không hợp lệ.");
+    }
+
+    syncAutoEventStatusForEvent(eventId);
+
+    String currentStatus =
+        eventSetupRepository
+            .findEventStatus(eventId)
+            .orElseThrow(() -> new BadRequestException("Không tìm thấy sự kiện."));
+
+    if ("ONGOING".equalsIgnoreCase(currentStatus) || "COMPLETED".equalsIgnoreCase(currentStatus)) {
+      throw new BadRequestException(
+          "Không thể thay đổi trạng thái thủ công khi sự kiện đang diễn ra hoặc đã kết thúc.");
+    }
+    if ("UPCOMING".equalsIgnoreCase(currentStatus)) {
+      throw new BadRequestException(
+          "Không thể thay đổi trạng thái thủ công khi sự kiện đã ở trạng thái sắp diễn ra.");
+    }
+
+    validateManualEventStatus(currentStatus, newStatus);
+    validateEventStatusTransition(eventId, currentStatus, newStatus);
+
+    if ("UPCOMING".equals(newStatus) && "BUILDING".equalsIgnoreCase(currentStatus)) {
+      validateEventReadyForUpcoming(eventId, null);
     }
 
     if (!eventRepository.updateStatus(eventId, newStatus)) {
@@ -391,6 +506,15 @@ public class EventService {
     String groupId = eventSetupRepository.insertGroup(roundId, name, maxTeams);
     if (groupId == null || groupId.isBlank()) {
       throw new BadRequestException("Tạo bảng đấu thất bại.");
+    }
+
+    boolean isFirstRound =
+        eventSetupRepository
+            .findRoundByEventAndId(eventId, roundId)
+            .map(round -> round.roundOrder == 1)
+            .orElse(false);
+    if (isFirstRound) {
+      doAutoFillRoundGroups(eventId, roundId, false, true);
     }
 
     String roundName =
@@ -566,6 +690,220 @@ public class EventService {
     }
 
     return buildGroupTeamsResponse(gid, eid, rid);
+  }
+
+  public AutoFillGroupsResponse autoFillRoundGroups(
+      String authHeader, String eventId, String roundId) {
+    authService.validateRole(authHeader, "COORDINATOR");
+    String eid = trim(eventId);
+    String rid = trim(roundId);
+    if (eid.isEmpty() || rid.isEmpty()) {
+      throw new BadRequestException("ID sự kiện và ID vòng đấu là bắt buộc.");
+    }
+    if (!eventRepository.existsById(eid)) {
+      throw new BadRequestException("Không tìm thấy sự kiện.");
+    }
+    if (!eventRepository.roundBelongsToEvent(rid, eid)) {
+      throw new BadRequestException("Vòng đấu không thuộc sự kiện này.");
+    }
+    return doAutoFillRoundGroups(eid, rid, true, false);
+  }
+
+  /** Called by the round lifecycle scheduler (no auth). */
+  public void autoFillRoundGroupsForLifecycle(String eventId, String roundId) {
+    String eid = trim(eventId);
+    String rid = trim(roundId);
+    if (eid.isEmpty() || rid.isEmpty()) {
+      return;
+    }
+    if (!eventRepository.existsById(eid) || !eventRepository.roundBelongsToEvent(rid, eid)) {
+      return;
+    }
+    boolean requireFullCheckIn =
+        eventSetupRepository
+            .findRoundByEventAndId(eid, rid)
+            .map(round -> round.roundOrder == 1)
+            .orElse(false);
+    doAutoFillRoundGroups(eid, rid, false, requireFullCheckIn);
+  }
+
+  /**
+   * Backfills Round 1 groups for teams that are already approved and fully checked in.
+   * The group_teams unique flow makes this operation safe to run repeatedly.
+   */
+  public void reconcileFirstRoundRosters() {
+    for (EventSetupRepository.RoundReference round :
+        eventSetupRepository.findFirstRoundsReadyForRosterReconciliation()) {
+      try {
+        doAutoFillRoundGroups(round.eventId(), round.roundId(), false, true);
+      } catch (Exception e) {
+        log.error(
+            "Could not reconcile Round 1 roster for event {} and round {}",
+            round.eventId(),
+            round.roundId(),
+            e);
+      }
+    }
+  }
+
+  private void tryAutoFillOnCheckIn(String eventId, String teamId) {
+    if (!"APPROVED"
+        .equals(teamRegistrationRepository.findStatusByTeamAndEvent(teamId, eventId).orElse(""))) {
+      return;
+    }
+    if (!checkInRepository.isTeamFullyCheckedIn(eventId, teamId)) {
+      return;
+    }
+    eventRepository
+        .findFirstRoundId(eventId)
+        .ifPresent(roundId -> doAutoFillRoundGroups(eventId, roundId, true, true));
+  }
+
+  /** Gọi sau khi đội đủ điều kiện (APPROVED + check-in đủ thành viên ở vòng 1). */
+  public void syncAutoFillAfterTeamEligible(String eventId, String teamId) {
+    if (eventId == null || teamId == null) {
+      return;
+    }
+    String eid = trim(eventId);
+    String tid = trim(teamId);
+    if (eid.isEmpty() || tid.isEmpty()) {
+      return;
+    }
+    tryAutoFillOnCheckIn(eid, tid);
+  }
+
+  private AutoFillGroupsResponse doAutoFillRoundGroups(
+      String eventId,
+      String roundId,
+      boolean cascadeToNextRound,
+      boolean requireFullCheckInForRoundOne) {
+    List<EventGroupResponse> groups =
+        eventRepository.findGroupsByEventId(eventId).stream()
+            .filter(g -> roundId.equals(g.getRoundId()))
+            .sorted(
+                Comparator.comparing(
+                    g -> g.getName(), Comparator.nullsLast(String::compareToIgnoreCase)))
+            .toList();
+
+    if (groups.isEmpty()) {
+      AutoFillGroupsResponse response = new AutoFillGroupsResponse();
+      response.setEventId(eventId);
+      response.setRoundId(roundId);
+      response.setAssignedCount(0);
+      response.setMessage("Không có bảng đấu trong vòng này.");
+      return response;
+    }
+
+    int roundOrder =
+        eventSetupRepository
+            .findRoundByEventAndId(eventId, roundId)
+            .map(row -> row.roundOrder)
+            .orElse(1);
+    boolean requireFullCheckIn = roundOrder <= 1 && requireFullCheckInForRoundOne;
+
+    List<TeamRegistration> eligible =
+        eventRepository.findEligibleTeamsForAutoFill(eventId, roundId, requireFullCheckIn);
+    if (eligible.isEmpty()) {
+      AutoFillGroupsResponse response = new AutoFillGroupsResponse();
+      response.setEventId(eventId);
+      response.setRoundId(roundId);
+      response.setAssignedCount(0);
+      response.setMessage(
+          buildNoEligibleTeamsMessage(eventId, roundId, roundOrder, requireFullCheckIn));
+      if (cascadeToNextRound) {
+        tryAutoFillNextRoundIfWinnersReady(eventId, roundId);
+      }
+      return response;
+    }
+
+    Deque<TeamRegistration> queue = new ArrayDeque<>(eligible);
+    int assigned = 0;
+
+    for (EventGroupResponse group : groups) {
+      if (queue.isEmpty()) {
+        break;
+      }
+
+      String groupId = group.getGroupId();
+      int current = eventSetupRepository.countApprovedTeamsInGroup(groupId, eventId);
+      Integer maxTeams = group.getMaxTeams();
+
+      while (!queue.isEmpty()) {
+        if (maxTeams != null && current >= maxTeams) {
+          break;
+        }
+
+        TeamRegistration team = queue.poll();
+        if (team == null || team.getTeamId() == null || team.getTeamId().isBlank()) {
+          continue;
+        }
+        if (eventSetupRepository.isTeamInRound(roundId, team.getTeamId())) {
+          continue;
+        }
+        if (maxTeams != null) {
+          int currentCount = eventSetupRepository.countApprovedTeamsInGroup(groupId, eventId);
+          if (currentCount >= maxTeams) {
+            break;
+          }
+        }
+
+        if (!eventSetupRepository.insertGroupTeam(groupId, roundId, team.getTeamId())) {
+          continue;
+        }
+        assigned++;
+        current++;
+      }
+    }
+
+    if (cascadeToNextRound) {
+      tryAutoFillNextRoundIfWinnersReady(eventId, roundId);
+    }
+
+    AutoFillGroupsResponse response = new AutoFillGroupsResponse();
+    response.setEventId(eventId);
+    response.setRoundId(roundId);
+    response.setAssignedCount(assigned);
+    response.setMessage(
+        assigned > 0
+            ? "Đã tự động phân " + assigned + " đội vào bảng đấu."
+            : "Không có đội nào được phân vào bảng.");
+    return response;
+  }
+
+  private void tryAutoFillNextRoundIfWinnersReady(String eventId, String roundId) {
+    Optional<EventRoundSetupRow> roundOpt =
+        eventSetupRepository.findRoundByEventAndId(eventId, roundId);
+    if (roundOpt.isEmpty()) {
+      return;
+    }
+
+    EventRoundSetupRow round = roundOpt.get();
+    int winnerCount = eventRepository.countRoundWinners(roundId);
+    if (winnerCount < round.winnersPerRound) {
+      return;
+    }
+
+    eventRepository
+        .findNextRoundId(eventId, round.roundOrder)
+        .ifPresent(nextRoundId -> doAutoFillRoundGroups(eventId, nextRoundId, true, false));
+  }
+
+  private String buildNoEligibleTeamsMessage(
+      String eventId, String roundId, int roundOrder, boolean requireFullCheckIn) {
+    List<TeamRegistration> approvedNotAssigned =
+        eventRepository.findEligibleTeamsForAutoFill(eventId, roundId, false);
+    if (approvedNotAssigned.isEmpty()) {
+      return "Tất cả đội đã duyệt đều đã được phân vào vòng này (hoặc chưa có đội APPROVED).";
+    }
+    if (roundOrder <= 1 && requireFullCheckIn) {
+      return "Có "
+          + approvedNotAssigned.size()
+          + " đội đã duyệt nhưng chưa check-in đủ thành viên. Vui lòng check-in trước khi tự động phân bảng.";
+    }
+    if (roundOrder > 1) {
+      return "Không có đội winner vòng trước nào chưa được phân vào vòng này.";
+    }
+    return "Không có đội nào cần phân bảng.";
   }
 
   private void validateGroupTeamContext(String eventId, String roundId, String groupId) {
@@ -936,10 +1274,18 @@ public class EventService {
     authService.validateRole(authHeader, "COORDINATOR");
     String cleanEventId = requireCheckInEventId(eventId);
     requireCheckInEventExists(cleanEventId);
+    EventSetupRow event =
+        eventSetupRepository
+            .findEventById(cleanEventId)
+            .orElseThrow(() -> new BadRequestException("Event not found."));
 
     CheckInPageResponse response = new CheckInPageResponse();
     response.setEventId(cleanEventId);
     response.setEventTitle(checkInRepository.findEventTitle(cleanEventId).orElse("—"));
+    response.setCheckInOpen(
+        "UPCOMING".equalsIgnoreCase(event.status)
+            && event.startDate != null
+            && event.startDate.after(Timestamp.valueOf(VietnamTime.nowForDatabase())));
     response.setTeams(checkInRepository.findTeamsForCheckIn(cleanEventId));
     return response;
   }
@@ -955,9 +1301,17 @@ public class EventService {
     String eventId = requireCheckInEventId(request.getEventId());
     String teamId = requireCheckInTeamId(request.getTeamId());
     requireCheckInEventExists(eventId);
+    requireCheckInWindowOpen(eventId);
     requireCheckInRegistration(eventId, teamId);
 
-    return checkInRepository.applyTeamCheckIn(eventId, teamId, staffUserId, request.isChecked());
+    CheckInTeamResponse response =
+        checkInRepository.applyTeamCheckIn(eventId, teamId, staffUserId, request.isChecked());
+
+    triggerGitHubProvisioningAfterFullCheckIn(response.getRegistrationId(), eventId, teamId);
+
+    tryAutoFillOnCheckIn(eventId, teamId);
+
+    return response;
   }
 
   public CheckInTeamResponse setMemberCheckIn(String authHeader, CheckInMemberRequest request) {
@@ -972,10 +1326,41 @@ public class EventService {
     String teamId = requireCheckInTeamId(request.getTeamId());
     String userId = requireCheckInMemberUserId(request.getUserId());
     requireCheckInEventExists(eventId);
+    requireCheckInWindowOpen(eventId);
     requireCheckInRegistration(eventId, teamId);
 
-    return checkInRepository.applyMemberCheckIn(
-        eventId, teamId, userId, staffUserId, request.isChecked());
+    CheckInTeamResponse response =
+        checkInRepository.applyMemberCheckIn(
+            eventId, teamId, userId, staffUserId, request.isChecked());
+
+    triggerGitHubProvisioningAfterFullCheckIn(response.getRegistrationId(), eventId, teamId);
+
+    tryAutoFillOnCheckIn(eventId, teamId);
+
+    return response;
+  }
+
+  /** Starts GitHub provisioning only when approval and full check-in are both complete. */
+  public void triggerGitHubProvisioningAfterFullCheckIn(
+      String registrationId, String eventId, String teamId) {
+    if (!checkInRepository.isTeamFullyCheckedIn(eventId, teamId)) {
+      return;
+    }
+
+    TeamRegistration registration =
+        teamRegistrationRepository.findDetailsByRegistrationId(registrationId).orElse(null);
+    if (registration == null
+        || !"APPROVED".equalsIgnoreCase(registration.getStatus())
+        || !"PENDING".equalsIgnoreCase(registration.getGithubStatus())) {
+      return;
+    }
+
+    try {
+      eventPublisher.publishEvent(new TeamApprovedEvent(this, registrationId, eventId, teamId));
+    } catch (Exception e) {
+      log.error("Could not start GitHub provisioning for registration {}", registrationId, e);
+      teamRegistrationRepository.updateGithubStatus(registrationId, "FAILED");
+    }
   }
 
   private String requireCheckInEventId(String eventId) {
@@ -992,6 +1377,22 @@ public class EventService {
       throw new BadRequestException("Team ID is required.");
     }
     return clean;
+  }
+
+  private void requireCheckInWindowOpen(String eventId) {
+    EventSetupRow event =
+        eventSetupRepository
+            .findEventById(eventId)
+            .orElseThrow(() -> new BadRequestException("Không tìm thấy sự kiện."));
+
+    if (!"UPCOMING".equalsIgnoreCase(event.status)) {
+      throw new ConflictException("Chỉ được check-in khi sự kiện đang ở trạng thái UPCOMING.");
+    }
+
+    if (event.startDate == null
+        || !event.startDate.after(Timestamp.valueOf(VietnamTime.nowForDatabase()))) {
+      throw new ConflictException("Đã đến giờ bắt đầu sự kiện; check-in đã đóng.");
+    }
   }
 
   private String requireCheckInMemberUserId(String userId) {
@@ -1024,6 +1425,302 @@ public class EventService {
   }
 
   // endregion
+
+  private void syncAutoEventStatuses() {
+    String now = VietnamTime.nowForDatabase();
+    eventSetupRepository.promoteUpcomingToOngoing(now);
+    eventSetupRepository.promoteOngoingToCompleted(now);
+  }
+
+  private void syncAutoEventStatusForEvent(String eventId) {
+    eventSetupRepository.syncAutoStatusForEvent(eventId, VietnamTime.nowForDatabase());
+  }
+
+  private void validateManualEventStatus(String currentStatus, String requestedStatus) {
+    if (requestedStatus == null || requestedStatus.isBlank()) {
+      return;
+    }
+    String requested = requestedStatus.trim().toUpperCase();
+    String current = currentStatus == null ? "" : currentStatus.trim().toUpperCase();
+
+    if ("UPCOMING".equals(current) && "BUILDING".equals(requested)) {
+      throw new BadRequestException("Không thể hạ trạng thái sự kiện từ UPCOMING về BUILDING.");
+    }
+
+    if (!"ONGOING".equals(requested) && !"COMPLETED".equals(requested)) {
+      return;
+    }
+    if (!requested.equals(current)) {
+      throw new BadRequestException(
+          "Trạng thái ONGOING và COMPLETED được hệ thống tự động cập nhật theo thời gian sự kiện.");
+    }
+  }
+
+  private void validateEventUpdateMonotonic(
+      String eventId,
+      EventSetupRow current,
+      Timestamp newStart,
+      Timestamp newEnd,
+      Integer newMaxTeams,
+      int newNumRounds) {
+    Timestamp minAllowed = Timestamp.from(Instant.now().plus(24, ChronoUnit.HOURS));
+
+    if (newStart != null) {
+      if (current.startDate != null && newStart.before(current.startDate)) {
+        throw new BadRequestException("Ngày bắt đầu sự kiện chỉ được tăng, không được giảm.");
+      }
+      if (current.startDate == null || !newStart.equals(current.startDate)) {
+        if (newStart.before(minAllowed)) {
+          throw new BadRequestException(
+              "Ngày bắt đầu sự kiện phải cách thời điểm hiện tại ít nhất 24 giờ.");
+        }
+      }
+    } else if (current.startDate != null) {
+      throw new BadRequestException("Không được xóa ngày bắt đầu sự kiện.");
+    }
+
+    if (newEnd != null) {
+      if (current.endDate != null && newEnd.before(current.endDate)) {
+        throw new BadRequestException("Ngày kết thúc sự kiện chỉ được tăng, không được giảm.");
+      }
+      if (current.endDate == null || !newEnd.equals(current.endDate)) {
+        if (newEnd.before(minAllowed)) {
+          throw new BadRequestException(
+              "Ngày kết thúc sự kiện phải cách thời điểm hiện tại ít nhất 24 giờ.");
+        }
+      }
+      Optional<Timestamp> maxRoundEnd = eventSetupRepository.findMaxRoundEndDate(eventId);
+      if (maxRoundEnd.isPresent() && !newEnd.after(maxRoundEnd.get())) {
+        throw new BadRequestException(
+            "Ngày kết thúc sự kiện phải sau ngày kết thúc của vòng đấu cuối cùng.");
+      }
+    } else if (current.endDate != null) {
+      throw new BadRequestException("Không được xóa ngày kết thúc sự kiện.");
+    }
+
+    if (current.numRounds != null && newNumRounds < current.numRounds) {
+      throw new BadRequestException("Số vòng dự kiến chỉ được tăng, không được giảm.");
+    }
+
+    if (current.maxTeams != null) {
+      if (newMaxTeams == null) {
+        throw new BadRequestException("Không được bỏ giới hạn số đội sau khi đã thiết lập.");
+      }
+      if (newMaxTeams < current.maxTeams) {
+        throw new BadRequestException("Giới hạn số đội chỉ được tăng, không được giảm.");
+      }
+    }
+  }
+
+  private void validateEventStatusTransition(
+      String eventId, String currentStatus, String newStatus) {
+    if (currentStatus == null || newStatus == null || currentStatus.equalsIgnoreCase(newStatus)) {
+      return;
+    }
+
+    if (eventStatusOrder(newStatus) >= eventStatusOrder(currentStatus)) {
+      return;
+    }
+
+    if (eventSetupRepository.countTeamRegistrationsByEventId(eventId) > 0) {
+      throw new BadRequestException(
+          "Không thể hạ trạng thái sự kiện khi đã có đội đăng ký (mọi trạng thái đăng ký).");
+    }
+    if (eventSetupRepository.countMentorAssignmentsByEventId(eventId) > 0) {
+      throw new BadRequestException("Không thể hạ trạng thái sự kiện khi đã có phân công mentor.");
+    }
+    if (eventSetupRepository.countJudgeAssignmentsByEventId(eventId) > 0) {
+      throw new BadRequestException("Không thể hạ trạng thái sự kiện khi đã có phân công judge.");
+    }
+  }
+
+  private static int eventStatusOrder(String status) {
+    if (status == null) {
+      return 0;
+    }
+    return switch (status.trim().toUpperCase()) {
+      case "BUILDING" -> 1;
+      case "UPCOMING" -> 2;
+      case "ONGOING" -> 3;
+      case "COMPLETED" -> 4;
+      default -> 0;
+    };
+  }
+
+  private void validateEventReadyForUpcoming(String eventId, EventSetupRow pendingEvent) {
+    EventSetupRow event =
+        pendingEvent != null
+            ? mergeEventForUpcomingValidation(eventId, pendingEvent)
+            : eventSetupRepository
+                .findEventById(eventId)
+                .orElseThrow(() -> new BadRequestException("Không tìm thấy sự kiện."));
+
+    if (event.title == null || event.title.isBlank()) {
+      throw new BadRequestException("Tên sự kiện là bắt buộc trước khi chuyển sang UPCOMING.");
+    }
+    if (event.startDate == null) {
+      throw new BadRequestException(
+          "Ngày bắt đầu sự kiện là bắt buộc trước khi chuyển sang UPCOMING.");
+    }
+    if (event.endDate == null) {
+      throw new BadRequestException(
+          "Ngày kết thúc sự kiện là bắt buộc trước khi chuyển sang UPCOMING.");
+    }
+    if (event.startDate.after(event.endDate)) {
+      throw new BadRequestException("Ngày bắt đầu sự kiện phải trước hoặc bằng ngày kết thúc.");
+    }
+    if (event.numRounds == null || event.numRounds < 1) {
+      throw new BadRequestException("Số vòng dự kiến phải ít nhất là 1.");
+    }
+
+    if (eventSetupRepository.countRoundsByEventId(eventId) < 1) {
+      throw new BadRequestException(
+          "Sự kiện phải có ít nhất một vòng đấu trước khi chuyển sang UPCOMING.");
+    }
+
+    List<EventRoundSetupRow> rounds = eventSetupRepository.findRoundsByEventId(eventId);
+    for (EventRoundSetupRow round : rounds) {
+      validateRoundSetupComplete(round);
+    }
+
+    if (eventSetupRepository.countGroupsByEventId(eventId) < 1) {
+      throw new BadRequestException(
+          "Sự kiện phải có ít nhất một bảng đấu trước khi chuyển sang UPCOMING.");
+    }
+
+    if (awardRepository.countByEventId(eventId) < 1) {
+      throw new BadRequestException(
+          "Sự kiện phải có ít nhất một giải thưởng trước khi chuyển sang UPCOMING.");
+    }
+
+    if (event.maxTeams != null && eventSetupRepository.hasUnlimitedGroupsInEvent(eventId)) {
+      throw new BadRequestException(
+          "Khi sự kiện có giới hạn số đội, mọi bảng đấu phải có số đội tối đa.");
+    }
+
+    validateGitHubSetupForUpcoming();
+    validateGroupStaffingForUpcoming(eventId);
+  }
+
+  private void validateGitHubSetupForUpcoming() {
+    if (isBlank(gitHubAppConfig.getOrganization())
+        || isBlank(gitHubAppConfig.getInstallationId())
+        || isBlank(gitHubAppConfig.getPrivateKey())) {
+      throw new BadRequestException(
+          "GitHub App chưa được cấu hình đầy đủ (organization, installation ID hoặc private key).");
+    }
+  }
+
+  private void validateGroupStaffingForUpcoming(String eventId) {
+    List<EventSetupRepository.GroupStaffingGap> staffingGaps =
+        eventSetupRepository.findGroupStaffingGaps(eventId);
+    if (!staffingGaps.isEmpty()) {
+      List<String> labels = new ArrayList<>();
+      for (EventSetupRepository.GroupStaffingGap gap : staffingGaps) {
+        List<String> missing = new ArrayList<>();
+        if (gap.missingJudge()) {
+          missing.add("Judge");
+        }
+        if (gap.missingMentor()) {
+          missing.add("Mentor");
+        }
+        labels.add(
+            "Vòng \""
+                + gap.roundName()
+                + "\", bảng \""
+                + gap.groupName()
+                + "\": thiếu "
+                + String.join(" và ", missing));
+      }
+      throw new BadRequestException(
+          "Phải phân công đủ nhân sự trước khi chuyển UPCOMING: "
+              + String.join("; ", labels));
+    }
+
+    List<EventSetupRepository.JudgeGithubGap> githubGaps =
+        eventSetupRepository.findJudgesWithoutGithubUsername(eventId);
+    if (!githubGaps.isEmpty()) {
+      List<String> judges = new ArrayList<>();
+      for (EventSetupRepository.JudgeGithubGap judge : githubGaps) {
+        String label =
+            judge.fullName() == null || judge.fullName().isBlank()
+                ? judge.judgeId()
+                : judge.fullName();
+        judges.add(label);
+      }
+      throw new BadRequestException(
+          "Các Judge sau chưa liên kết GitHub nên chưa thể được mời vào repository: "
+              + String.join(", ", judges));
+    }
+  }
+
+  private boolean isBlank(String value) {
+    return value == null || value.isBlank();
+  }
+
+  private EventSetupRow mergeEventForUpcomingValidation(
+      String eventId, EventSetupRow pendingEvent) {
+    EventSetupRow stored =
+        eventSetupRepository
+            .findEventById(eventId)
+            .orElseThrow(() -> new BadRequestException("Không tìm thấy sự kiện."));
+    stored.title = pendingEvent.title;
+    stored.startDate = pendingEvent.startDate;
+    stored.endDate = pendingEvent.endDate;
+    stored.numRounds = pendingEvent.numRounds;
+    stored.maxTeams = pendingEvent.maxTeams;
+    return stored;
+  }
+
+  private void validateRoundSetupComplete(EventRoundSetupRow round) {
+    String roundLabel =
+        round.name == null || round.name.isBlank() ? round.roundId : round.name.trim();
+    if (round.name == null || round.name.isBlank()) {
+      throw new BadRequestException(
+          "Vòng đấu \"" + roundLabel + "\" phải có tên trước khi chuyển sang UPCOMING.");
+    }
+    if (round.startDate == null) {
+      throw new BadRequestException(
+          "Vòng đấu \"" + roundLabel + "\" phải có ngày bắt đầu trước khi chuyển sang UPCOMING.");
+    }
+    if (round.endDate == null) {
+      throw new BadRequestException(
+          "Vòng đấu \"" + roundLabel + "\" phải có ngày kết thúc trước khi chuyển sang UPCOMING.");
+    }
+    if (round.submissionDeadline == null) {
+      throw new BadRequestException(
+          "Vòng đấu \"" + roundLabel + "\" phải có hạn nộp bài trước khi chuyển sang UPCOMING.");
+    }
+    if (round.startDate.after(round.endDate)) {
+      throw new BadRequestException(
+          "Vòng đấu \"" + roundLabel + "\": ngày bắt đầu phải trước hoặc bằng ngày kết thúc.");
+    }
+    if (round.submissionDeadline.after(round.endDate)) {
+      throw new BadRequestException(
+          "Vòng đấu \"" + roundLabel + "\": hạn nộp bài phải trước hoặc bằng ngày kết thúc.");
+    }
+    if (round.winnersPerRound < 1) {
+      throw new BadRequestException(
+          "Vòng đấu \"" + roundLabel + "\" phải có số winner mỗi vòng ít nhất là 1.");
+    }
+
+    if (criteriaRepository.findCriteriaByRoundId(round.roundId).isEmpty()) {
+      throw new BadRequestException(
+          "Vòng đấu \""
+              + roundLabel
+              + "\" phải có ít nhất một tiêu chí chấm điểm trước khi chuyển sang UPCOMING.");
+    }
+
+    double totalWeight = criteriaRepository.sumWeightByRound(round.roundId, null);
+    if (Math.abs(totalWeight - 100.0) > 0.009) {
+      throw new BadRequestException(
+          "Vòng đấu \""
+              + roundLabel
+              + "\" phải có tổng trọng số tiêu chí đạt 100% (hiện tại: "
+              + String.format("%.2f", totalWeight)
+              + "%).");
+    }
+  }
 
   private void validateRoundWithinEvent(
       String eventId, Timestamp startDate, Timestamp endDate, Timestamp submissionDeadline) {

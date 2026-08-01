@@ -4,45 +4,77 @@ import { useState } from 'react'
  * Pagination
  *
  * Props:
- *   total        — total number of items
- *   pageSize     — items per page (default 5)
- *   currentPage  — 1-based current page
- *   onChange     — (page: number) => void
+ *   total            — total items (used when totalKnown)
+ *   pageSize         — items per page (default 5)
+ *   currentPage      — 1-based current page
+ *   onChange         — (page: number) => void
+ *   totalKnown       — false to hide "/ N" (e.g. GitHub list commits)
+ *   hasNext          — enable next when totalKnown is false
+ *   pageItemCount    — items on current page (accurate from–to)
  *
  * Usage:
  *   <Pagination total={22} pageSize={5} currentPage={page} onChange={setPage} />
  */
-export default function Pagination({ total, pageSize = 5, currentPage, onChange }) {
-  const totalPages = Math.ceil(total / pageSize)
-  if (totalPages <= 1) return null
+export default function Pagination({
+  total,
+  pageSize = 5,
+  currentPage,
+  onChange,
+  className,
+  itemLabel = 'mục',
+  showSinglePageSummary = false,
+  totalKnown = true,
+  hasNext = false,
+  pageItemCount
+}) {
+  const totalPages = totalKnown
+    ? Math.max(1, Math.ceil((total || 0) / pageSize))
+    : Math.max(1, currentPage + (hasNext ? 1 : 0))
 
-  const from = (currentPage - 1) * pageSize + 1
-  const to = Math.min(currentPage * pageSize, total)
+  const itemsOnPage =
+    pageItemCount != null
+      ? pageItemCount
+      : totalKnown
+        ? Math.max(0, Math.min(pageSize, (total || 0) - (currentPage - 1) * pageSize))
+        : pageSize
 
-  // Build page number array with ellipsis
-  const pages = buildPages(currentPage, totalPages)
+  const from = itemsOnPage === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const to = itemsOnPage === 0 ? 0 : from + itemsOnPage - 1
+
+  const summary =
+    totalKnown && (total || 0) > 0
+      ? `Hiển thị ${from}–${to} / ${total} ${itemLabel}`
+      : from === 0
+        ? `Không có ${itemLabel}`
+        : `Hiển thị ${from}–${to} ${itemLabel}`
+
+  const canGoNext = totalKnown ? currentPage < totalPages : Boolean(hasNext)
+  const showControls = totalPages > 1 || (!totalKnown && hasNext)
+
+  if (!showControls && !showSinglePageSummary) return null
+  if (!showControls && showSinglePageSummary && from === 0 && !(totalKnown && total > 0)) return null
 
   return (
-    <div style={wrapStyle}>
-      <span style={infoStyle}>
-        Hiển thị {from}–{to} / {total} mục
-      </span>
+    <div className={className} style={wrapStyle}>
+      <span style={infoStyle}>{summary}</span>
 
-      <div style={btnGroupStyle}>
-        <PageBtn onClick={() => onChange(currentPage - 1)} disabled={currentPage === 1} label='←' />
+      {showControls && (
+        <div style={btnGroupStyle}>
+          <PageBtn onClick={() => onChange(currentPage - 1)} disabled={currentPage === 1} label='←' />
 
-        {pages.map((p, i) =>
-          p === '...' ? (
-            <span key={`ellipsis-${i}`} style={ellipsisStyle}>
-              …
-            </span>
-          ) : (
-            <PageBtn key={p} onClick={() => onChange(p)} active={p === currentPage} label={String(p)} />
-          )
-        )}
+          {buildPages(currentPage, totalPages).map((p, i) =>
+            p === '...' ? (
+              <span key={`ellipsis-${i}`} style={ellipsisStyle}>
+                …
+              </span>
+            ) : (
+              <PageBtn key={p} onClick={() => onChange(p)} active={p === currentPage} label={String(p)} />
+            )
+          )}
 
-        <PageBtn onClick={() => onChange(currentPage + 1)} disabled={currentPage === totalPages} label='→' />
-      </div>
+          <PageBtn onClick={() => onChange(currentPage + 1)} disabled={!canGoNext} label='→' />
+        </div>
+      )}
     </div>
   )
 }

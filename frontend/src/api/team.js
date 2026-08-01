@@ -144,7 +144,10 @@ function mapTeamRegistrationRow(row) {
     groupId: String(r.groupId ?? r.group_id ?? ''),
     groupName: r.groupName ?? r.group_name ?? '',
     registrationStatus: r.registrationStatus ?? r.registration_status ?? '',
-    registeredAt: r.registeredAt ?? r.registered_at ?? ''
+    registeredAt: r.registeredAt ?? r.registered_at ?? '',
+    githubStatus: r.githubStatus ?? r.github_status ?? '',
+    githubRepoUrl: r.githubRepoUrl ?? r.github_repo_url ?? '',
+    repoAccessGranted: Boolean(r.repoAccessGranted ?? r.repo_access_granted)
   }
 }
 
@@ -208,6 +211,24 @@ function mapRoundRow(row) {
     endDate: r.endDate ?? r.end_date ?? '',
     submissionDeadline: r.submissionDeadline ?? r.submission_deadline ?? ''
   }
+}
+
+// DELETE /api/team/drop-event
+// Body: { teamId, eventId }
+// Response: { message, teamId, eventId }
+export async function dropEvent({ teamId, eventId }) {
+  const tId = (teamId || '').trim()
+  const eId = normalizeEventId(eventId)
+  if (!tId) throw new Error('Không xác định được đội')
+  if (!eId) throw new Error('Không xác định được sự kiện')
+
+  const data = parseJson(
+    await apiFetch('/api/team/drop-event', {
+      method: 'DELETE',
+      body: { teamId: tId, eventId: eId }
+    })
+  )
+  return data
 }
 
 // GET /api/team/rounds?eventId=...
