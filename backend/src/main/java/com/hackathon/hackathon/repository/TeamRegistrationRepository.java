@@ -46,6 +46,44 @@ public class TeamRegistrationRepository {
     }
   }
 
+  /**
+   * A team can still change members only before its upcoming event has started check-in.
+   * Once any member is checked in, or an event is ongoing, its roster is locked.
+   */
+  public boolean isRosterLockedForJoin(String teamId) {
+    String sql =
+        """
+        SELECT 1
+        FROM team_registrations tr
+        JOIN events e ON e.event_id = tr.event_id
+        WHERE tr.team_id = ?
+          AND tr.status IN ('PENDING', 'APPROVED')
+          AND (
+            e.status = 'ONGOING'
+            OR (
+              e.status = 'UPCOMING'
+              AND EXISTS (
+                SELECT 1
+                FROM check_ins ci
+                WHERE ci.event_id = tr.event_id
+                  AND ci.team_id = tr.team_id
+                  AND ci.checked_in = 1
+              )
+            )
+          )
+        LIMIT 1
+        """;
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setString(1, teamId);
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to check whether the team roster is locked.", e);
+    }
+  }
+
   public boolean insert(String eventId, String teamId, String status) {
     String registrationId = UUID.randomUUID().toString();
     String eventSql = "SELECT max_teams FROM events WHERE event_id = ? FOR UPDATE";

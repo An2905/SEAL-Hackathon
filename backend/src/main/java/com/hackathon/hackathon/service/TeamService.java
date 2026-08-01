@@ -138,6 +138,11 @@ public class TeamService {
                     new BadRequestException(
                         "Invalid enroll code. Please check the enroll code and try again."));
 
+    if (teamRegistrationRepository.isRosterLockedForJoin(teamId)) {
+      throw new BadRequestException(
+          "This team has checked in or is participating in an ongoing event. New members cannot join.");
+    }
+
     int memberCount = teamRepository.countMembers(teamId);
     int maxMembers = teamRepository.findMaxMembers(teamId);
     if (memberCount >= maxMembers) {
